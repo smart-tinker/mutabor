@@ -4,8 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Trash2, Save } from 'lucide-react';
-import { useColumns, useAddColumn, useDeleteColumn, useUpdateColumn } from '@/hooks/useColumns';
+import { ArrowLeft, Trash2, Save, ArrowUp, ArrowDown } from 'lucide-react';
+import { useColumns, useAddColumn, useDeleteColumn, useUpdateColumn, useUpdateColumnOrder } from '@/hooks/useColumns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Column } from '@/types';
 
@@ -17,6 +17,7 @@ const SettingsPage = () => {
   const addColumnMutation = useAddColumn();
   const deleteColumnMutation = useDeleteColumn();
   const updateColumnMutation = useUpdateColumn();
+  const updateColumnOrderMutation = useUpdateColumnOrder();
   const [newColumnName, setNewColumnName] = useState('');
   const [editableColumnTitles, setEditableColumnTitles] = useState<Record<string, string>>({});
 
@@ -78,6 +79,25 @@ const SettingsPage = () => {
     setEditableColumnTitles(prev => ({...prev, [id]: value}));
   };
 
+  const handleReorderColumn = (currentIndex: number, direction: 'up' | 'down') => {
+    if (!columns) return;
+    
+    const currentColumns = [...columns].sort((a, b) => a.order - b.order);
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+
+    if (targetIndex < 0 || targetIndex >= currentColumns.length) return;
+
+    const [movedItem] = currentColumns.splice(currentIndex, 1);
+    currentColumns.splice(targetIndex, 0, movedItem);
+
+    const updatedOrder = currentColumns.map((col, index) => ({
+        id: col.id,
+        order: index + 1
+    }));
+
+    updateColumnOrderMutation.mutate(updatedOrder);
+  };
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
         <div className="mb-8">
@@ -122,8 +142,30 @@ const SettingsPage = () => {
                             <Skeleton className="h-10 w-full" />
                             <Skeleton className="h-10 w-full" />
                         </div>
-                    ) : columns?.map((column) => (
+                    ) : columns?.map((column, index) => (
                         <div key={column.id} className="flex items-center gap-2">
+                            <div className="flex flex-col justify-center">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    onClick={() => handleReorderColumn(index, 'up')}
+                                    disabled={index === 0 || updateColumnOrderMutation.isPending}
+                                >
+                                    <ArrowUp className="h-4 w-4" />
+                                    <span className="sr-only">Move up</span>
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    onClick={() => handleReorderColumn(index, 'down')}
+                                    disabled={index === (columns?.length ?? 0) - 1 || updateColumnOrderMutation.isPending}
+                                >
+                                    <ArrowDown className="h-4 w-4" />
+                                    <span className="sr-only">Move down</span>
+                                </Button>
+                            </div>
                             <Input 
                                 value={editableColumnTitles[column.id] || ''}
                                 onChange={(e) => handleTitleChange(column.id, e.target.value)}

@@ -115,7 +115,6 @@ export const useUpdateColumn = () => {
     });
 };
 
-
 // Delete column
 const deleteColumn = async (id: string) => {
     // We should probably check if tasks are using this column before deleting
@@ -143,6 +142,53 @@ export const useDeleteColumn = () => {
                 description: error.message,
                 variant: "destructive",
             });
+        },
+    });
+};
+
+// Reorder columns
+const updateColumnOrder = async (columns: Pick<Column, 'id' | 'order'>[]): Promise<Column[]> => {
+    const { data, error } = await supabase
+        .from('columns')
+        .upsert(columns)
+        .select();
+
+    if (error) throw new Error(error.message);
+    if (!data) throw new Error("Не удалось обновить порядок статусов.");
+    return data;
+};
+
+export const useUpdateColumnOrder = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: updateColumnOrder,
+        onMutate: async (newOrder) => {
+            await queryClient.cancelQueries({ queryKey: ['columns'] });
+            const previousColumns = queryClient.getQueryData<Column[]>(['columns']);
+            
+            queryClient.setQueryData<Column[]>(['columns'], (old) => {
+                if (!old) return [];
+                const updatedColumns = old.map(c => {
+                    const newColOrder = newOrder.find(n => n.id === c.id);
+                    return newColOrder ? { ...c, order: newColOrder.order } : c;
+                });
+                return updatedColumns.sort((a,b) => a.order - b.order);
+            });
+
+            return { previousColumns };
+        },
+        onError: (err: Error, newOrder, context) => {
+            if (context?.previousColumns) {
+                queryClient.setQueryData(['columns'], context.previousColumns);
+            }
+            toast({
+                title: "Ошибка при обновлении порядка",
+                description: err.message,
+                variant: "destructive",
+            });
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['columns'] });
         },
     });
 };
