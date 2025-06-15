@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -8,6 +7,7 @@ import { Task, Message } from '@/types';
 import { Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from "@/hooks/use-toast";
+import { Link } from 'react-router-dom';
 
 const API_KEY_STORAGE_KEY = 'mutabor_google_api_key';
 
@@ -19,7 +19,6 @@ interface AiChatModalProps {
 
 const AiChatModal = ({ task, isOpen, onClose }: AiChatModalProps) => {
   const [apiKey, setApiKey] = useState('');
-  const [inputApiKey, setInputApiKey] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -29,8 +28,10 @@ const AiChatModal = ({ task, isOpen, onClose }: AiChatModalProps) => {
     const storedApiKey = localStorage.getItem(API_KEY_STORAGE_KEY);
     if (storedApiKey) {
       setApiKey(storedApiKey);
+    } else {
+      setApiKey('');
     }
-  }, []);
+  }, [isOpen]);
   
   useEffect(() => {
     if (task) {
@@ -47,14 +48,6 @@ const AiChatModal = ({ task, isOpen, onClose }: AiChatModalProps) => {
     }
   }, [messages]);
 
-  const handleApiKeySave = () => {
-    if (inputApiKey.trim()) {
-      localStorage.setItem(API_KEY_STORAGE_KEY, inputApiKey.trim());
-      setApiKey(inputApiKey.trim());
-      toast({ title: "API ключ сохранен!" });
-    }
-  };
-  
   const handleSendMessage = async () => {
     if (!userInput.trim() || isLoading) return;
 
@@ -107,15 +100,11 @@ const AiChatModal = ({ task, isOpen, onClose }: AiChatModalProps) => {
           <DialogDescription>Обсуждение задачи: {task?.title}</DialogDescription>
         </DialogHeader>
         {!apiKey ? (
-          <div className="flex-grow flex flex-col items-center justify-center gap-4">
-            <p className="text-center text-muted-foreground">Пожалуйста, введите ваш Google API ключ для доступа к Gemini.</p>
-            <Input 
-              type="password"
-              placeholder="Ваш Google API ключ"
-              value={inputApiKey}
-              onChange={e => setInputApiKey(e.target.value)}
-            />
-            <Button onClick={handleApiKeySave}>Сохранить ключ</Button>
+          <div className="flex-grow flex flex-col items-center justify-center gap-4 text-center">
+            <p className="text-muted-foreground">Для использования AI-помощника, пожалуйста, укажите ваш Google API ключ в настройках.</p>
+            <Button asChild>
+                <Link to="/settings" onClick={onClose}>Перейти в настройки</Link>
+            </Button>
           </div>
         ) : (
           <>
@@ -165,4 +154,3 @@ const AiChatModal = ({ task, isOpen, onClose }: AiChatModalProps) => {
 };
 
 export default AiChatModal;
-

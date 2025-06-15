@@ -46,5 +46,26 @@ export function useTasks() {
     setTasks(prevTasks => prevTasks.filter(task => task.id !== id));
   };
 
-  return { tasks, addTask, toggleTask, deleteTask };
+  const getTask = (id: string) => {
+    // We need to read from localStorage directly to get the most up-to-date data
+    // because this hook can be used on different pages.
+    try {
+      const storedTasks = localStorage.getItem(TASKS_STORAGE_KEY);
+      const allTasks = storedTasks ? JSON.parse(storedTasks) : [];
+      return allTasks.find((task: Task) => task.id === id);
+    } catch (error) {
+        console.error("Error reading tasks from localStorage", error);
+        return undefined;
+    }
+  };
+
+  const updateTask = (id: string, newTitle: string) => {
+      setTasks(prevTasks =>
+        prevTasks.map(task =>
+          task.id === id ? { ...task, title: newTitle.trim() } : task
+        )
+      );
+  };
+
+  return { tasks, addTask, toggleTask, deleteTask, getTask, updateTask };
 }

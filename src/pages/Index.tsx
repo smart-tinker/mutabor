@@ -1,25 +1,17 @@
 
-import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTasks } from '@/hooks/useTasks';
 import Header from '@/components/Header';
 import AddTaskForm from '@/components/AddTaskForm';
 import TaskList from '@/components/TaskList';
-import AiChatModal from '@/components/AiChatModal';
 import { Task } from '@/types';
 
 const Index = () => {
   const { tasks, addTask, toggleTask, deleteTask } = useTasks();
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const navigate = useNavigate();
 
-  const handleOpenChat = (task: Task) => {
-    setSelectedTask(task);
-    setIsChatOpen(true);
-  };
-
-  const handleCloseChat = () => {
-    setIsChatOpen(false);
-    setSelectedTask(null);
+  const handleOpenTaskDetail = (task: Task) => {
+    navigate(`/task/${task.id}`);
   };
 
   return (
@@ -31,14 +23,9 @@ const Index = () => {
           tasks={tasks}
           onToggle={toggleTask}
           onDelete={deleteTask}
-          onOpenChat={handleOpenChat}
+          onOpenChat={handleOpenTaskDetail}
         />
       </main>
-      <AiChatModal
-        task={selectedTask}
-        isOpen={isChatOpen}
-        onClose={handleCloseChat}
-      />
     </div>
   );
 };
