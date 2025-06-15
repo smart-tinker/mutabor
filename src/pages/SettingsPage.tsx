@@ -1,13 +1,13 @@
-
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Trash2 } from 'lucide-react';
-import { useColumns, useAddColumn, useDeleteColumn } from '@/hooks/useColumns';
+import { ArrowLeft, Trash2, Save } from 'lucide-react';
+import { useColumns, useAddColumn, useDeleteColumn, useUpdateColumn } from '@/hooks/useColumns';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Column } from '@/types';
 
 const API_KEY_STORAGE_KEY = 'mutabor_google_api_key';
 
@@ -16,7 +16,9 @@ const SettingsPage = () => {
   const { data: columns, isLoading: isLoadingColumns } = useColumns();
   const addColumnMutation = useAddColumn();
   const deleteColumnMutation = useDeleteColumn();
+  const updateColumnMutation = useUpdateColumn();
   const [newColumnName, setNewColumnName] = useState('');
+  const [editableColumnTitles, setEditableColumnTitles] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const storedApiKey = localStorage.getItem(API_KEY_STORAGE_KEY);
@@ -24,6 +26,16 @@ const SettingsPage = () => {
       setApiKey(storedApiKey);
     }
   }, []);
+
+  useEffect(() => {
+    if (columns) {
+      const initialTitles = columns.reduce((acc, column) => {
+        acc[column.id] = column.title;
+        return acc;
+      }, {} as Record<string, string>);
+      setEditableColumnTitles(initialTitles);
+    }
+  }, [columns]);
 
   const handleSave = () => {
     if (apiKey.trim()) {
@@ -55,6 +67,16 @@ const SettingsPage = () => {
     deleteColumnMutation.mutate(id);
   };
 
+  const handleUpdateColumn = (column: Column) => {
+    const newTitle = editableColumnTitles[column.id];
+    if (newTitle && newTitle.trim() && newTitle.trim() !== column.title) {
+        updateColumnMutation.mutate({ id: column.id, title: newTitle });
+    }
+  };
+
+  const handleTitleChange = (id: string, value: string) => {
+    setEditableColumnTitles(prev => ({...prev, [id]: value}));
+  };
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
@@ -102,7 +124,28 @@ const SettingsPage = () => {
                         </div>
                     ) : columns?.map((column) => (
                         <div key={column.id} className="flex items-center gap-2">
-                            <Input value={column.title} readOnly className="bg-background" />
+                            <Input 
+                                value={editableColumnTitles[column.id] || ''}
+                                onChange={(e) => handleTitleChange(column.id, e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleUpdateColumn(column);
+                                }}
+                                className="bg-background"
+                            />
+                            <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={() => handleUpdateColumn(column)}
+                                disabled={
+                                    updateColumnMutation.isPending || 
+                                    !editableColumnTitles[column.id] ||
+                                    editableColumnTitles[column.id].trim() === column.title ||
+                                    editableColumnTitles[column.id].trim() === ''
+                                }
+                            >
+                                <Save className="w-4 h-4" />
+                                <span className="sr-only">Сохранить {column.title}</span>
+                            </Button>
                             <Button 
                                 variant="ghost" 
                                 size="icon" 

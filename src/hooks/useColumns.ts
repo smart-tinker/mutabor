@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Column } from '@/types';
@@ -54,6 +53,53 @@ export const useAddColumn = () => {
         },
     });
 };
+
+// Update column
+const updateColumn = async ({ id, title }: { id: string; title: string }): Promise<Column> => {
+    if (!title.trim()) throw new Error("Название не может быть пустым.");
+
+    // Check if another column with the same title already exists
+    const { data: existing } = await supabase
+        .from('columns')
+        .select('id')
+        .ilike('title', title.trim())
+        .not('id', 'eq', id)
+        .maybeSingle();
+
+    if (existing) {
+        throw new Error("Статус с таким названием уже есть в списке.");
+    }
+
+    const { data, error } = await supabase
+        .from('columns')
+        .update({ title: title.trim() })
+        .eq('id', id)
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    if (!data) throw new Error("Не удалось обновить статус.");
+    return data;
+};
+
+export const useUpdateColumn = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: updateColumn,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['columns'] });
+            toast({ title: "Статус обновлен" });
+        },
+        onError: (error: Error) => {
+            toast({
+                title: "Ошибка при обновлении статуса",
+                description: error.message,
+                variant: "destructive",
+            });
+        },
+    });
+};
+
 
 // Delete column
 const deleteColumn = async (id: string) => {
