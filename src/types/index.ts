@@ -18,6 +18,7 @@ export interface Project {
   id: string;
   name: string;
   created_at: string;
+  user_id: string;
 }
 
 export interface Message {
