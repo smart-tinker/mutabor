@@ -21,7 +21,13 @@ const priorityConfig = {
 const TaskCard = ({ task, projectKey }: TaskCardProps) => {
     const priority = priorityConfig[task.priority];
 
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ 
+        id: task.id,
+        data: {
+            type: 'Task',
+            task,
+        }
+    });
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -29,7 +35,7 @@ const TaskCard = ({ task, projectKey }: TaskCardProps) => {
     };
 
     return (
-        <div ref={setNodeRef} style={style} className={cn(isDragging && "opacity-50 ring-2 ring-primary")}>
+        <div ref={setNodeRef} style={style} className={cn("bg-background", isDragging && "opacity-50 ring-2 ring-primary")}>
             <Card>
                 <CardContent className="p-3">
                     <div className="flex items-start gap-3">

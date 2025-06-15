@@ -18,7 +18,13 @@ interface TaskColumnProps {
 }
 
 const TaskColumn = ({ column, tasks, projectKey, projectId }: TaskColumnProps) => {
-    const { setNodeRef, isOver } = useDroppable({ id: column.id });
+    const { setNodeRef, isOver } = useDroppable({ 
+        id: column.id,
+        data: {
+            type: 'Column',
+            column
+        }
+    });
     const [newTaskTitle, setNewTaskTitle] = useState('');
     const addTaskMutation = useAddTask();
 
