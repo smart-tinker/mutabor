@@ -167,12 +167,12 @@ const TaskDetailPage = () => {
                     </div>
                     <div className="space-y-2">
                         <Label>Категория</Label>
-                        <Select value={categoryId || ''} onValueChange={(v) => setCategoryId(v === '' ? null : v)} onOpenChange={(open) => !open && handleSave()}>
+                        <Select value={categoryId || 'none'} onValueChange={(v) => setCategoryId(v === 'none' ? null : v)} onOpenChange={(open) => !open && handleSave()}>
                             <SelectTrigger disabled={updateTaskMutation.isPending}>
                                 <SelectValue placeholder="Без категории" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">Без категории</SelectItem>
+                                <SelectItem value="none">Без категории</SelectItem>
                                 {categories?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                             </SelectContent>
                         </Select>
