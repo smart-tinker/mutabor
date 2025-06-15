@@ -1,31 +1,26 @@
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
-import { useProject, useTasks, useUpdateTask } from '@/hooks/useProject';
+import { useProject, useTasks } from '@/hooks/useProject';
 import { useColumns } from '@/hooks/useColumns';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Settings } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import TaskColumn from '@/components/TaskColumn';
-import { Task } from '@/types';
-import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core';
-import { arrayMove } from '@dnd-kit/sortable';
-import { toast } from '@/hooks/use-toast';
+import { DndContext, PointerSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core';
+import { useTaskDnd } from '@/hooks/useTaskDnd';
 
 const ProjectDetailPage = () => {
     const { projectKey } = useParams<{ projectKey: string }>();
     const { session, loading: authLoading } = useAuth();
     const navigate = useNavigate();
-    const queryClient = useQueryClient();
 
     const { data: project, isLoading: isLoadingProject } = useProject(projectKey!);
     const { data: tasks, isLoading: isLoadingTasks } = useTasks(project?.id!);
     const { data: columns, isLoading: isLoadingColumns } = useColumns();
-    const updateTaskMutation = useUpdateTask();
     
-    const [optimisticTasks, setOptimisticTasks] = useState<Task[] | undefined>(undefined);
+    const { optimisticTasks, handleDragEnd } = useTaskDnd(tasks, project?.id);
 
     useEffect(() => {
         if (!authLoading && !session) {
@@ -33,143 +28,11 @@ const ProjectDetailPage = () => {
         }
     }, [session, authLoading, navigate]);
 
-    useEffect(() => {
-        if (tasks) {
-          // Assign index as order for DnD if not present
-          setOptimisticTasks(tasks.map((task, index) => ({ ...task, order: task.order ?? index })));
-        }
-    }, [tasks]);
-
     const sensors = useSensors(useSensor(PointerSensor, {
         activationConstraint: {
             distance: 8,
         },
     }));
-
-    const handleDragEnd = (event: DragEndEvent) => {
-        const { active, over } = event;
-
-        console.log('--- Drag End ---');
-        console.log('Active ID:', active.id);
-        console.log('Over ID:', over?.id);
-        console.log('Over type:', over?.data.current?.type);
-
-        if (!over || !optimisticTasks || active.id === over.id) return;
-
-        const originalTasks = [...optimisticTasks];
-        
-        const activeId = active.id as string;
-        const activeIndex = originalTasks.findIndex((t) => t.id === activeId);
-        if (activeIndex === -1) return;
-        const activeTask = originalTasks[activeIndex];
-
-        const overId = over.id as string;
-        const overIsColumn = over.data.current?.type === 'Column';
-        const overIsTask = over.data.current?.type === 'Task';
-        let newColumnId: string | null = null;
-
-        if (overIsTask) {
-            const overIndex = originalTasks.findIndex((t) => t.id === overId);
-            if(overIndex === -1) return;
-            newColumnId = originalTasks[overIndex].column_id;
-        } else if (overIsColumn) {
-            newColumnId = overId;
-        }
-
-        if (!newColumnId) {
-            console.log('No new column ID found. Bailing.');
-            return;
-        }
-        
-        console.log('Original Column ID:', activeTask.column_id);
-        console.log('New Column ID:', newColumnId);
-
-        let newTasks = [...originalTasks];
-        const originalColumnId = activeTask.column_id;
-
-        // Step 1: Create the new state optimistically
-        if (originalColumnId !== newColumnId) {
-            newTasks[activeIndex] = { ...activeTask, column_id: newColumnId };
-        }
-        
-        const finalActiveIndex = newTasks.findIndex(t => t.id === activeId);
-
-        if (overIsTask) {
-            const finalOverIndex = newTasks.findIndex(t => t.id === overId);
-            if (finalOverIndex !== -1 && finalActiveIndex !== finalOverIndex) {
-              newTasks = arrayMove(newTasks, finalActiveIndex, finalOverIndex);
-            }
-        } else if (overIsColumn) {
-            const taskToMove = newTasks.splice(finalActiveIndex, 1)[0];
-            
-            let lastIndexOfNewColumn = -1;
-            for(let i = newTasks.length - 1; i >= 0; i--) {
-                if(newTasks[i].column_id === newColumnId) {
-                    lastIndexOfNewColumn = i;
-                    break;
-                }
-            }
-            if(lastIndexOfNewColumn !== -1) {
-                newTasks.splice(lastIndexOfNewColumn + 1, 0, taskToMove);
-            } else {
-                 newTasks.push(taskToMove);
-            }
-        }
-        
-        const updatesToPersist: {taskId: string, updates: Partial<Task>}[] = [];
-        const affectedColumns = new Set([originalColumnId, newColumnId]);
-        
-        let finalTasks = [...newTasks];
-
-        affectedColumns.forEach(columnId => {
-            if (!columnId) return;
-            let orderCounter = 0;
-            finalTasks = finalTasks.map((task) => {
-                if (task.column_id === columnId) {
-                    const originalTaskState = originalTasks.find(t => t.id === task.id);
-                    const newOrder = orderCounter++;
-                    
-                    if (originalTaskState?.order !== newOrder || originalTaskState?.column_id !== task.column_id) {
-                        updatesToPersist.push({
-                            taskId: task.id,
-                            updates: { order: newOrder, column_id: task.column_id }
-                        });
-                    }
-                    return { ...task, order: newOrder };
-                }
-                return task;
-            });
-        });
-
-        console.log('Updates to persist:', updatesToPersist);
-        
-        // Set the optimistic state
-        setOptimisticTasks(finalTasks);
-
-        // Step 2: Persist changes to the server
-        if (updatesToPersist.length > 0) {
-            const updatePromises = updatesToPersist.map(update => 
-                updateTaskMutation.mutateAsync({ ...update, silent: true })
-            );
-
-            Promise.all(updatePromises)
-                .catch(error => {
-                    console.error("Failed to update tasks order:", error);
-                    toast({
-                        title: "Ошибка при обновлении порядка задач",
-                        variant: "destructive"
-                    });
-                    // Revert on failure
-                    setOptimisticTasks(originalTasks);
-                })
-                .finally(() => {
-                    // Always invalidate to ensure consistency with the server
-                     if (project?.id) {
-                        queryClient.invalidateQueries({ queryKey: ['tasks', project.id] });
-                    }
-                });
-        }
-    };
     
     const isLoading = isLoadingProject || !project || isLoadingTasks || isLoadingColumns;
 
@@ -242,4 +105,3 @@ const ProjectDetailPage = () => {
 }
 
 export default ProjectDetailPage;
-
