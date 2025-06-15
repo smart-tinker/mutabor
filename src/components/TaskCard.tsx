@@ -31,23 +31,24 @@ const TaskCard = ({ task, projectKey }: TaskCardProps) => {
     return (
         <div ref={setNodeRef} style={style} className={cn(isDragging && "opacity-50 ring-2 ring-primary")}>
             <Card>
-                <CardContent className="p-2">
-                    <div className="flex justify-between items-center gap-2">
-                        <div {...attributes} {...listeners} className="cursor-grab p-2 text-muted-foreground hover:text-foreground">
+                <CardContent className="p-3">
+                    <div className="flex items-start gap-3">
+                        <div {...attributes} {...listeners} className="cursor-grab text-muted-foreground hover:text-foreground pt-1">
                             <GripVertical className="h-5 w-5" />
                         </div>
                         <div className="flex-grow">
-                            <Link to={`/project/${projectKey}/task/${task.key}`} className="font-medium hover:underline block">
-                                <div className="flex justify-between items-start gap-2">
-                                    <div className="flex-grow">
-                                        {task.key && <span className="text-muted-foreground mr-2 font-mono text-xs">{task.key}</span>}
-                                        <span>{task.title}</span>
-                                    </div>
-                                </div>
+                            <Link to={`/project/${projectKey}/task/${task.key}`} className="font-medium hover:underline">
+                                {task.key && <span className="text-muted-foreground mr-2 font-mono text-xs">{task.key}</span>}
+                                {task.title}
                             </Link>
+                            {task.description && (
+                                <p className="text-sm text-muted-foreground mt-1 truncate" title={task.description}>
+                                    {task.description}
+                                </p>
+                            )}
                         </div>
                         {priority && (
-                             <div className="flex-shrink-0 pr-2" title={`Приоритет: ${priority.label}`}>
+                             <div className="flex-shrink-0 pt-1" title={`Приоритет: ${priority.label}`}>
                                 <span className="flex items-center">{priority.icon}</span>
                             </div>
                         )}
