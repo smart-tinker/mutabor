@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -28,7 +27,6 @@ const App = () => (
           <Route path="/project/:projectId" element={<ProjectDetailPage />} />
           <Route path="/project/:projectId/settings" element={<ProjectSettingsPage />} />
           <Route path="/project/:projectId/task/:taskKey" element={<TaskDetailPage />} />
-          <Route path="/task/:id" element={<TaskDetailPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useProject, useTasks, useAddTask } from '@/hooks/useProject';
@@ -103,7 +102,7 @@ const ProjectDetailPage = () => {
                             {tasks?.filter(t => t.column_id === column.id).map(task => (
                                 <Card key={task.id}>
                                     <CardContent className="p-4">
-                                        <Link to={`/task/${task.id}`} className="font-medium hover:underline">
+                                        <Link to={`/project/${projectId}/task/${task.key}`} className="font-medium hover:underline">
                                             {task.key && <span className="text-muted-foreground mr-2 font-mono text-xs">{task.key}</span>}
                                             {task.title}
                                         </Link>

@@ -16,7 +16,7 @@ import TaskActions from '@/components/task-detail/TaskActions';
 
 
 const TaskDetailPage = () => {
-    const { id: taskId, projectId, taskKey } = useParams<{ id?: string, projectId?: string, taskKey?: string }>();
+    const { projectId, taskKey } = useParams<{ projectId?: string, taskKey?: string }>();
     const navigate = useNavigate();
     const { session, loading: authLoading } = useAuth();
 
@@ -27,7 +27,7 @@ const TaskDetailPage = () => {
     }, [session, authLoading, navigate]);
 
 
-    const { data: task, isLoading: isLoadingTask, isError } = useTask({ taskId, projectId, taskKey });
+    const { data: task, isLoading: isLoadingTask, isError } = useTask({ projectId, taskKey });
     const { data: columns, isLoading: isLoadingColumns } = useColumns();
     const { data: categories, isLoading: isLoadingCategories } = useCategories(task?.project_id || '');
     const updateTaskMutation = useUpdateTask();

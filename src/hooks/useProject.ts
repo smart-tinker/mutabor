@@ -37,14 +37,7 @@ export const useTasks = (projectId: string) => {
 };
 
 // Fetch single task details
-const fetchTask = async ({ taskId, projectId, taskKey }: { taskId?: string; projectId?: string; taskKey?: string }): Promise<Task | null> => {
-    if (taskId) {
-        const { data, error } = await supabase.from('tasks').select('*').eq('id', taskId).maybeSingle();
-        if (error) {
-            throw new Error(error.message);
-        }
-        return data;
-    }
+const fetchTask = async ({ projectId, taskKey }: { projectId?: string; taskKey?: string }): Promise<Task | null> => {
     if (projectId && taskKey) {
         const { data, error } = await supabase
             .from('tasks')
@@ -60,11 +53,11 @@ const fetchTask = async ({ taskId, projectId, taskKey }: { taskId?: string; proj
     return null;
 };
 
-export const useTask = ({ taskId, projectId, taskKey }: { taskId?: string; projectId?: string; taskKey?: string }) => {
+export const useTask = ({ projectId, taskKey }: { projectId?: string; taskKey?: string }) => {
     return useQuery({
-        queryKey: ['task', { taskId, projectId, taskKey }],
-        queryFn: () => fetchTask({ taskId, projectId, taskKey }),
-        enabled: !!taskId || (!!projectId && !!taskKey),
+        queryKey: ['task', { projectId, taskKey }],
+        queryFn: () => fetchTask({ projectId, taskKey }),
+        enabled: !!projectId && !!taskKey,
     });
 };
 
