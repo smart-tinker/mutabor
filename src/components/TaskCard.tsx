@@ -42,7 +42,7 @@ const TaskCard = ({ task, projectKey }: TaskCardProps) => {
                                 {task.title}
                             </Link>
                             {task.description && (
-                                <p className="text-sm text-muted-foreground mt-1 truncate" title={task.description}>
+                                <p className="text-sm text-muted-foreground mt-1" title={task.description}>
                                     {task.description}
                                 </p>
                             )}
