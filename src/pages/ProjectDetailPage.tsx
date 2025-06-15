@@ -1,5 +1,7 @@
+
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useProject, useTasks, useUpdateTask } from '@/hooks/useProject';
 import { useColumns } from '@/hooks/useColumns';
 import { Button } from '@/components/ui/button';
@@ -10,11 +12,13 @@ import TaskColumn from '@/components/TaskColumn';
 import { Task } from '@/types';
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors, closestCorners } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
+import { toast } from '@/hooks/use-toast';
 
 const ProjectDetailPage = () => {
     const { projectKey } = useParams<{ projectKey: string }>();
     const { session, loading: authLoading } = useAuth();
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
 
     const { data: project, isLoading: isLoadingProject } = useProject(projectKey!);
     const { data: tasks, isLoading: isLoadingTasks } = useTasks(project?.id!);
@@ -45,93 +49,107 @@ const ProjectDetailPage = () => {
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
 
-        if (!over || active.id === over.id) return;
+        if (!over || !optimisticTasks || active.id === over.id) return;
 
-        setOptimisticTasks((currentTasks) => {
-            if (!currentTasks) return undefined;
+        const originalTasks = [...optimisticTasks];
+        
+        const activeId = active.id as string;
+        const activeIndex = originalTasks.findIndex((t) => t.id === activeId);
+        if (activeIndex === -1) return;
+        const activeTask = originalTasks[activeIndex];
 
-            const oldTasks = [...currentTasks];
-            const activeId = active.id as string;
-            const overId = over.id as string;
-            
-            const activeIndex = oldTasks.findIndex((t) => t.id === activeId);
-            const activeTask = oldTasks[activeIndex];
-            
-            const overIsColumn = over.data.current?.type === 'Column';
-            const overIsTask = over.data.current?.type === 'Task';
-            let newColumnId: string | null = null;
+        const overId = over.id as string;
+        const overIsColumn = over.data.current?.type === 'Column';
+        const overIsTask = over.data.current?.type === 'Task';
+        let newColumnId: string | null = null;
 
-            if (overIsTask) {
-                const overIndex = oldTasks.findIndex((t) => t.id === overId);
-                newColumnId = oldTasks[overIndex]?.column_id;
-            } else if (overIsColumn) {
-                newColumnId = overId;
+        if (overIsTask) {
+            const overIndex = originalTasks.findIndex((t) => t.id === overId);
+            if(overIndex === -1) return;
+            newColumnId = originalTasks[overIndex].column_id;
+        } else if (overIsColumn) {
+            newColumnId = overId;
+        }
+
+        if (!newColumnId) return;
+        
+        let newTasks = [...originalTasks];
+        const originalColumnId = activeTask.column_id;
+
+        // Step 1: Create the new state optimistically
+        if (originalColumnId !== newColumnId) {
+            newTasks[activeIndex] = { ...activeTask, column_id: newColumnId };
+        }
+        
+        const finalActiveIndex = newTasks.findIndex(t => t.id === activeId);
+
+        if (overIsTask) {
+            const finalOverIndex = newTasks.findIndex(t => t.id === overId);
+            if (finalOverIndex !== -1) {
+              newTasks = arrayMove(newTasks, finalActiveIndex, finalOverIndex);
             }
-
-            if (!newColumnId) return oldTasks;
+        } else if (overIsColumn && originalColumnId !== newColumnId) {
+            const taskToMove = newTasks.splice(finalActiveIndex, 1)[0];
             
-            let newTasks = [...oldTasks];
-            const originalColumnId = activeTask.column_id;
-
-            // Step 1: Optimistically update array for UI
-            // First, update column_id if it's changing
-            if (originalColumnId !== newColumnId) {
-                newTasks[activeIndex] = { ...activeTask, column_id: newColumnId };
-            }
-            
-            const finalActiveIndex = newTasks.findIndex(t => t.id === activeId);
-
-            if (overIsTask) {
-                const finalOverIndex = newTasks.findIndex(t => t.id === overId);
-                if (finalOverIndex !== -1) {
-                  newTasks = arrayMove(newTasks, finalActiveIndex, finalOverIndex);
+            let lastIndexOfNewColumn = -1;
+            for(let i = newTasks.length - 1; i >= 0; i--) {
+                if(newTasks[i].column_id === newColumnId) {
+                    lastIndexOfNewColumn = i;
+                    break;
                 }
-            } else if (overIsColumn && originalColumnId !== newColumnId) {
-                const taskToMove = newTasks.splice(finalActiveIndex, 1)[0];
-                
-                let lastIndexOfNewColumn = -1;
-                for(let i = newTasks.length - 1; i >= 0; i--) {
-                    if(newTasks[i].column_id === newColumnId) {
-                        lastIndexOfNewColumn = i;
-                        break;
+            }
+            if(lastIndexOfNewColumn !== -1) {
+                newTasks.splice(lastIndexOfNewColumn + 1, 0, taskToMove);
+            } else {
+                 newTasks.push(taskToMove);
+            }
+        }
+        
+        const updatesToPersist: {taskId: string, updates: Partial<Task>}[] = [];
+        const affectedColumns = new Set([originalColumnId, newColumnId]);
+        
+        affectedColumns.forEach(columnId => {
+            let orderCounter = 0;
+            newTasks.forEach((task, index) => {
+                if (task.column_id === columnId) {
+                    const originalTaskState = originalTasks.find(t => t.id === task.id);
+                    const newOrder = orderCounter++;
+                    
+                    if (originalTaskState?.order !== newOrder || originalTaskState?.column_id !== task.column_id) {
+                        updatesToPersist.push({
+                            taskId: task.id,
+                            updates: { order: newOrder, column_id: task.column_id }
+                        });
                     }
+                    newTasks[index] = { ...task, order: newOrder };
                 }
-                if(lastIndexOfNewColumn !== -1) {
-                    newTasks.splice(lastIndexOfNewColumn + 1, 0, taskToMove);
-                } else {
-                     newTasks.push(taskToMove);
-                }
-            }
-            
-            // Step 2: Recalculate order for affected columns and collect updates
-            const updatesToPersist: {taskId: string, updates: Partial<Task>}[] = [];
-            const affectedColumns = new Set([originalColumnId, newColumnId]);
-            
-            affectedColumns.forEach(columnId => {
-                let orderCounter = 0;
-                newTasks.forEach((task, index) => {
-                    if (task.column_id === columnId) {
-                        const originalTask = oldTasks.find(t => t.id === task.id);
-                        const newOrder = orderCounter++;
-                        
-                        if (originalTask?.order !== newOrder || originalTask?.column_id !== task.column_id) {
-                            updatesToPersist.push({
-                                taskId: task.id,
-                                updates: { order: newOrder, column_id: task.column_id }
-                            });
-                        }
-                        newTasks[index] = { ...task, order: newOrder };
-                    }
-                });
             });
-
-            // Step 3: Fire all mutations
-            updatesToPersist.forEach(update => {
-                updateTaskMutation.mutate({ ...update, silent: true });
-            });
-
-            return newTasks;
         });
+
+        // Set the optimistic state
+        setOptimisticTasks(newTasks);
+
+        // Step 2: Persist changes to the server
+        const updatePromises = updatesToPersist.map(update => 
+            updateTaskMutation.mutateAsync({ ...update, silent: true })
+        );
+
+        Promise.all(updatePromises)
+            .catch(error => {
+                console.error("Failed to update tasks order:", error);
+                toast({
+                    title: "Ошибка при обновлении порядка задач",
+                    variant: "destructive"
+                });
+                // Revert on failure
+                setOptimisticTasks(originalTasks);
+            })
+            .finally(() => {
+                // Always invalidate to ensure consistency with the server
+                 if (project?.id) {
+                    queryClient.invalidateQueries({ queryKey: ['tasks', project.id] });
+                }
+            });
     };
     
     const isLoading = isLoadingProject || !project || isLoadingTasks || isLoadingColumns;

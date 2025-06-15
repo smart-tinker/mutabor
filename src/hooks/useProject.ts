@@ -81,9 +81,20 @@ export const useTask = ({ projectKey, taskKey }: { projectKey?: string; taskKey?
 type AddTaskPayload = { projectId: string; columnId: string; title: string; description?: string };
 const addTask = async ({ projectId, columnId, title, description }: AddTaskPayload): Promise<Task> => {
     if (!title.trim()) throw new Error("Title is required");
+
+    // Get current number of tasks in the column to set the order
+    const { count, error: countError } = await supabase
+        .from('tasks')
+        .select('*', { count: 'exact', head: true })
+        .eq('project_id', projectId)
+        .eq('column_id', columnId);
+
+    if (countError) throw new Error(countError.message);
+    const order = count ?? 0;
+
     const { data, error } = await supabase
         .from('tasks')
-        .insert({ project_id: projectId, column_id: columnId, title: title.trim(), description })
+        .insert({ project_id: projectId, column_id: columnId, title: title.trim(), description, order })
         .select()
         .single();
     if (error) throw new Error(error.message);
