@@ -9,20 +9,52 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      categories: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          project_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          project_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categories_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       columns: {
         Row: {
           created_at: string
           id: string
+          order: number
           title: string
         }
         Insert: {
           created_at?: string
           id: string
+          order: number
           title: string
         }
         Update: {
           created_at?: string
           id?: string
+          order?: number
           title?: string
         }
         Relationships: []
@@ -50,30 +82,43 @@ export type Database = {
       }
       tasks: {
         Row: {
+          category_id: string | null
           column_id: string
           created_at: string
           description: string | null
+          due_date: string | null
           id: string
           project_id: string
           title: string
         }
         Insert: {
+          category_id?: string | null
           column_id: string
           created_at?: string
           description?: string | null
+          due_date?: string | null
           id?: string
           project_id: string
           title: string
         }
         Update: {
+          category_id?: string | null
           column_id?: string
           created_at?: string
           description?: string | null
+          due_date?: string | null
           id?: string
           project_id?: string
           title?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "tasks_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tasks_column_id_fkey"
             columns: ["column_id"]

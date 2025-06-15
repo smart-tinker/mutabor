@@ -5,7 +5,7 @@ import { toast } from '@/hooks/use-toast';
 
 // Fetch columns
 const fetchColumns = async (): Promise<Column[]> => {
-    const { data, error } = await supabase.from('columns').select('*').order('created_at');
+    const { data, error } = await supabase.from('columns').select('*').order('order');
     if (error) throw new Error(error.message);
     return data || [];
 };

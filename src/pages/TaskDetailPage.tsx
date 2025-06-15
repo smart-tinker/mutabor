@@ -2,14 +2,24 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTask, useUpdateTask, useDeleteTask } from '@/hooks/useProject';
+import { useColumns } from '@/hooks/useColumns';
+import { useCategories } from '@/hooks/useCategories';
 import AiChatModal from '@/components/AiChatModal';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Bot, Trash2 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { ArrowLeft, Bot, Trash2, Calendar as CalendarIcon } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
+import { format } from "date-fns";
+import { ru } from 'date-fns/locale';
+import { cn } from "@/lib/utils";
+import { Task } from '@/types';
+
 
 const TaskDetailPage = () => {
     const { id: taskId } = useParams<{ id: string }>();
@@ -23,26 +33,54 @@ const TaskDetailPage = () => {
     }, [session, authLoading, navigate]);
 
 
-    const { data: task, isLoading, isError } = useTask(taskId!);
+    const { data: task, isLoading: isLoadingTask, isError } = useTask(taskId!);
+    const { data: columns, isLoading: isLoadingColumns } = useColumns();
+    const { data: categories, isLoading: isLoadingCategories } = useCategories(task?.project_id || '');
     const updateTaskMutation = useUpdateTask(taskId!, task?.project_id);
     const deleteTaskMutation = useDeleteTask(taskId!, task?.project_id);
 
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
+    const [columnId, setColumnId] = useState<string | undefined>();
+    const [dueDate, setDueDate] = useState<Date | undefined>();
+    const [categoryId, setCategoryId] = useState<string | null>(null);
     const [isChatOpen, setIsChatOpen] = useState(false);
 
     useEffect(() => {
         if (task) {
             setTitle(task.title);
             setDescription(task.description || '');
+            setColumnId(task.column_id);
+            setDueDate(task.due_date ? new Date(task.due_date) : undefined);
+            setCategoryId(task.category_id);
         }
     }, [task]);
 
     const handleSave = () => {
-        if (task && title.trim()) {
-            if (title !== task.title || description !== (task.description || '')) {
-                updateTaskMutation.mutate({ taskId: task.id, updates: { title, description } });
-            }
+        if (!task || !title.trim()) return;
+        
+        const updates: Partial<Omit<Task, 'id' | 'project_id' | 'created_at'>> = {};
+
+        if (title.trim() !== task.title) {
+            updates.title = title.trim();
+        }
+        if (description !== (task.description || '')) {
+            updates.description = description;
+        }
+        if (columnId && columnId !== task.column_id) {
+            updates.column_id = columnId;
+        }
+        if (categoryId !== task.category_id) {
+            updates.category_id = categoryId;
+        }
+        
+        const newDueDate = dueDate ? dueDate.toISOString() : null;
+        if (newDueDate !== task.due_date) {
+            updates.due_date = newDueDate;
+        }
+
+        if (Object.keys(updates).length > 0) {
+            updateTaskMutation.mutate({ taskId: task.id, updates });
         }
     };
 
@@ -56,13 +94,20 @@ const TaskDetailPage = () => {
         }
     }
     
-    if (authLoading || isLoading) {
+    const isLoading = authLoading || isLoadingTask || isLoadingColumns || isLoadingCategories;
+    
+    if (isLoading) {
         return (
             <div className="max-w-2xl mx-auto px-4 py-8 space-y-8">
                 <Skeleton className="h-6 w-40" />
                 <div className="space-y-4">
                     <Skeleton className="h-4 w-24" />
                     <Skeleton className="h-12 w-full" />
+                </div>
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
                 </div>
                 <div className="space-y-4">
                     <Skeleton className="h-4 w-24" />
@@ -108,6 +153,61 @@ const TaskDetailPage = () => {
                     />
                 </div>
                 
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-2">
+                        <Label>Статус</Label>
+                        <Select value={columnId} onValueChange={setColumnId} onOpenChange={(open) => !open && handleSave()}>
+                            <SelectTrigger disabled={updateTaskMutation.isPending}>
+                                <SelectValue placeholder="Выберите статус..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {columns?.sort((a,b) => a.order - b.order).map(c => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Категория</Label>
+                        <Select value={categoryId || ''} onValueChange={(v) => setCategoryId(v === '' ? null : v)} onOpenChange={(open) => !open && handleSave()}>
+                            <SelectTrigger disabled={updateTaskMutation.isPending}>
+                                <SelectValue placeholder="Без категории" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="">Без категории</SelectItem>
+                                {categories?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Срок выполнения</Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                variant={"outline"}
+                                className={cn(
+                                    "w-full justify-start text-left font-normal",
+                                    !dueDate && "text-muted-foreground"
+                                )}
+                                disabled={updateTaskMutation.isPending}
+                                >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {dueDate ? format(dueDate, "PPP", { locale: ru }) : <span>Выберите дату</span>}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                mode="single"
+                                selected={dueDate}
+                                onSelect={(date) => {
+                                    setDueDate(date as Date);
+                                    handleSave();
+                                }}
+                                initialFocus
+                                />
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                </div>
+
                 <div className="space-y-2">
                     <Label htmlFor="task-description">Описание</Label>
                     <Textarea 
