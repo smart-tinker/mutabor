@@ -147,7 +147,7 @@ export const useDeleteColumn = () => {
 };
 
 // Reorder columns
-const updateColumnOrder = async (columns: Pick<Column, 'id' | 'order'>[]): Promise<Column[]> => {
+const updateColumnOrder = async (columns: Pick<Column, 'id' | 'order' | 'title'>[]): Promise<Column[]> => {
     const { data, error } = await supabase
         .from('columns')
         .upsert(columns)

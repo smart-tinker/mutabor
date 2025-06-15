@@ -92,6 +92,7 @@ const SettingsPage = () => {
 
     const updatedOrder = currentColumns.map((col, index) => ({
         id: col.id,
+        title: col.title,
         order: index + 1
     }));
 
