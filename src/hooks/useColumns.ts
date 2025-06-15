@@ -26,9 +26,24 @@ const addColumn = async (title: string): Promise<Column> => {
         throw new Error("Статус с таким названием уже есть в списке.");
     }
     
+    // Fetch the highest order value
+    const { data: maxOrderColumn, error: maxOrderError } = await supabase
+        .from('columns')
+        .select('order')
+        .order('order', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+    
+    if (maxOrderError) {
+        throw new Error(maxOrderError.message);
+    }
+
+    const newOrder = (maxOrderColumn?.order || 0) + 1;
+
     const newColumn = {
         id: crypto.randomUUID(),
         title: title.trim(),
+        order: newOrder,
     };
 
     const { data, error } = await supabase.from('columns').insert(newColumn).select().single();
