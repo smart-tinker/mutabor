@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { Project, Task, Column } from '@/types';
 import { useColumnData } from './useColumnData';
@@ -40,7 +39,12 @@ export function useProjectData() {
         try {
             const storedProjects = localStorage.getItem(PROJECTS_STORAGE_KEY);
             if (storedProjects) {
-                initialProjects = JSON.parse(storedProjects);
+                const parsedProjects = JSON.parse(storedProjects);
+                if (Array.isArray(parsedProjects) && parsedProjects.length > 0) {
+                    initialProjects = parsedProjects;
+                } else {
+                    initialProjects = [createDefaultProject(defaultColumns)];
+                }
             } else {
                 initialProjects = [createDefaultProject(defaultColumns)];
             }
@@ -75,6 +79,14 @@ export function useProjectData() {
     }
   };
   
+  const addDefaultProject = () => {
+    const defaultProject = createDefaultProject(defaultColumns);
+    const projectExists = projects.some(p => p.name === defaultProject.name);
+    if (!projectExists) {
+        setProjects(prevProjects => [...prevProjects, defaultProject]);
+    }
+  };
+
   const getProject = (projectId: string) => {
     return projects.find(p => p.id === projectId);
   };
@@ -126,5 +138,5 @@ export function useProjectData() {
     }));
   };
 
-  return { projects, addProject, getProject, addTask, getTask, updateTask, deleteTask, setProjects };
+  return { projects, addProject, getProject, addTask, getTask, updateTask, deleteTask, setProjects, addDefaultProject };
 }

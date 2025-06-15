@@ -7,11 +7,16 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus } from 'lucide-react';
 
 const Index = () => {
-  const { projects, addProject } = useProjectData();
+  const { projects, addProject, addDefaultProject } = useProjectData();
 
   const handleAddProject = () => {
-    const newProjectName = `Новый проект ${projects.length + 1}`;
-    addProject(newProjectName);
+    const mutaborProjectExists = projects.some(p => p.name === 'Разработка Mutabor');
+    if (!mutaborProjectExists) {
+        addDefaultProject();
+    } else {
+        const newProjectName = `Новый проект ${projects.length + 1}`;
+        addProject(newProjectName);
+    }
   };
 
   return (
