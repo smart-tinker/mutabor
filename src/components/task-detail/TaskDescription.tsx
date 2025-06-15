@@ -1,28 +1,31 @@
 
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useFormContext } from 'react-hook-form';
+import { FormControl, FormField, FormItem } from '@/components/ui/form';
 
-interface TaskDescriptionProps {
-    description: string;
-    setDescription: (description: string) => void;
-    handleSave: () => void;
-    isPending: boolean;
-}
-
-const TaskDescription = ({ description, setDescription, handleSave, isPending }: TaskDescriptionProps) => {
+const TaskDescription = () => {
+    const { control, formState: { isSubmitting } } = useFormContext();
     return (
-        <div className="space-y-2">
-            <Label htmlFor="task-description">Описание</Label>
-            <Textarea 
-                id="task-description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Добавьте более подробное описание..."
-                className="min-h-[120px]"
-                onBlur={handleSave}
-                disabled={isPending}
-            />
-        </div>
+        <FormField
+            control={control}
+            name="description"
+            render={({ field }) => (
+                <FormItem className="space-y-2">
+                    <Label htmlFor="task-description">Описание</Label>
+                    <FormControl>
+                        <Textarea 
+                            id="task-description"
+                            placeholder="Добавьте более подробное описание..."
+                            className="min-h-[120px]"
+                            disabled={isSubmitting}
+                            {...field}
+                            value={field.value || ''}
+                        />
+                    </FormControl>
+                </FormItem>
+            )}
+        />
     );
 };
 

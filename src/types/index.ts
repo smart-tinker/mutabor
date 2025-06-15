@@ -15,6 +15,7 @@ export interface Task {
   created_at: string;
   due_date: string | null;
   category_id: string | null;
+  priority: 'Low' | 'Medium' | 'High';
 }
 
 export interface Project {

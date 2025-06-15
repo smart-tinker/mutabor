@@ -98,6 +98,7 @@ export type Database = {
           due_date: string | null
           id: string
           key: string | null
+          priority: Database["public"]["Enums"]["task_priority"]
           project_id: string
           title: string
         }
@@ -109,6 +110,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           key?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
           project_id: string
           title: string
         }
@@ -120,6 +122,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           key?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
           project_id?: string
           title?: string
         }
@@ -155,7 +158,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      task_priority: "Low" | "Medium" | "High"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -270,6 +273,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      task_priority: ["Low", "Medium", "High"],
+    },
   },
 } as const
