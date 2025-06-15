@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Project, Task } from '@/types';
@@ -119,6 +118,38 @@ export const useDeleteTask = (taskId: string, projectId?: string) => {
             }
             queryClient.removeQueries({ queryKey: ['task', taskId] });
             toast({ title: "Задача удалена.", variant: "destructive" });
+        },
+    });
+};
+
+// Update a project
+type UpdateProjectPayload = { projectId: string; updates: Partial<Omit<Project, 'id' | 'created_at' | 'user_id' | 'task_counter'>> };
+const updateProject = async ({ projectId, updates }: UpdateProjectPayload): Promise<Project> => {
+    const { data, error } = await supabase
+        .from('projects')
+        .update(updates)
+        .eq('id', projectId)
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+};
+
+export const useUpdateProject = (projectId: string) => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: updateProject,
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ['projects'] });
+            queryClient.setQueryData(['project', projectId], data);
+            toast({ title: "Проект обновлен." });
+        },
+        onError: (error: Error) => {
+            toast({
+                title: 'Ошибка при обновлении проекта',
+                description: error.message,
+                variant: 'destructive',
+            });
         },
     });
 };

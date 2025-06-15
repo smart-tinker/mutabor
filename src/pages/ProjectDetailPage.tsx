@@ -5,7 +5,7 @@ import { useProject, useTasks, useAddTask } from '@/hooks/useProject';
 import { useColumns } from '@/hooks/useColumns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { ArrowLeft, Plus, Settings } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
@@ -84,7 +84,15 @@ const ProjectDetailPage = () => {
                         К проектам
                     </Link>
                 </Button>
-                <h1 className="text-4xl font-bold tracking-tight mt-2">{project.name}</h1>
+                <div className="flex items-center justify-between gap-4 mt-2">
+                    <h1 className="text-4xl font-bold tracking-tight">{project.name}</h1>
+                    <Button variant="outline" size="icon" asChild>
+                        <Link to={`/project/${projectId}/settings`}>
+                            <Settings className="w-5 h-5" />
+                            <span className="sr-only">Настройки проекта</span>
+                        </Link>
+                    </Button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-start">
@@ -96,6 +104,7 @@ const ProjectDetailPage = () => {
                                 <Card key={task.id}>
                                     <CardContent className="p-4">
                                         <Link to={`/task/${task.id}`} className="font-medium hover:underline">
+                                            {task.key && <span className="text-muted-foreground mr-2 font-mono text-xs">{task.key}</span>}
                                             {task.title}
                                         </Link>
                                     </CardContent>

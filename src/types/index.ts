@@ -1,3 +1,4 @@
+
 export interface Column {
   id: string;
   title: string;
@@ -7,6 +8,7 @@ export interface Column {
 
 export interface Task {
   id: string;
+  key: string | null;
   title: string;
   description: string | null;
   column_id: string;
@@ -21,6 +23,8 @@ export interface Project {
   name: string;
   created_at: string;
   user_id: string;
+  task_prefix: string | null;
+  task_counter: number;
 }
 
 export interface Message {

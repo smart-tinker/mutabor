@@ -10,6 +10,7 @@ import SettingsPage from "./pages/SettingsPage";
 import TaskDetailPage from "./pages/TaskDetailPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import AuthPage from "./pages/AuthPage";
+import ProjectSettingsPage from "./pages/ProjectSettingsPage";
 
 const queryClient = new QueryClient();
 
@@ -23,6 +24,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/project/:projectId" element={<ProjectDetailPage />} />
+          <Route path="/project/:projectId/settings" element={<ProjectSettingsPage />} />
           <Route path="/task/:id" element={<TaskDetailPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
