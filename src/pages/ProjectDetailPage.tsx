@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useProject, useTasks, useUpdateTask } from '@/hooks/useProject';
@@ -46,53 +45,82 @@ const ProjectDetailPage = () => {
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
 
-        if (!over) return;
-        
-        const activeId = active.id as string;
-        const overId = over.id as string;
-        
-        if (activeId === overId) return;
+        if (!over || active.id === over.id) return;
 
-        setOptimisticTasks(currentTasks => {
-            if (!currentTasks) return currentTasks;
-            
-            const activeTask = currentTasks.find((t) => t.id === activeId);
-            if (!activeTask) return currentTasks;
+        setOptimisticTasks((currentTasks) => {
+            if (!currentTasks) return undefined;
 
-            const overTask = currentTasks.find((t) => t.id === overId);
+            const oldTasks = [...currentTasks];
+            const activeId = active.id as string;
+            const overId = over.id as string;
             
-            // Handle reordering within the same column
-            if (overTask && activeTask.column_id === overTask.column_id) {
-                const activeIndex = currentTasks.findIndex(t => t.id === activeId);
-                const overIndex = currentTasks.findIndex(t => t.id === overId);
-                if (activeIndex !== -1 && overIndex !== -1) {
-                    // NOTE: Persistence of reordering is not implemented yet.
-                    return arrayMove(currentTasks, activeIndex, overIndex);
-                }
-            }
+            const activeIndex = oldTasks.findIndex((t) => t.id === activeId);
+            const activeTask = oldTasks[activeIndex];
             
-            // Handle moving to a different column
-            const overIsColumn = columns?.some(c => c.id === overId);
-            let newColumnId: string | undefined;
+            // Determine target column
+            const overIsColumn = over.data.current?.type === 'Column';
+            const overIsTask = over.data.current?.type === 'Task';
+            let newColumnId: string | null = null;
 
-            if (overIsColumn) {
+            if (overIsTask) {
+                const overIndex = oldTasks.findIndex((t) => t.id === overId);
+                newColumnId = oldTasks[overIndex].column_id;
+            } else if (overIsColumn) {
                 newColumnId = overId;
-            } else if (overTask) {
-                newColumnId = overTask.column_id;
             }
 
-            if (newColumnId && activeTask.column_id !== newColumnId) {
-                 updateTaskMutation.mutate({
+            if (!newColumnId) return oldTasks;
+            
+            let newTasks = [...oldTasks];
+
+            // 1. Update column if it has changed
+            if (activeTask.column_id !== newColumnId) {
+                newTasks[activeIndex] = { ...activeTask, column_id: newColumnId };
+                updateTaskMutation.mutate({
                     taskId: activeId,
                     updates: { column_id: newColumnId },
                     silent: true,
                 });
-                return currentTasks.map((t) =>
-                    t.id === activeId ? { ...t, column_id: newColumnId } : t
-                );
+            }
+            
+            // 2. Reorder tasks in the array
+            const finalActiveIndex = newTasks.findIndex(t => t.id === activeId);
+
+            if (overIsTask) {
+                const finalOverIndex = newTasks.findIndex(t => t.id === overId);
+                newTasks = arrayMove(newTasks, finalActiveIndex, finalOverIndex);
+            } else if (overIsColumn && activeTask.column_id !== newColumnId) {
+                // When moving to a new column (not over a specific task), move the task to the end of that column
+                const taskToMove = newTasks.splice(finalActiveIndex, 1)[0];
+                
+                let lastIndexOfNewColumn = -1;
+                for(let i = newTasks.length - 1; i >= 0; i--) {
+                    if(newTasks[i].column_id === newColumnId) {
+                        lastIndexOfNewColumn = i;
+                        break;
+                    }
+                }
+                if(lastIndexOfNewColumn !== -1) {
+                    newTasks.splice(lastIndexOfNewColumn + 1, 0, taskToMove);
+                } else {
+                     newTasks.push(taskToMove);
+                }
             }
 
-            return currentTasks;
+
+            // 3. Recalculate `order` for affected columns to reflect the new visual order
+            const affectedColumns = new Set([activeTask.column_id, newColumnId]);
+            
+            affectedColumns.forEach(columnId => {
+                let orderCounter = 0;
+                newTasks.forEach((task, index) => {
+                    if (task.column_id === columnId) {
+                        newTasks[index] = { ...task, order: orderCounter++ };
+                    }
+                });
+            });
+
+            return newTasks;
         });
     };
     
