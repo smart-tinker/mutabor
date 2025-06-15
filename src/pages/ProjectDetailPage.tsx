@@ -20,7 +20,7 @@ const ProjectDetailPage = () => {
     const { data: tasks, isLoading: isLoadingTasks } = useTasks(project?.id!);
     const { data: columns, isLoading: isLoadingColumns } = useColumns();
     
-    const { optimisticTasks, handleDragEnd } = useTaskDnd(tasks, project?.id);
+    const { optimisticTasks, handleDragEnd } = useTaskDnd(tasks, project?.id, columns);
 
     useEffect(() => {
         if (!authLoading && !session) {
