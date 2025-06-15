@@ -5,9 +5,9 @@ import { useColumns } from '@/hooks/useColumns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ArrowLeft, Plus, Settings } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
+import TaskCard from '@/components/TaskCard';
 
 const ProjectDetailPage = () => {
     const { projectKey } = useParams<{ projectKey: string }>();
@@ -100,14 +100,7 @@ const ProjectDetailPage = () => {
                         <h2 className="text-lg font-semibold mb-4">{column.title}</h2>
                         <div className="space-y-4 flex-grow">
                             {tasks?.filter(t => t.column_id === column.id).map(task => (
-                                <Card key={task.id}>
-                                    <CardContent className="p-4">
-                                        <Link to={`/project/${project.key}/task/${task.key}`} className="font-medium hover:underline">
-                                            {task.key && <span className="text-muted-foreground mr-2 font-mono text-xs">{task.key}</span>}
-                                            {task.title}
-                                        </Link>
-                                    </CardContent>
-                                </Card>
+                                <TaskCard key={task.id} task={task} projectKey={project.key!} />
                             ))}
                         </div>
                         <div className="mt-4 pt-4 border-t">
