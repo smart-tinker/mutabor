@@ -1,7 +1,7 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Project } from '@/types';
+import { toast } from '@/hooks/use-toast';
 
 // Fetch all projects
 const fetchProjects = async (): Promise<Project[]> => {
@@ -33,6 +33,18 @@ export const useAddProject = () => {
         mutationFn: addProject,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['projects'] });
+            toast({
+                title: 'Проект создан!',
+                description: 'Новый проект успешно добавлен.',
+            });
+        },
+        onError: (error: Error) => {
+            console.error('Error adding project:', error);
+            toast({
+                title: 'Ошибка при создании проекта',
+                description: error.message,
+                variant: 'destructive',
+            });
         },
     });
 };
@@ -86,6 +98,18 @@ export const useAddDefaultProject = () => {
         mutationFn: addDefaultProject,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['projects'] });
-        }
+            toast({
+                title: 'Проект создан!',
+                description: 'Проект "Разработка Mutabor" с задачами успешно добавлен.',
+            });
+        },
+        onError: (error: Error) => {
+            console.error('Error adding default project:', error);
+            toast({
+                title: 'Ошибка при создании проекта',
+                description: error.message,
+                variant: 'destructive',
+            });
+        },
     });
 };
