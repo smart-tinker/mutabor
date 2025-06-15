@@ -1,13 +1,12 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUpdateTask } from '@/hooks/useProject';
 import { Task, Column } from '@/types';
 import { DragEndEvent } from '@dnd-kit/core';
-import { arrayMove } from '@dnd-kit/sortable';
 import { toast } from '@/hooks/use-toast';
 
-export const useTaskDnd = (initialTasks: Task[] | undefined, projectId: string | undefined, columns: Column[] | undefined) => {
+export const useTaskDnd = (initialTasks: Task[] | undefined, projectId: string | undefined, sortedColumns: Column[] | undefined) => {
     const queryClient = useQueryClient();
     const updateTaskMutation = useUpdateTask();
     
@@ -15,7 +14,8 @@ export const useTaskDnd = (initialTasks: Task[] | undefined, projectId: string |
 
     useEffect(() => {
         if (initialTasks) {
-          setOptimisticTasks(initialTasks.map((task, index) => ({ ...task, order: task.order ?? index })));
+            const tasksWithOrder = initialTasks.map((task, index) => ({ ...task, order: task.order ?? index }));
+            setOptimisticTasks(tasksWithOrder);
         }
     }, [initialTasks]);
 
@@ -25,101 +25,94 @@ export const useTaskDnd = (initialTasks: Task[] | undefined, projectId: string |
         if (!over || active.id === over.id) {
             return;
         }
+
+        const activeId = String(active.id);
+        const overId = String(over.id);
         
         setOptimisticTasks((currentTasks) => {
-            if (!currentTasks || !columns) return currentTasks;
+            if (!currentTasks || !sortedColumns) {
+                return currentTasks;
+            }
 
             const oldTasks = [...currentTasks];
-            const oldIndex = oldTasks.findIndex(t => t.id === active.id);
-            const activeTask = oldTasks[oldIndex];
+            const activeTask = oldTasks.find(t => t.id === activeId);
+            if (!activeTask) return oldTasks;
+            
+            const activeTaskIndex = oldTasks.findIndex(t => t.id === activeId);
 
             const overIsColumn = over.data.current?.type === 'Column';
             const overIsTask = over.data.current?.type === 'Task';
-            
-            let newTasks: Task[];
+
+            let newColumnId: string;
+            let newIndexInAllTasks: number;
 
             if (overIsTask) {
-                const overIndex = oldTasks.findIndex(t => t.id === over.id);
-                if (overIndex === -1) return oldTasks;
-                const overTask = oldTasks[overIndex];
-
-                if (activeTask.column_id === overTask.column_id) {
-                    newTasks = arrayMove(oldTasks, oldIndex, overIndex);
-                } else {
-                    const tempTasks = [...oldTasks];
-                    tempTasks[oldIndex] = { ...activeTask, column_id: overTask.column_id };
-                    newTasks = arrayMove(tempTasks, oldIndex, overIndex);
-                }
+                const overTask = oldTasks.find(t => t.id === overId);
+                if (!overTask) return oldTasks;
+                newColumnId = overTask.column_id;
+                newIndexInAllTasks = oldTasks.findIndex(t => t.id === overId);
             } else if (overIsColumn) {
-                const newColumnId = over.id as string;
-                if (activeTask.column_id === newColumnId) return oldTasks;
-                
-                const taskToMove = { ...activeTask, column_id: newColumnId };
-                let tempTasks = oldTasks.filter(t => t.id !== active.id);
+                newColumnId = overId;
+                const tasksInTargetColumn = oldTasks
+                    .filter(t => t.column_id === newColumnId)
+                    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
-                const tasksInNewColumn = tempTasks.filter(t => t.column_id === newColumnId);
-                
-                if (tasksInNewColumn.length > 0) {
-                    const lastTask = tasksInNewColumn[tasksInNewColumn.length - 1];
-                    const insertionIndex = tempTasks.findIndex(t => t.id === lastTask.id) + 1;
-                    tempTasks.splice(insertionIndex, 0, taskToMove);
+                if (tasksInTargetColumn.length > 0) {
+                    const lastTask = tasksInTargetColumn[tasksInTargetColumn.length - 1];
+                    const lastTaskIndex = oldTasks.findIndex(t => t.id === lastTask.id);
+                    newIndexInAllTasks = lastTaskIndex + 1;
                 } else {
-                    const sortedColumns = columns.sort((a,b) => a.order - b.order);
-                    const newColumnOrder = sortedColumns.findIndex(c => c.id === newColumnId);
+                    const targetColumnOrder = sortedColumns.findIndex(c => c.id === newColumnId);
+                    if (targetColumnOrder === -1) return oldTasks;
                     
-                    let insertionIndex = tempTasks.length;
-                    for (let i = newColumnOrder + 1; i < sortedColumns.length; i++) {
-                        const nextColumnId = sortedColumns[i].id;
-                        const firstTaskInNextColumn = tempTasks.find(t => t.column_id === nextColumnId);
-                        if (firstTaskInNextColumn) {
-                            insertionIndex = tempTasks.findIndex(t => t.id === firstTaskInNextColumn.id);
+                    let insertionIndex = oldTasks.length;
+                    for (let i = targetColumnOrder + 1; i < sortedColumns.length; i++) {
+                        const nextColumn = sortedColumns[i];
+                        const firstTaskInNextCol = oldTasks.find(t => t.column_id === nextColumn.id);
+                        if (firstTaskInNextCol) {
+                            insertionIndex = oldTasks.findIndex(t => t.id === firstTaskInNextCol.id);
                             break;
                         }
                     }
-                    tempTasks.splice(insertionIndex, 0, taskToMove);
+                    newIndexInAllTasks = insertionIndex;
                 }
-                newTasks = tempTasks;
             } else {
                 return oldTasks;
             }
-            
-            // Recalculate order and prepare updates
-            const updatesToPersist: {taskId: string, updates: Partial<Task>}[] = [];
-            const affectedColumns = new Set([activeTask.column_id, (newTasks.find(t => t.id === active.id))?.column_id]);
 
-            affectedColumns.forEach(columnId => {
+            let newTasks = [...oldTasks];
+            const [movedTask] = newTasks.splice(activeTaskIndex, 1);
+            movedTask.column_id = newColumnId;
+            
+            const finalIndex = activeTaskIndex < newIndexInAllTasks ? newIndexInAllTasks - 1 : newIndexInAllTasks;
+            newTasks.splice(finalIndex, 0, movedTask);
+
+            const updatesToPersist: {taskId: string, updates: Partial<Task>}[] = [];
+            
+            const affectedColumnIds = new Set([activeTask.column_id, newColumnId]);
+
+            affectedColumnIds.forEach(columnId => {
                 if (!columnId) return;
-                let orderCounter = 0;
-                newTasks.forEach((task, index) => {
-                    if (task.column_id === columnId) {
-                        const originalTask = oldTasks.find(t => t.id === task.id);
-                        const newOrder = orderCounter++;
+                const tasksInColumn = newTasks.filter(t => t.column_id === columnId);
+                tasksInColumn.forEach((task, index) => {
+                    const originalTask = oldTasks.find(t => t.id === task.id);
+                    const hasChanged = task.order !== index || task.column_id !== originalTask?.column_id;
+                    
+                    if (hasChanged) {
+                        const updatePayload: Partial<Task> = { order: index };
+                        if (task.column_id !== originalTask?.column_id) {
+                            updatePayload.column_id = task.column_id;
+                        }
+                        updatesToPersist.push({ taskId: task.id, updates: updatePayload });
                         
-                        if (newTasks[index].order !== newOrder || newTasks[index].column_id !== originalTask?.column_id) {
-                            newTasks[index] = { ...task, order: newOrder };
-                            
-                            const updatePayload: Partial<Task> = {};
-                            if (newTasks[index].order !== originalTask?.order) {
-                                updatePayload.order = newOrder;
-                            }
-                            if (newTasks[index].column_id !== originalTask?.column_id) {
-                                updatePayload.column_id = newTasks[index].column_id;
-                            }
-                            
-                            if (Object.keys(updatePayload).length > 0) {
-                                const existingUpdate = updatesToPersist.find(u => u.taskId === task.id);
-                                if (existingUpdate) {
-                                    Object.assign(existingUpdate.updates, updatePayload);
-                                } else {
-                                    updatesToPersist.push({ taskId: task.id, updates: updatePayload });
-                                }
-                            }
+                        const taskInNewTasksIndex = newTasks.findIndex(t => t.id === task.id);
+                        if(taskInNewTasksIndex !== -1) {
+                            newTasks[taskInNewTasksIndex] = { ...task, order: index };
                         }
                     }
                 });
             });
 
-            // Persist changes to DB
             if (updatesToPersist.length > 0) {
                  updatesToPersist.forEach(update => 
                     updateTaskMutation.mutate({ ...update, silent: true }, {
@@ -128,7 +121,7 @@ export const useTaskDnd = (initialTasks: Task[] | undefined, projectId: string |
                                 title: "Ошибка при обновлении порядка задач",
                                 variant: "destructive"
                             });
-                            setOptimisticTasks(oldTasks); // Revert on failure
+                            setOptimisticTasks(oldTasks);
                         },
                         onSettled: () => {
                              if (projectId) {

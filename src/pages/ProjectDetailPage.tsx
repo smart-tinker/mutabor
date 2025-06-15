@@ -1,5 +1,5 @@
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useProject, useTasks } from '@/hooks/useProject';
 import { useColumns } from '@/hooks/useColumns';
@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import TaskColumn from '@/components/TaskColumn';
 import { DndContext, PointerSensor, useSensor, useSensors, closestCorners } from '@dnd-kit/core';
 import { useTaskDnd } from '@/hooks/useTaskDnd';
+import { Column } from '@/types';
 
 const ProjectDetailPage = () => {
     const { projectKey } = useParams<{ projectKey: string }>();
@@ -19,8 +20,13 @@ const ProjectDetailPage = () => {
     const { data: project, isLoading: isLoadingProject } = useProject(projectKey!);
     const { data: tasks, isLoading: isLoadingTasks } = useTasks(project?.id!);
     const { data: columns, isLoading: isLoadingColumns } = useColumns();
+
+    const sortedColumns = useMemo(() => {
+        if (!columns) return undefined;
+        return [...columns].sort((a, b) => a.order - b.order);
+    }, [columns]);
     
-    const { optimisticTasks, handleDragEnd } = useTaskDnd(tasks, project?.id, columns);
+    const { optimisticTasks, handleDragEnd } = useTaskDnd(tasks, project?.id, sortedColumns);
 
     useEffect(() => {
         if (!authLoading && !session) {
@@ -88,8 +94,8 @@ const ProjectDetailPage = () => {
             </div>
 
             <DndContext sensors={sensors} onDragEnd={handleDragEnd} collisionDetection={closestCorners}>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-start">
-                    {columns?.sort((a,b) => a.order - b.order).map(column => (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch">
+                    {sortedColumns?.map(column => (
                         <TaskColumn 
                             key={column.id} 
                             column={column} 
