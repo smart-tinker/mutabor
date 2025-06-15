@@ -1,4 +1,3 @@
-
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Task } from '@/types';
@@ -47,11 +46,6 @@ const TaskCard = ({ task, projectKey }: TaskCardProps) => {
                                 {task.key && <span className="text-muted-foreground mr-2 font-mono text-xs">{task.key}</span>}
                                 {task.title}
                             </Link>
-                            {task.description && (
-                                <p className="text-sm text-muted-foreground mt-1" title={task.description}>
-                                    {task.description}
-                                </p>
-                            )}
                         </div>
                         {priority && (
                              <div className="flex-shrink-0 pt-1" title={`Приоритет: ${priority.label}`}>

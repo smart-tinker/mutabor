@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -48,6 +49,11 @@ const ProjectDetailPage = () => {
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
 
+        console.log('--- Drag End ---');
+        console.log('Active ID:', active.id);
+        console.log('Over ID:', over?.id);
+        console.log('Over type:', over?.data.current?.type);
+
         if (!over || !optimisticTasks || active.id === over.id) return;
 
         const originalTasks = [...optimisticTasks];
@@ -70,8 +76,14 @@ const ProjectDetailPage = () => {
             newColumnId = overId;
         }
 
-        if (!newColumnId) return;
+        if (!newColumnId) {
+            console.log('No new column ID found. Bailing.');
+            return;
+        }
         
+        console.log('Original Column ID:', activeTask.column_id);
+        console.log('New Column ID:', newColumnId);
+
         let newTasks = [...originalTasks];
         const originalColumnId = activeTask.column_id;
 
@@ -126,6 +138,8 @@ const ProjectDetailPage = () => {
             });
         });
 
+        console.log('Updates to persist:', updatesToPersist);
+        
         // Set the optimistic state
         setOptimisticTasks(newTasks);
 
