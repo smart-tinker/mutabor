@@ -5,15 +5,28 @@ import { useColumnData } from './useColumnData';
 
 const PROJECTS_STORAGE_KEY = 'mutabor_projects';
 
-const createDefaultProject = (columns: Column[]): Project => ({
-    id: crypto.randomUUID(),
-    name: 'Мой первый проект',
-    columns: columns,
-    tasks: columns.length > 0 ? [
-        { id: crypto.randomUUID(), title: 'Настроить рабочее окружение', columnId: columns[0].id, description: '' },
-        { id: crypto.randomUUID(), title: 'Создать первую задачу', columnId: columns[0].id, description: '' },
-    ] : [],
-});
+const createDefaultProject = (columns: Column[]): Project => {
+    const firstColumnId = columns.length > 0 ? columns[0].id : 'todo';
+    
+    return {
+        id: crypto.randomUUID(),
+        name: 'Разработка Mutabor',
+        columns: columns,
+        tasks: [
+            { id: crypto.randomUUID(), title: 'Добавить поля дат в задачи (создание, дедлайн)', columnId: firstColumnId, description: '' },
+            { id: crypto.randomUUID(), title: 'Реализовать редактирование названий проектов', columnId: firstColumnId, description: '' },
+            { id: crypto.randomUUID(), title: 'Добавить поле приоритета в задачи', columnId: firstColumnId, description: '' },
+            { id: crypto.randomUUID(), title: 'Drag & Drop для перемещения задач между колонками', columnId: firstColumnId, description: '' },
+            { id: crypto.randomUUID(), title: 'Поиск по задачам и проектам', columnId: firstColumnId, description: '' },
+            { id: crypto.randomUUID(), title: 'Цветные метки/теги для задач', columnId: firstColumnId, description: '' },
+            { id: crypto.randomUUID(), title: 'Подзадачи и чеклисты', columnId: firstColumnId, description: '' },
+            { id: crypto.randomUUID(), title: 'Базовая аналитика (счетчики, прогресс)', columnId: firstColumnId, description: '' },
+            { id: crypto.randomUUID(), title: 'Темная тема', columnId: firstColumnId, description: '' },
+            { id: crypto.randomUUID(), title: 'Улучшенная AI-интеграция с контекстом всего проекта', columnId: firstColumnId, description: '' },
+            { id: crypto.randomUUID(), title: 'Автоматические предложения и анализ', columnId: firstColumnId, description: '' },
+        ]
+    };
+};
 
 
 export function useProjectData() {
