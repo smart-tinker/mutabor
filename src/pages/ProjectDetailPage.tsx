@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 
 const ProjectDetailPage = () => {
-    const { projectId } = useParams<{ projectId: string }>();
+    const { projectKey } = useParams<{ projectKey: string }>();
     const [newTaskTitles, setNewTaskTitles] = useState<Record<string, string>>({});
     const { session, loading: authLoading } = useAuth();
     const navigate = useNavigate();
@@ -21,15 +21,15 @@ const ProjectDetailPage = () => {
         }
     }, [session, authLoading, navigate]);
 
-    const { data: project, isLoading: isLoadingProject } = useProject(projectId!);
-    const { data: tasks, isLoading: isLoadingTasks } = useTasks(projectId!);
+    const { data: project, isLoading: isLoadingProject } = useProject(projectKey!);
+    const { data: tasks, isLoading: isLoadingTasks } = useTasks(project?.id!);
     const { data: columns, isLoading: isLoadingColumns } = useColumns();
-    const addTaskMutation = useAddTask(projectId!);
+    const addTaskMutation = useAddTask();
 
     const handleAddTask = (columnId: string) => {
         const title = newTaskTitles[columnId];
-        if (title && title.trim()) {
-            addTaskMutation.mutate({ projectId: projectId!, columnId, title }, {
+        if (title && title.trim() && project?.id) {
+            addTaskMutation.mutate({ projectId: project.id, columnId, title }, {
                 onSuccess: () => {
                     setNewTaskTitles(prev => ({...prev, [columnId]: ''}));
                 }
@@ -41,7 +41,7 @@ const ProjectDetailPage = () => {
         setNewTaskTitles(prev => ({ ...prev, [columnId]: value }));
     };
 
-    const isLoading = authLoading || isLoadingProject || isLoadingTasks || isLoadingColumns;
+    const isLoading = isLoadingProject || !project || isLoadingTasks || isLoadingColumns;
 
     if (isLoading) {
         return (
@@ -86,7 +86,7 @@ const ProjectDetailPage = () => {
                 <div className="flex items-center justify-between gap-4 mt-2">
                     <h1 className="text-4xl font-bold tracking-tight">{project.name}</h1>
                     <Button variant="outline" size="icon" asChild>
-                        <Link to={`/project/${projectId}/settings`}>
+                        <Link to={`/project/${project.key}/settings`}>
                             <Settings className="w-5 h-5" />
                             <span className="sr-only">Настройки проекта</span>
                         </Link>
@@ -102,7 +102,7 @@ const ProjectDetailPage = () => {
                             {tasks?.filter(t => t.column_id === column.id).map(task => (
                                 <Card key={task.id}>
                                     <CardContent className="p-4">
-                                        <Link to={`/project/${projectId}/task/${task.key}`} className="font-medium hover:underline">
+                                        <Link to={`/project/${project.id}/task/${task.key}`} className="font-medium hover:underline">
                                             {task.key && <span className="text-muted-foreground mr-2 font-mono text-xs">{task.key}</span>}
                                             {task.title}
                                         </Link>

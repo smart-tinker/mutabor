@@ -4,8 +4,9 @@ import { Project, Task } from '@/types';
 import { toast } from '@/hooks/use-toast';
 
 // Fetch single project details
-const fetchProject = async (projectId: string): Promise<Project | null> => {
-    const { data, error } = await supabase.from('projects').select('*').eq('id', projectId).single();
+const fetchProject = async (projectKey: string): Promise<Project | null> => {
+    if (!projectKey) return null;
+    const { data, error } = await supabase.from('projects').select('*').eq('key', projectKey).single();
     if (error) {
       if (error.code === 'PGRST116') return null; // PostgREST code for "Not a single row was found"
       throw new Error(error.message);
@@ -13,11 +14,11 @@ const fetchProject = async (projectId: string): Promise<Project | null> => {
     return data;
 };
 
-export const useProject = (projectId: string) => {
+export const useProject = (projectKey: string) => {
     return useQuery({
-        queryKey: ['project', projectId],
-        queryFn: () => fetchProject(projectId),
-        enabled: !!projectId,
+        queryKey: ['project', projectKey],
+        queryFn: () => fetchProject(projectKey),
+        enabled: !!projectKey,
     });
 };
 
@@ -74,12 +75,12 @@ const addTask = async ({ projectId, columnId, title }: AddTaskPayload): Promise<
     return data;
 };
 
-export const useAddTask = (projectId: string) => {
+export const useAddTask = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: addTask,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['tasks', projectId] });
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ['tasks', data.project_id] });
             toast({ title: "Задача добавлена." });
         },
     });
@@ -144,13 +145,15 @@ const updateProject = async ({ projectId, updates }: UpdateProjectPayload): Prom
     return data;
 };
 
-export const useUpdateProject = (projectId: string) => {
+export const useUpdateProject = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: updateProject,
         onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: ['projects'] });
-            queryClient.setQueryData(['project', projectId], data);
+            if (data.key) {
+                queryClient.setQueryData(['project', data.key], data);
+            }
             toast({ title: "Проект обновлен." });
         },
         onError: (error: Error) => {

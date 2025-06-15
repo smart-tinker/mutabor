@@ -63,6 +63,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          key: string | null
           name: string
           task_counter: number
           task_prefix: string | null
@@ -71,6 +72,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          key?: string | null
           name: string
           task_counter?: number
           task_prefix?: string | null
@@ -79,6 +81,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          key?: string | null
           name?: string
           task_counter?: number
           task_prefix?: string | null

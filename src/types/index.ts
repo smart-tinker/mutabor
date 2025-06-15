@@ -1,4 +1,3 @@
-
 export interface Column {
   id: string;
   title: string;
@@ -20,6 +19,7 @@ export interface Task {
 
 export interface Project {
   id: string;
+  key: string | null;
   name: string;
   created_at: string;
   user_id: string;

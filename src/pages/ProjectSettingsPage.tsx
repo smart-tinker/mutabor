@@ -1,4 +1,3 @@
-
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useProject, useUpdateProject } from '@/hooks/useProject';
 import { useAuth } from '@/hooks/useAuth';
@@ -12,12 +11,12 @@ import { toast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const ProjectSettingsPage = () => {
-    const { projectId } = useParams<{ projectId: string }>();
+    const { projectKey } = useParams<{ projectKey: string }>();
     const { session, loading: authLoading } = useAuth();
     const navigate = useNavigate();
 
-    const { data: project, isLoading: isLoadingProject } = useProject(projectId!);
-    const updateProjectMutation = useUpdateProject(projectId!);
+    const { data: project, isLoading: isLoadingProject } = useProject(projectKey!);
+    const updateProjectMutation = useUpdateProject();
 
     const [name, setName] = useState('');
     const [prefix, setPrefix] = useState('');
@@ -40,10 +39,12 @@ const ProjectSettingsPage = () => {
             toast({ title: "Название проекта не может быть пустым.", variant: "destructive" });
             return;
         }
-        updateProjectMutation.mutate({
-            projectId: projectId!,
-            updates: { name: name.trim(), task_prefix: prefix.trim().toUpperCase() || null }
-        });
+        if (project) {
+            updateProjectMutation.mutate({
+                projectId: project.id,
+                updates: { name: name.trim(), task_prefix: prefix.trim().toUpperCase() || null }
+            });
+        }
     };
 
     if (authLoading || isLoadingProject) {
@@ -73,7 +74,7 @@ const ProjectSettingsPage = () => {
         <div className="max-w-2xl mx-auto px-4 py-8">
             <div className="mb-8">
                 <Button variant="ghost" asChild className="text-muted-foreground hover:text-foreground pl-0">
-                    <Link to={`/project/${projectId}`} className="inline-flex items-center gap-2">
+                    <Link to={`/project/${project.key}`} className="inline-flex items-center gap-2">
                         <ArrowLeft className="w-4 h-4" />
                         К проекту
                     </Link>

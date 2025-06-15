@@ -1,4 +1,3 @@
-
 import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useProjects, useAddProject, useAddDefaultProject } from '@/hooks/useProjects';
@@ -80,7 +79,7 @@ const Index = () => {
             {projects && projects.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {projects.map(project => (
-                        <Link to={`/project/${project.id}`} key={project.id}>
+                        <Link to={`/project/${project.key}`} key={project.id}>
                             <Card className="hover:shadow-md hover:border-primary transition-all h-full">
                                 <CardHeader>
                                     <CardTitle>{project.name}</CardTitle>
