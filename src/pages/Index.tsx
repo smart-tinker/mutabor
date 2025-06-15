@@ -1,16 +1,31 @@
 
-import { Link } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useProjects, useAddProject, useAddDefaultProject } from '@/hooks/useProjects';
 import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus } from 'lucide-react';
+import { LogOut, Plus } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
-  const { data: projects, isLoading } = useProjects();
+  const { session, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+
+  const { data: projects, isLoading: projectsLoading, refetch } = useProjects();
   const addProjectMutation = useAddProject();
   const addDefaultProjectMutation = useAddDefaultProject();
+
+  useEffect(() => {
+    if (!authLoading && !session) {
+      navigate('/auth');
+    }
+    if(session) {
+        refetch();
+    }
+  }, [session, authLoading, navigate, refetch]);
 
   const handleAddProject = () => {
     const mutaborProjectExists = projects?.some(p => p.name === 'Разработка Mutabor');
@@ -22,7 +37,13 @@ const Index = () => {
     }
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/auth');
+  };
+
   const isMutationPending = addProjectMutation.isPending || addDefaultProjectMutation.isPending;
+  const isLoading = authLoading || (projectsLoading && !projects);
 
   if (isLoading) {
     return (
@@ -45,9 +66,14 @@ const Index = () => {
       <main>
         <div className="flex items-center justify-between mb-8">
             <h2 className="text-3xl font-bold tracking-tighter">Ваши проекты</h2>
-            <Button onClick={handleAddProject} disabled={isMutationPending}>
-                <Plus className="mr-2 h-4 w-4"/> Создать проект
-            </Button>
+            <div className="flex items-center gap-4">
+              <Button onClick={handleAddProject} disabled={isMutationPending}>
+                  <Plus className="mr-2 h-4 w-4"/> Создать проект
+              </Button>
+              <Button variant="outline" onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" /> Выйти
+              </Button>
+            </div>
         </div>
 
         <div>

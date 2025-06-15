@@ -9,10 +9,19 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Bot, Trash2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/hooks/useAuth';
 
 const TaskDetailPage = () => {
     const { id: taskId } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { session, loading: authLoading } = useAuth();
+
+    useEffect(() => {
+        if (!authLoading && !session) {
+          navigate('/auth');
+        }
+    }, [session, authLoading, navigate]);
+
 
     const { data: task, isLoading, isError } = useTask(taskId!);
     const updateTaskMutation = useUpdateTask(taskId!, task?.project_id);
@@ -47,7 +56,7 @@ const TaskDetailPage = () => {
         }
     }
     
-    if (isLoading) {
+    if (authLoading || isLoading) {
         return (
             <div className="max-w-2xl mx-auto px-4 py-8 space-y-8">
                 <Skeleton className="h-6 w-40" />
@@ -66,7 +75,7 @@ const TaskDetailPage = () => {
     if (isError || !task) {
         return (
             <div className="max-w-2xl mx-auto px-4 text-center py-10">
-                <p>Задача не найдена.</p>
+                <p>Задача не найдена или у вас нет к ней доступа.</p>
                 <Button variant="link" asChild>
                     <Link to="/">Вернуться к списку проектов</Link>
                 </Button>

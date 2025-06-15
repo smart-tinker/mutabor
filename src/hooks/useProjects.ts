@@ -19,7 +19,10 @@ export const useProjects = () => {
 
 // Add a new project
 const addProject = async (name: string): Promise<Project> => {
-    const { data, error } = await supabase.from('projects').insert({ name }).select().single();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Пользователь не аутентифицирован");
+
+    const { data, error } = await supabase.from('projects').insert({ name, user_id: user.id }).select().single();
     if (error) throw new Error(error.message);
     return data;
 };
@@ -36,9 +39,12 @@ export const useAddProject = () => {
 
 // Add default Mutabor project with tasks
 const addDefaultProject = async (): Promise<Project> => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Пользователь не аутентифицирован");
+
     const { data: projectData, error: projectError } = await supabase
         .from('projects')
-        .insert({ name: 'Разработка Mutabor' })
+        .insert({ name: 'Разработка Mutabor', user_id: user.id })
         .select()
         .single();
     

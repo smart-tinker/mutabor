@@ -1,6 +1,6 @@
 
-import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useProject, useTasks, useAddTask } from '@/hooks/useProject';
 import { useColumns } from '@/hooks/useColumns';
 import { Button } from '@/components/ui/button';
@@ -8,10 +8,19 @@ import { Input } from '@/components/ui/input';
 import { ArrowLeft, Plus } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/hooks/useAuth';
 
 const ProjectDetailPage = () => {
     const { projectId } = useParams<{ projectId: string }>();
     const [newTaskTitles, setNewTaskTitles] = useState<Record<string, string>>({});
+    const { session, loading: authLoading } = useAuth();
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        if (!authLoading && !session) {
+          navigate('/auth');
+        }
+    }, [session, authLoading, navigate]);
 
     const { data: project, isLoading: isLoadingProject } = useProject(projectId!);
     const { data: tasks, isLoading: isLoadingTasks } = useTasks(projectId!);
@@ -33,7 +42,7 @@ const ProjectDetailPage = () => {
         setNewTaskTitles(prev => ({ ...prev, [columnId]: value }));
     };
 
-    const isLoading = isLoadingProject || isLoadingTasks || isLoadingColumns;
+    const isLoading = authLoading || isLoadingProject || isLoadingTasks || isLoadingColumns;
 
     if (isLoading) {
         return (
@@ -58,7 +67,7 @@ const ProjectDetailPage = () => {
     if (!project) {
         return (
             <div className="max-w-4xl mx-auto px-4 text-center py-10">
-                <p>Проект не найден.</p>
+                <p>Проект не найден или у вас нет к нему доступа.</p>
                 <Button variant="link" asChild>
                     <Link to="/">Вернуться к списку проектов</Link>
                 </Button>
