@@ -8,18 +8,19 @@ import { Task } from '@/types';
 
 interface TaskHeaderProps {
     task: Task;
+    projectKey?: string;
     title: string;
     setTitle: (title: string) => void;
     handleSave: () => void;
     isPending: boolean;
 }
 
-const TaskHeader = ({ task, title, setTitle, handleSave, isPending }: TaskHeaderProps) => {
+const TaskHeader = ({ task, projectKey, title, setTitle, handleSave, isPending }: TaskHeaderProps) => {
     return (
         <>
             <div className="my-8">
                 <Button variant="ghost" asChild className="text-muted-foreground hover:text-foreground pl-0">
-                    <Link to={task.project_id ? `/project/${task.project_id}` : '/'} className="inline-flex items-center gap-2">
+                    <Link to={projectKey ? `/project/${projectKey}` : '/'} className="inline-flex items-center gap-2">
                         <ArrowLeft className="w-4 h-4" />
                         Назад к проекту
                     </Link>

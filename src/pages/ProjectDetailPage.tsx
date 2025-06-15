@@ -102,7 +102,7 @@ const ProjectDetailPage = () => {
                             {tasks?.filter(t => t.column_id === column.id).map(task => (
                                 <Card key={task.id}>
                                     <CardContent className="p-4">
-                                        <Link to={`/project/${project.id}/task/${task.key}`} className="font-medium hover:underline">
+                                        <Link to={`/project/${project.key}/task/${task.key}`} className="font-medium hover:underline">
                                             {task.key && <span className="text-muted-foreground mr-2 font-mono text-xs">{task.key}</span>}
                                             {task.title}
                                         </Link>
@@ -111,7 +111,7 @@ const ProjectDetailPage = () => {
                             ))}
                         </div>
                         <div className="mt-4 pt-4 border-t">
-                             <div className="flex gap-2">
+                            <div className="flex gap-2">
                                 <Input 
                                     placeholder="Новая задача..."
                                     value={newTaskTitles[column.id] || ''}

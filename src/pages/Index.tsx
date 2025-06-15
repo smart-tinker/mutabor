@@ -4,7 +4,7 @@ import { useProjects, useAddProject, useAddDefaultProject } from '@/hooks/usePro
 import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
-import { LogOut, Plus } from 'lucide-react';
+import { BookText, LogOut, Plus } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -68,6 +68,11 @@ const Index = () => {
             <div className="flex items-center gap-4">
               <Button onClick={handleAddProject} disabled={isMutationPending}>
                   <Plus className="mr-2 h-4 w-4"/> Создать проект
+              </Button>
+              <Button variant="outline" asChild>
+                <Link to="/docs">
+                    <BookText className="mr-2 h-4 w-4" /> Документация
+                </Link>
               </Button>
               <Button variant="outline" onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" /> Выйти

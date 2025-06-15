@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTask, useUpdateTask, useDeleteTask } from '@/hooks/useProject';
@@ -16,7 +15,7 @@ import TaskActions from '@/components/task-detail/TaskActions';
 
 
 const TaskDetailPage = () => {
-    const { projectId, taskKey } = useParams<{ projectId?: string, taskKey?: string }>();
+    const { projectKey, taskKey } = useParams<{ projectKey?: string, taskKey?: string }>();
     const navigate = useNavigate();
     const { session, loading: authLoading } = useAuth();
 
@@ -27,7 +26,7 @@ const TaskDetailPage = () => {
     }, [session, authLoading, navigate]);
 
 
-    const { data: task, isLoading: isLoadingTask, isError } = useTask({ projectId, taskKey });
+    const { data: task, isLoading: isLoadingTask, isError } = useTask({ projectKey, taskKey });
     const { data: columns, isLoading: isLoadingColumns } = useColumns();
     const { data: categories, isLoading: isLoadingCategories } = useCategories(task?.project_id || '');
     const updateTaskMutation = useUpdateTask();
@@ -103,6 +102,7 @@ const TaskDetailPage = () => {
             <div className="space-y-6">
                 <TaskHeader 
                     task={task}
+                    projectKey={projectKey}
                     title={title}
                     setTitle={setTitle}
                     handleSave={handleSave}
