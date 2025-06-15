@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import TaskColumn from '@/components/TaskColumn';
 import { Task } from '@/types';
-import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors, closestCorners } from '@dnd-kit/core';
+import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { toast } from '@/hooks/use-toast';
 
@@ -119,10 +119,12 @@ const ProjectDetailPage = () => {
         const updatesToPersist: {taskId: string, updates: Partial<Task>}[] = [];
         const affectedColumns = new Set([originalColumnId, newColumnId]);
         
+        let finalTasks = [...newTasks];
+
         affectedColumns.forEach(columnId => {
             if (!columnId) return;
             let orderCounter = 0;
-            newTasks.forEach((task, index) => {
+            finalTasks = finalTasks.map((task) => {
                 if (task.column_id === columnId) {
                     const originalTaskState = originalTasks.find(t => t.id === task.id);
                     const newOrder = orderCounter++;
@@ -133,15 +135,16 @@ const ProjectDetailPage = () => {
                             updates: { order: newOrder, column_id: task.column_id }
                         });
                     }
-                    newTasks[index] = { ...task, order: newOrder };
+                    return { ...task, order: newOrder };
                 }
+                return task;
             });
         });
 
         console.log('Updates to persist:', updatesToPersist);
         
         // Set the optimistic state
-        setOptimisticTasks(newTasks);
+        setOptimisticTasks(finalTasks);
 
         // Step 2: Persist changes to the server
         if (updatesToPersist.length > 0) {
@@ -221,7 +224,7 @@ const ProjectDetailPage = () => {
                 </div>
             </div>
 
-            <DndContext sensors={sensors} onDragEnd={handleDragEnd} collisionDetection={closestCorners}>
+            <DndContext sensors={sensors} onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-start">
                     {columns?.sort((a,b) => a.order - b.order).map(column => (
                         <TaskColumn 
@@ -239,3 +242,4 @@ const ProjectDetailPage = () => {
 }
 
 export default ProjectDetailPage;
+
