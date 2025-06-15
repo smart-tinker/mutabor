@@ -78,12 +78,12 @@ export const useTask = ({ projectKey, taskKey }: { projectKey?: string; taskKey?
 };
 
 // Add a task
-type AddTaskPayload = { projectId: string; columnId: string; title: string };
-const addTask = async ({ projectId, columnId, title }: AddTaskPayload): Promise<Task> => {
+type AddTaskPayload = { projectId: string; columnId: string; title: string; description?: string };
+const addTask = async ({ projectId, columnId, title, description }: AddTaskPayload): Promise<Task> => {
     if (!title.trim()) throw new Error("Title is required");
     const { data, error } = await supabase
         .from('tasks')
-        .insert({ project_id: projectId, column_id: columnId, title: title.trim() })
+        .insert({ project_id: projectId, column_id: columnId, title: title.trim(), description })
         .select()
         .single();
     if (error) throw new Error(error.message);
@@ -102,7 +102,7 @@ export const useAddTask = () => {
 };
 
 // Update a task
-type UpdateTaskPayload = { taskId: string; updates: Partial<Omit<Task, 'id' | 'project_id' | 'created_at'>> };
+type UpdateTaskPayload = { taskId: string; updates: Partial<Omit<Task, 'id' | 'project_id' | 'created_at'>>; silent?: boolean };
 const updateTask = async ({ taskId, updates }: UpdateTaskPayload): Promise<Task> => {
     const { data, error } = await supabase
         .from('tasks')
@@ -118,10 +118,12 @@ export const useUpdateTask = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: updateTask,
-        onSuccess: (data) => {
+        onSuccess: (data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['tasks', data.project_id] });
             queryClient.invalidateQueries({ queryKey: ['task'] });
-            toast({ title: "Задача обновлена." });
+            if (!variables.silent) {
+                toast({ title: "Задача обновлена." });
+            }
         },
     });
 };

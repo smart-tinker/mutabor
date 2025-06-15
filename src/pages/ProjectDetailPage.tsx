@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useProject, useTasks, useAddTask } from '@/hooks/useProject';
+import { useProject, useTasks, useAddTask, useUpdateTask } from '@/hooks/useProject';
 import { useColumns } from '@/hooks/useColumns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,29 @@ import { ArrowLeft, Plus, Settings } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
+
+const suggestedTasks = [
+    { 
+        title: 'Перетаскивание задач (Drag-and-drop)',
+        description: 'Реализовать drag-and-drop для перемещения задач между колонками. Это улучшит UX и управление рабочим процессом. Можно использовать react-beautiful-dnd или dnd-kit.'
+    },
+    { 
+        title: 'Назначение исполнителей на задачи',
+        description: 'Добавить возможность назначать пользователей на задачи. Потребуется добавить поле assignee_id в таблицу tasks и UI для выбора и отображения исполнителей. Важно для командной работы.'
+    },
+    {
+        title: 'Обновления в реальном времени',
+        description: 'Реализовать обновления в реальном времени с помощью подписок Supabase. Когда один пользователь перемещает или редактирует задачу, другие пользователи должны видеть изменения мгновенно, без перезагрузки страницы.'
+    },
+    {
+        title: 'Фильтрация и сортировка задач',
+        description: 'Реализовать опции для фильтрации задач по категории, исполнителю или сроку выполнения. Также добавить опции сортировки (например, по дате создания, сроку, названию). Это поможет в управлении большими проектами.'
+    },
+    {
+        title: 'Техдолг: Рефакторинг управления состоянием на странице задачи',
+        description: 'Компонент TaskDetailPage использует множество хуков useState для управления полями задачи. Это можно отрефакторить, используя useReducer или библиотеку для управления формами, например react-hook-form, чтобы упростить логику состояния и обновления.'
+    }
+];
 
 const ProjectDetailPage = () => {
     const { projectKey } = useParams<{ projectKey: string }>();
@@ -25,6 +48,38 @@ const ProjectDetailPage = () => {
     const { data: tasks, isLoading: isLoadingTasks } = useTasks(project?.id!);
     const { data: columns, isLoading: isLoadingColumns } = useColumns();
     const addTaskMutation = useAddTask();
+    const updateTaskMutation = useUpdateTask();
+
+    useEffect(() => {
+        const flag = `project_${project?.id}_tasks_seeded`;
+        if (project && tasks && columns && columns.length > 0 && !localStorage.getItem(flag)) {
+            // Part 1: add descriptions to existing tasks
+            tasks.forEach(task => {
+                if (!task.description) {
+                    updateTaskMutation.mutate({
+                        taskId: task.id,
+                        updates: { description: 'Добавьте описание для этой задачи.' },
+                        silent: true
+                    });
+                }
+            });
+
+            // Part 2: add new suggested tasks
+            const firstColumn = [...columns].sort((a,b) => a.order - b.order)[0];
+            if (firstColumn) {
+                suggestedTasks.forEach(task => {
+                    addTaskMutation.mutate({
+                        projectId: project.id,
+                        columnId: firstColumn.id,
+                        title: task.title,
+                        description: task.description,
+                    });
+                });
+            }
+
+            localStorage.setItem(flag, 'true');
+        }
+    }, [project, tasks, columns, addTaskMutation, updateTaskMutation]);
 
     const handleAddTask = (columnId: string) => {
         const title = newTaskTitles[columnId];
