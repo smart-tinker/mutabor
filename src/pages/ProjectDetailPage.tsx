@@ -1,23 +1,59 @@
 
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useProjectData } from '@/hooks/useProjectData';
+import { useProject, useTasks, useAddTask } from '@/hooks/useProject';
+import { useColumns } from '@/hooks/useColumns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ArrowLeft, Plus } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { toast } from '@/hooks/use-toast';
+import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const ProjectDetailPage = () => {
     const { projectId } = useParams<{ projectId: string }>();
-    const { getProject, addTask } = useProjectData();
     const [newTaskTitles, setNewTaskTitles] = useState<Record<string, string>>({});
 
-    if (!projectId) {
-        return <div>Неверный ID проекта</div>;
-    }
+    const { data: project, isLoading: isLoadingProject } = useProject(projectId!);
+    const { data: tasks, isLoading: isLoadingTasks } = useTasks(projectId!);
+    const { data: columns, isLoading: isLoadingColumns } = useColumns();
+    const addTaskMutation = useAddTask(projectId!);
 
-    const project = getProject(projectId);
+    const handleAddTask = (columnId: string) => {
+        const title = newTaskTitles[columnId];
+        if (title && title.trim()) {
+            addTaskMutation.mutate({ projectId: projectId!, columnId, title }, {
+                onSuccess: () => {
+                    setNewTaskTitles(prev => ({...prev, [columnId]: ''}));
+                }
+            });
+        }
+    };
+    
+    const handleNewTaskTitleChange = (columnId: string, value: string) => {
+        setNewTaskTitles(prev => ({ ...prev, [columnId]: value }));
+    };
+
+    const isLoading = isLoadingProject || isLoadingTasks || isLoadingColumns;
+
+    if (isLoading) {
+        return (
+            <div className="max-w-6xl mx-auto px-4 py-8">
+                <div className="mb-8">
+                    <Skeleton className="h-6 w-32 mb-2" />
+                    <Skeleton className="h-10 w-1/2" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
+                    {[...Array(3)].map((_, i) => (
+                        <div key={i} className="bg-muted rounded-lg p-4 h-full flex flex-col space-y-4">
+                           <Skeleton className="h-6 w-1/3" />
+                           <Skeleton className="h-20 w-full" />
+                           <Skeleton className="h-20 w-full" />
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    }
 
     if (!project) {
         return (
@@ -29,19 +65,6 @@ const ProjectDetailPage = () => {
             </div>
         )
     }
-
-    const handleAddTask = (columnId: string) => {
-        const title = newTaskTitles[columnId];
-        if (title && title.trim()) {
-            addTask(projectId, columnId, title);
-            setNewTaskTitles(prev => ({...prev, [columnId]: ''}));
-            toast({ title: "Задача добавлена."});
-        }
-    };
-    
-    const handleNewTaskTitleChange = (columnId: string, value: string) => {
-        setNewTaskTitles(prev => ({ ...prev, [columnId]: value }));
-    };
 
     return (
         <div className="max-w-6xl mx-auto px-4 py-8">
@@ -56,11 +79,11 @@ const ProjectDetailPage = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
-                {project.columns.map(column => (
+                {columns?.map(column => (
                     <div key={column.id} className="bg-muted rounded-lg p-4 h-full flex flex-col">
                         <h2 className="text-lg font-semibold mb-4">{column.title}</h2>
                         <div className="space-y-4 flex-grow">
-                            {project.tasks.filter(t => t.columnId === column.id).map(task => (
+                            {tasks?.filter(t => t.column_id === column.id).map(task => (
                                 <Card key={task.id}>
                                     <CardContent className="p-4">
                                         <Link to={`/task/${task.id}`} className="font-medium hover:underline">
@@ -77,8 +100,9 @@ const ProjectDetailPage = () => {
                                     value={newTaskTitles[column.id] || ''}
                                     onChange={(e) => handleNewTaskTitleChange(column.id, e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleAddTask(column.id)}
+                                    disabled={addTaskMutation.isPending}
                                 />
-                                <Button onClick={() => handleAddTask(column.id)} size="icon">
+                                <Button onClick={() => handleAddTask(column.id)} size="icon" disabled={addTaskMutation.isPending}>
                                     <Plus className="w-4 h-4" />
                                 </Button>
                             </div>

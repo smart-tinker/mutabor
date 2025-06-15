@@ -6,13 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { ArrowLeft, Trash2 } from 'lucide-react';
-import { useColumnData } from '@/hooks/useColumnData';
+import { useColumns, useAddColumn, useDeleteColumn } from '@/hooks/useColumns';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const API_KEY_STORAGE_KEY = 'mutabor_google_api_key';
 
 const SettingsPage = () => {
   const [apiKey, setApiKey] = useState('');
-  const { columns, addColumn, deleteColumn } = useColumnData();
+  const { data: columns, isLoading: isLoadingColumns } = useColumns();
+  const addColumnMutation = useAddColumn();
+  const deleteColumnMutation = useDeleteColumn();
   const [newColumnName, setNewColumnName] = useState('');
 
   useEffect(() => {
@@ -34,10 +37,24 @@ const SettingsPage = () => {
 
   const handleAddColumn = () => {
     if (newColumnName.trim()) {
-        addColumn(newColumnName);
-        setNewColumnName('');
+        addColumnMutation.mutate(newColumnName, {
+            onSuccess: () => setNewColumnName('')
+        });
     }
   };
+
+  const handleDeleteColumn = (id: string) => {
+    if (columns && columns.length <= 1) {
+        toast({
+            title: "Нельзя удалить последний статус",
+            description: "В проекте должен быть хотя бы один статус.",
+            variant: "destructive",
+        });
+        return;
+    }
+    deleteColumnMutation.mutate(id);
+  };
+
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
@@ -75,24 +92,29 @@ const SettingsPage = () => {
             <div className="space-y-2">
                 <Label>Текущие статусы</Label>
                 <p className="text-sm text-muted-foreground">
-                    Эти статусы будут использоваться по умолчанию для новых проектов. Изменения не затронут существующие проекты.
+                    Эти статусы будут использоваться по умолчанию для новых проектов.
                 </p>
                 <div className="space-y-2 rounded-lg border p-4">
-                    {columns.map((column) => (
+                    {isLoadingColumns ? (
+                        <div className="space-y-2">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                        </div>
+                    ) : columns?.map((column) => (
                         <div key={column.id} className="flex items-center gap-2">
                             <Input value={column.title} readOnly className="bg-background" />
                             <Button 
                                 variant="ghost" 
                                 size="icon" 
-                                onClick={() => deleteColumn(column.id)}
-                                disabled={columns.length <= 1}
+                                onClick={() => handleDeleteColumn(column.id)}
+                                disabled={deleteColumnMutation.isPending || (columns && columns.length <= 1)}
                             >
                                 <Trash2 className="w-4 h-4 text-destructive" />
                                 <span className="sr-only">Удалить {column.title}</span>
                             </Button>
                         </div>
                     ))}
-                     {columns.length === 0 && <p className="text-sm text-muted-foreground text-center py-2">Нет статусов. Добавьте первый.</p>}
+                     {!isLoadingColumns && columns?.length === 0 && <p className="text-sm text-muted-foreground text-center py-2">Нет статусов. Добавьте первый.</p>}
                 </div>
             </div>
             <div className="space-y-2">
@@ -104,8 +126,9 @@ const SettingsPage = () => {
                       value={newColumnName}
                       onChange={e => setNewColumnName(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleAddColumn()}
+                      disabled={addColumnMutation.isPending}
                     />
-                    <Button onClick={handleAddColumn}>Добавить</Button>
+                    <Button onClick={handleAddColumn} disabled={addColumnMutation.isPending}>Добавить</Button>
                 </div>
             </div>
         </div>
