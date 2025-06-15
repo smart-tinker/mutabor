@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -85,10 +84,10 @@ const ProjectDetailPage = () => {
 
         if (overIsTask) {
             const finalOverIndex = newTasks.findIndex(t => t.id === overId);
-            if (finalOverIndex !== -1) {
+            if (finalOverIndex !== -1 && finalActiveIndex !== finalOverIndex) {
               newTasks = arrayMove(newTasks, finalActiveIndex, finalOverIndex);
             }
-        } else if (overIsColumn && originalColumnId !== newColumnId) {
+        } else if (overIsColumn) {
             const taskToMove = newTasks.splice(finalActiveIndex, 1)[0];
             
             let lastIndexOfNewColumn = -1;
@@ -109,6 +108,7 @@ const ProjectDetailPage = () => {
         const affectedColumns = new Set([originalColumnId, newColumnId]);
         
         affectedColumns.forEach(columnId => {
+            if (!columnId) return;
             let orderCounter = 0;
             newTasks.forEach((task, index) => {
                 if (task.column_id === columnId) {
@@ -130,26 +130,28 @@ const ProjectDetailPage = () => {
         setOptimisticTasks(newTasks);
 
         // Step 2: Persist changes to the server
-        const updatePromises = updatesToPersist.map(update => 
-            updateTaskMutation.mutateAsync({ ...update, silent: true })
-        );
+        if (updatesToPersist.length > 0) {
+            const updatePromises = updatesToPersist.map(update => 
+                updateTaskMutation.mutateAsync({ ...update, silent: true })
+            );
 
-        Promise.all(updatePromises)
-            .catch(error => {
-                console.error("Failed to update tasks order:", error);
-                toast({
-                    title: "Ошибка при обновлении порядка задач",
-                    variant: "destructive"
+            Promise.all(updatePromises)
+                .catch(error => {
+                    console.error("Failed to update tasks order:", error);
+                    toast({
+                        title: "Ошибка при обновлении порядка задач",
+                        variant: "destructive"
+                    });
+                    // Revert on failure
+                    setOptimisticTasks(originalTasks);
+                })
+                .finally(() => {
+                    // Always invalidate to ensure consistency with the server
+                     if (project?.id) {
+                        queryClient.invalidateQueries({ queryKey: ['tasks', project.id] });
+                    }
                 });
-                // Revert on failure
-                setOptimisticTasks(originalTasks);
-            })
-            .finally(() => {
-                // Always invalidate to ensure consistency with the server
-                 if (project?.id) {
-                    queryClient.invalidateQueries({ queryKey: ['tasks', project.id] });
-                }
-            });
+        }
     };
     
     const isLoading = isLoadingProject || !project || isLoadingTasks || isLoadingColumns;
