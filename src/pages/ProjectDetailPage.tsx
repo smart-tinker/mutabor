@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import TaskColumn from '@/components/TaskColumn';
 import { Task } from '@/types';
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors, closestCorners } from '@dnd-kit/core';
+import { arrayMove } from '@dnd-kit/sortable';
 
 const ProjectDetailPage = () => {
     const { projectKey } = useParams<{ projectKey: string }>();
@@ -31,7 +32,8 @@ const ProjectDetailPage = () => {
 
     useEffect(() => {
         if (tasks) {
-          setOptimisticTasks(tasks);
+          // Assign index as order for DnD if not present
+          setOptimisticTasks(tasks.map((task, index) => ({ ...task, order: task.order ?? index })));
         }
     }, [tasks]);
 
@@ -51,34 +53,47 @@ const ProjectDetailPage = () => {
         
         if (activeId === overId) return;
 
-        const activeTask = optimisticTasks?.find((t) => t.id === activeId);
-        if (!activeTask) return;
+        setOptimisticTasks(currentTasks => {
+            if (!currentTasks) return currentTasks;
+            
+            const activeTask = currentTasks.find((t) => t.id === activeId);
+            if (!activeTask) return currentTasks;
 
-        const overIsColumn = columns?.some(c => c.id === overId);
-        let newColumnId = overId;
-
-        if (!overIsColumn) {
-            const overTask = optimisticTasks?.find((t) => t.id === overId);
-            if (overTask) {
-                newColumnId = overTask.column_id;
-            } else {
-                return;
+            const overTask = currentTasks.find((t) => t.id === overId);
+            
+            // Handle reordering within the same column
+            if (overTask && activeTask.column_id === overTask.column_id) {
+                const activeIndex = currentTasks.findIndex(t => t.id === activeId);
+                const overIndex = currentTasks.findIndex(t => t.id === overId);
+                if (activeIndex !== -1 && overIndex !== -1) {
+                    // NOTE: Persistence of reordering is not implemented yet.
+                    return arrayMove(currentTasks, activeIndex, overIndex);
+                }
             }
-        }
+            
+            // Handle moving to a different column
+            const overIsColumn = columns?.some(c => c.id === overId);
+            let newColumnId: string | undefined;
 
-        if (activeTask.column_id !== newColumnId) {
-            setOptimisticTasks((currentTasks) =>
-                currentTasks?.map((t) =>
+            if (overIsColumn) {
+                newColumnId = overId;
+            } else if (overTask) {
+                newColumnId = overTask.column_id;
+            }
+
+            if (newColumnId && activeTask.column_id !== newColumnId) {
+                 updateTaskMutation.mutate({
+                    taskId: activeId,
+                    updates: { column_id: newColumnId },
+                    silent: true,
+                });
+                return currentTasks.map((t) =>
                     t.id === activeId ? { ...t, column_id: newColumnId } : t
-                )
-            );
+                );
+            }
 
-            updateTaskMutation.mutate({
-                taskId: activeId,
-                updates: { column_id: newColumnId },
-                silent: true,
-            });
-        }
+            return currentTasks;
+        });
     };
     
     const isLoading = isLoadingProject || !project || isLoadingTasks || isLoadingColumns;
@@ -140,7 +155,7 @@ const ProjectDetailPage = () => {
                         <TaskColumn 
                             key={column.id} 
                             column={column} 
-                            tasks={optimisticTasks?.filter(t => t.column_id === column.id) || []}
+                            tasks={optimisticTasks?.filter(t => t.column_id === column.id).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) || []}
                             projectKey={project.key!}
                             projectId={project.id}
                         />

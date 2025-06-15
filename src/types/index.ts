@@ -16,6 +16,7 @@ export interface Task {
   due_date: string | null;
   category_id: string | null;
   priority: 'Low' | 'Medium' | 'High';
+  order?: number;
 }
 
 export interface Project {
