@@ -116,3 +116,48 @@ export const useAddDefaultProject = () => {
         },
     });
 };
+
+// Delete a project
+const deleteProject = async (projectId: string) => {
+    // 1. Delete all tasks associated with the project
+    const { error: tasksError } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('project_id', projectId);
+
+    if (tasksError) {
+        throw new Error(`Ошибка при удалении задач проекта: ${tasksError.message}`);
+    }
+
+    // 2. Delete the project itself
+    const { error: projectError } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', projectId);
+    
+    if (projectError) {
+        throw new Error(`Ошибка при удалении проекта: ${projectError.message}`);
+    }
+};
+
+export const useDeleteProject = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: deleteProject,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['projects'] });
+            toast({
+                title: 'Проект удален!',
+                description: 'Проект и все связанные с ним задачи были успешно удалены.',
+            });
+        },
+        onError: (error: Error) => {
+            console.error('Error deleting project:', error);
+            toast({
+                title: 'Ошибка при удалении проекта',
+                description: error.message,
+                variant: 'destructive',
+            });
+        },
+    });
+};
