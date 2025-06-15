@@ -1,7 +1,6 @@
 
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Task } from '@/types';
 import { ArrowUp, Minus, ArrowDown, GripVertical } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
@@ -48,15 +47,8 @@ const TaskCard = ({ task, projectKey }: TaskCardProps) => {
                             </Link>
                         </div>
                         {priority && (
-                             <div className="flex-shrink-0 pr-2">
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <span className="flex items-center">{priority.icon}</span>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>Приоритет: {priority.label}</p>
-                                    </TooltipContent>
-                                </Tooltip>
+                             <div className="flex-shrink-0 pr-2" title={`Приоритет: ${priority.label}`}>
+                                <span className="flex items-center">{priority.icon}</span>
                             </div>
                         )}
                     </div>
