@@ -3,7 +3,10 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Task } from '@/types';
-import { ArrowUp, Minus, ArrowDown } from 'lucide-react';
+import { ArrowUp, Minus, ArrowDown, GripVertical } from 'lucide-react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { cn } from '@/lib/utils';
 
 interface TaskCardProps {
     task: Task;
@@ -19,17 +22,33 @@ const priorityConfig = {
 const TaskCard = ({ task, projectKey }: TaskCardProps) => {
     const priority = priorityConfig[task.priority];
 
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+    };
+
     return (
-        <Card>
-            <CardContent className="p-4">
-                <Link to={`/project/${projectKey}/task/${task.key}`} className="font-medium hover:underline block">
-                    <div className="flex justify-between items-start gap-2">
+        <div ref={setNodeRef} style={style} className={cn(isDragging && "opacity-50 ring-2 ring-primary")}>
+            <Card>
+                <CardContent className="p-2">
+                    <div className="flex justify-between items-center gap-2">
+                        <div {...attributes} {...listeners} className="cursor-grab p-2 text-muted-foreground hover:text-foreground">
+                            <GripVertical className="h-5 w-5" />
+                        </div>
                         <div className="flex-grow">
-                            {task.key && <span className="text-muted-foreground mr-2 font-mono text-xs">{task.key}</span>}
-                            <span>{task.title}</span>
+                            <Link to={`/project/${projectKey}/task/${task.key}`} className="font-medium hover:underline block">
+                                <div className="flex justify-between items-start gap-2">
+                                    <div className="flex-grow">
+                                        {task.key && <span className="text-muted-foreground mr-2 font-mono text-xs">{task.key}</span>}
+                                        <span>{task.title}</span>
+                                    </div>
+                                </div>
+                            </Link>
                         </div>
                         {priority && (
-                             <div className="flex-shrink-0">
+                             <div className="flex-shrink-0 pr-2">
                                 <Tooltip>
                                     <TooltipTrigger asChild>
                                         <span className="flex items-center">{priority.icon}</span>
@@ -41,9 +60,9 @@ const TaskCard = ({ task, projectKey }: TaskCardProps) => {
                             </div>
                         )}
                     </div>
-                </Link>
-            </CardContent>
-        </Card>
+                </CardContent>
+            </Card>
+        </div>
     );
 };
 

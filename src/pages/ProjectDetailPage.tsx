@@ -1,19 +1,27 @@
+
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useProject, useTasks, useAddTask } from '@/hooks/useProject';
+import { useProject, useTasks, useUpdateTask } from '@/hooks/useProject';
 import { useColumns } from '@/hooks/useColumns';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ArrowLeft, Plus, Settings } from 'lucide-react';
+import { ArrowLeft, Settings } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
-import TaskCard from '@/components/TaskCard';
+import TaskColumn from '@/components/TaskColumn';
+import { Task } from '@/types';
+import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors, closestCorners } from '@dnd-kit/core';
 
 const ProjectDetailPage = () => {
     const { projectKey } = useParams<{ projectKey: string }>();
-    const [newTaskTitles, setNewTaskTitles] = useState<Record<string, string>>({});
     const { session, loading: authLoading } = useAuth();
     const navigate = useNavigate();
+
+    const { data: project, isLoading: isLoadingProject } = useProject(projectKey!);
+    const { data: tasks, isLoading: isLoadingTasks } = useTasks(project?.id!);
+    const { data: columns, isLoading: isLoadingColumns } = useColumns();
+    const updateTaskMutation = useUpdateTask();
+    
+    const [optimisticTasks, setOptimisticTasks] = useState<Task[] | undefined>(undefined);
 
     useEffect(() => {
         if (!authLoading && !session) {
@@ -21,26 +29,58 @@ const ProjectDetailPage = () => {
         }
     }, [session, authLoading, navigate]);
 
-    const { data: project, isLoading: isLoadingProject } = useProject(projectKey!);
-    const { data: tasks, isLoading: isLoadingTasks } = useTasks(project?.id!);
-    const { data: columns, isLoading: isLoadingColumns } = useColumns();
-    const addTaskMutation = useAddTask();
+    useEffect(() => {
+        if (tasks) {
+          setOptimisticTasks(tasks);
+        }
+    }, [tasks]);
 
-    const handleAddTask = (columnId: string) => {
-        const title = newTaskTitles[columnId];
-        if (title && title.trim() && project?.id) {
-            addTaskMutation.mutate({ projectId: project.id, columnId, title }, {
-                onSuccess: () => {
-                    setNewTaskTitles(prev => ({...prev, [columnId]: ''}));
-                }
+    const sensors = useSensors(useSensor(PointerSensor, {
+        activationConstraint: {
+            distance: 8,
+        },
+    }));
+
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (!over) return;
+        
+        const activeId = active.id as string;
+        const overId = over.id as string;
+        
+        if (activeId === overId) return;
+
+        const activeTask = optimisticTasks?.find((t) => t.id === activeId);
+        if (!activeTask) return;
+
+        const overIsColumn = columns?.some(c => c.id === overId);
+        let newColumnId = overId;
+
+        if (!overIsColumn) {
+            const overTask = optimisticTasks?.find((t) => t.id === overId);
+            if (overTask) {
+                newColumnId = overTask.column_id;
+            } else {
+                return;
+            }
+        }
+
+        if (activeTask.column_id !== newColumnId) {
+            setOptimisticTasks((currentTasks) =>
+                currentTasks?.map((t) =>
+                    t.id === activeId ? { ...t, column_id: newColumnId } : t
+                )
+            );
+
+            updateTaskMutation.mutate({
+                taskId: activeId,
+                updates: { column_id: newColumnId },
+                silent: true,
             });
         }
     };
     
-    const handleNewTaskTitleChange = (columnId: string, value: string) => {
-        setNewTaskTitles(prev => ({ ...prev, [columnId]: value }));
-    };
-
     const isLoading = isLoadingProject || !project || isLoadingTasks || isLoadingColumns;
 
     if (isLoading) {
@@ -94,32 +134,19 @@ const ProjectDetailPage = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-start">
-                {columns?.map(column => (
-                    <div key={column.id} className="bg-muted rounded-lg p-4 h-full flex flex-col">
-                        <h2 className="text-lg font-semibold mb-4">{column.title}</h2>
-                        <div className="space-y-4 flex-grow">
-                            {tasks?.filter(t => t.column_id === column.id).map(task => (
-                                <TaskCard key={task.id} task={task} projectKey={project.key!} />
-                            ))}
-                        </div>
-                        <div className="mt-4 pt-4 border-t">
-                            <div className="flex gap-2">
-                                <Input 
-                                    placeholder="Новая задача..."
-                                    value={newTaskTitles[column.id] || ''}
-                                    onChange={(e) => handleNewTaskTitleChange(column.id, e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleAddTask(column.id)}
-                                    disabled={addTaskMutation.isPending}
-                                />
-                                <Button onClick={() => handleAddTask(column.id)} size="icon" disabled={addTaskMutation.isPending}>
-                                    <Plus className="w-4 h-4" />
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
+            <DndContext sensors={sensors} onDragEnd={handleDragEnd} collisionDetection={closestCorners}>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-start">
+                    {columns?.sort((a,b) => a.order - b.order).map(column => (
+                        <TaskColumn 
+                            key={column.id} 
+                            column={column} 
+                            tasks={optimisticTasks?.filter(t => t.column_id === column.id) || []}
+                            projectKey={project.key!}
+                            projectId={project.id}
+                        />
+                    ))}
+                </div>
+            </DndContext>
         </div>
     );
 }
