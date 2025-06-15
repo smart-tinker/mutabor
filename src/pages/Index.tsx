@@ -1,45 +1,31 @@
 
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useProjectData } from '@/hooks/useProjectData';
 import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus } from 'lucide-react';
 
 const Index = () => {
   const { projects, addProject } = useProjectData();
-  const [newProjectName, setNewProjectName] = useState('');
 
   const handleAddProject = () => {
-    if (newProjectName.trim()) {
-      addProject(newProjectName);
-      setNewProjectName('');
-    }
+    const newProjectName = `Новый проект ${projects.length + 1}`;
+    addProject(newProjectName);
   };
 
   return (
     <div className="max-w-4xl mx-auto px-4">
       <Header />
       <main>
-        <div className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4">Новый проект</h2>
-            <div className="flex gap-2">
-                <Input 
-                    placeholder="Название проекта..."
-                    value={newProjectName}
-                    onChange={(e) => setNewProjectName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddProject()}
-                />
-                <Button onClick={handleAddProject}>
-                    <Plus className="mr-2"/> Создать
-                </Button>
-            </div>
+        <div className="flex items-center justify-between mb-8">
+            <h2 className="text-3xl font-bold tracking-tighter">Ваши проекты</h2>
+            <Button onClick={handleAddProject}>
+                <Plus className="mr-2 h-4 w-4"/> Создать проект
+            </Button>
         </div>
 
         <div>
-            <h2 className="text-2xl font-semibold mb-4">Ваши проекты</h2>
             {projects.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {projects.map(project => (
@@ -53,7 +39,13 @@ const Index = () => {
                     ))}
                 </div>
             ) : (
-                <p className="text-center text-muted-foreground py-16">У вас пока нет проектов. Время создать первый!</p>
+                <div className="text-center text-muted-foreground py-16 border-2 border-dashed rounded-lg">
+                    <h3 className="text-xl font-semibold text-foreground mb-2">У вас пока нет проектов</h3>
+                    <p className="mb-4">Начните с создания своего первого проекта.</p>
+                    <Button onClick={handleAddProject}>
+                        <Plus className="mr-2 h-4 w-4"/> Создать первый проект
+                    </Button>
+                </div>
             )}
         </div>
       </main>

@@ -1,47 +1,52 @@
 
-import { useState, useEffect } from 'react';
-import { Project, Task } from '@/types';
+import { useState, useEffect, useRef } from 'react';
+import { Project, Task, Column } from '@/types';
+import { useColumnData } from './useColumnData';
 
 const PROJECTS_STORAGE_KEY = 'mutabor_projects';
 
-const DEFAULT_COLUMNS = [
-    { id: 'todo', title: 'К выполнению' },
-    { id: 'in-progress', title: 'В процессе' },
-    { id: 'done', title: 'Готово' },
-];
-
-const createDefaultProject = (): Project => ({
+const createDefaultProject = (columns: Column[]): Project => ({
     id: crypto.randomUUID(),
     name: 'Мой первый проект',
-    columns: DEFAULT_COLUMNS,
-    tasks: [
-        { id: crypto.randomUUID(), title: 'Настроить рабочее окружение', columnId: 'todo', description: '' },
-        { id: crypto.randomUUID(), title: 'Создать первую задачу', columnId: 'todo', description: '' },
-    ],
+    columns: columns,
+    tasks: columns.length > 0 ? [
+        { id: crypto.randomUUID(), title: 'Настроить рабочее окружение', columnId: columns[0].id, description: '' },
+        { id: crypto.randomUUID(), title: 'Создать первую задачу', columnId: columns[0].id, description: '' },
+    ] : [],
 });
 
 
 export function useProjectData() {
-  const [projects, setProjects] = useState<Project[]>(() => {
-    try {
-      const storedProjects = localStorage.getItem(PROJECTS_STORAGE_KEY);
-      if (storedProjects) {
-        return JSON.parse(storedProjects);
-      }
-      const defaultProject = createDefaultProject();
-      return [defaultProject];
-    } catch (error) {
-      console.error("Error reading projects from localStorage", error);
-      const defaultProject = createDefaultProject();
-      return [defaultProject];
-    }
-  });
+  const { columns: defaultColumns } = useColumnData();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const isInitialized = useRef(false);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(projects));
-    } catch (error) {
-      console.error("Error writing projects to localStorage", error);
+    if (defaultColumns.length > 0 && !isInitialized.current) {
+        let initialProjects: Project[];
+        try {
+            const storedProjects = localStorage.getItem(PROJECTS_STORAGE_KEY);
+            if (storedProjects) {
+                initialProjects = JSON.parse(storedProjects);
+            } else {
+                initialProjects = [createDefaultProject(defaultColumns)];
+            }
+        } catch (error) {
+            console.error("Error reading projects from localStorage", error);
+            initialProjects = [createDefaultProject(defaultColumns)];
+        }
+        setProjects(initialProjects);
+        isInitialized.current = true;
+    }
+  }, [defaultColumns]);
+
+  useEffect(() => {
+    if (isInitialized.current) {
+        try {
+            localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(projects));
+        } catch (error) {
+            console.error("Error writing projects to localStorage", error);
+        }
     }
   }, [projects]);
 
@@ -50,7 +55,7 @@ export function useProjectData() {
       const newProject: Project = {
         id: crypto.randomUUID(),
         name: name.trim(),
-        columns: DEFAULT_COLUMNS,
+        columns: defaultColumns,
         tasks: [],
       };
       setProjects(prevProjects => [...prevProjects, newProject]);
