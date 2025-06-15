@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTask, useUpdateTask, useDeleteTask } from '@/hooks/useProject';
@@ -22,7 +21,7 @@ import { Task } from '@/types';
 
 
 const TaskDetailPage = () => {
-    const { id: taskId } = useParams<{ id: string }>();
+    const { id: taskId, projectId, taskKey } = useParams<{ id?: string, projectId?: string, taskKey?: string }>();
     const navigate = useNavigate();
     const { session, loading: authLoading } = useAuth();
 
@@ -33,11 +32,11 @@ const TaskDetailPage = () => {
     }, [session, authLoading, navigate]);
 
 
-    const { data: task, isLoading: isLoadingTask, isError } = useTask(taskId!);
+    const { data: task, isLoading: isLoadingTask, isError } = useTask({ taskId, projectId, taskKey });
     const { data: columns, isLoading: isLoadingColumns } = useColumns();
     const { data: categories, isLoading: isLoadingCategories } = useCategories(task?.project_id || '');
-    const updateTaskMutation = useUpdateTask(taskId!, task?.project_id);
-    const deleteTaskMutation = useDeleteTask(taskId!, task?.project_id);
+    const updateTaskMutation = useUpdateTask();
+    const deleteTaskMutation = useDeleteTask();
 
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
@@ -86,7 +85,7 @@ const TaskDetailPage = () => {
 
     const handleDelete = () => {
         if (task) {
-            deleteTaskMutation.mutate(undefined, {
+            deleteTaskMutation.mutate({ taskId: task.id, projectId: task.project_id }, {
                 onSuccess: () => {
                     navigate(`/project/${task.project_id}`);
                 }
@@ -140,17 +139,20 @@ const TaskDetailPage = () => {
             </div>
 
             <div className="space-y-6">
-                <div className="space-y-2">
-                    <Label htmlFor="task-title">Название задачи</Label>
-                    <Input 
-                        id="task-title"
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value)}
-                        className="text-2xl h-12 px-4 font-semibold"
-                        onBlur={handleSave}
-                        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-                        disabled={updateTaskMutation.isPending}
-                    />
+                <div className="flex items-center space-x-4">
+                    {task.key && <span className="text-2xl font-semibold text-muted-foreground">{task.key}</span>}
+                    <div className="flex-1 space-y-2">
+                        <Label htmlFor="task-title" className="sr-only">Название задачи</Label>
+                        <Input 
+                            id="task-title"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            className="text-2xl h-12 px-4 font-semibold"
+                            onBlur={handleSave}
+                            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                            disabled={updateTaskMutation.isPending}
+                        />
+                    </div>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

@@ -11,6 +11,7 @@ import TaskDetailPage from "./pages/TaskDetailPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import AuthPage from "./pages/AuthPage";
 import ProjectSettingsPage from "./pages/ProjectSettingsPage";
+import DocsPage from "./pages/DocsPage";
 
 const queryClient = new QueryClient();
 
@@ -23,8 +24,10 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<AuthPage />} />
+          <Route path="/docs" element={<DocsPage />} />
           <Route path="/project/:projectId" element={<ProjectDetailPage />} />
           <Route path="/project/:projectId/settings" element={<ProjectSettingsPage />} />
+          <Route path="/project/:projectId/task/:taskKey" element={<TaskDetailPage />} />
           <Route path="/task/:id" element={<TaskDetailPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

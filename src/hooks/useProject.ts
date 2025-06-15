@@ -37,19 +37,34 @@ export const useTasks = (projectId: string) => {
 };
 
 // Fetch single task details
-const fetchTask = async (taskId: string): Promise<Task | null> => {
-    const { data, error } = await supabase.from('tasks').select('*').eq('id', taskId).maybeSingle();
-    if (error) {
-        throw new Error(error.message);
+const fetchTask = async ({ taskId, projectId, taskKey }: { taskId?: string; projectId?: string; taskKey?: string }): Promise<Task | null> => {
+    if (taskId) {
+        const { data, error } = await supabase.from('tasks').select('*').eq('id', taskId).maybeSingle();
+        if (error) {
+            throw new Error(error.message);
+        }
+        return data;
     }
-    return data;
+    if (projectId && taskKey) {
+        const { data, error } = await supabase
+            .from('tasks')
+            .select('*')
+            .eq('project_id', projectId)
+            .eq('key', taskKey)
+            .maybeSingle();
+        if (error) {
+            throw new Error(error.message);
+        }
+        return data;
+    }
+    return null;
 };
 
-export const useTask = (taskId: string) => {
+export const useTask = ({ taskId, projectId, taskKey }: { taskId?: string; projectId?: string; taskKey?: string }) => {
     return useQuery({
-        queryKey: ['task', taskId],
-        queryFn: () => fetchTask(taskId),
-        enabled: !!taskId,
+        queryKey: ['task', { taskId, projectId, taskKey }],
+        queryFn: () => fetchTask({ taskId, projectId, taskKey }),
+        enabled: !!taskId || (!!projectId && !!taskKey),
     });
 };
 
@@ -90,33 +105,34 @@ const updateTask = async ({ taskId, updates }: UpdateTaskPayload): Promise<Task>
     return data;
 };
 
-export const useUpdateTask = (taskId: string, projectId?: string) => {
+export const useUpdateTask = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: updateTask,
         onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: ['tasks', projectId || data.project_id] });
-            queryClient.setQueryData(['task', taskId], data);
+            queryClient.invalidateQueries({ queryKey: ['tasks', data.project_id] });
+            queryClient.invalidateQueries({ queryKey: ['task'] });
             toast({ title: "Задача обновлена." });
         },
     });
 };
 
 // Delete a task
-const deleteTask = async (taskId: string) => {
+type DeleteTaskPayload = { taskId: string; projectId?: string };
+const deleteTask = async ({ taskId }: DeleteTaskPayload) => {
     const { error } = await supabase.from('tasks').delete().eq('id', taskId);
     if (error) throw new Error(error.message);
 };
 
-export const useDeleteTask = (taskId: string, projectId?: string) => {
+export const useDeleteTask = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: () => deleteTask(taskId),
-        onSuccess: () => {
-            if (projectId) {
-                queryClient.invalidateQueries({ queryKey: ['tasks', projectId] });
+        mutationFn: deleteTask,
+        onSuccess: (_data, variables) => {
+            if (variables.projectId) {
+                queryClient.invalidateQueries({ queryKey: ['tasks', variables.projectId] });
             }
-            queryClient.removeQueries({ queryKey: ['task', taskId] });
+            queryClient.invalidateQueries({ queryKey: ['task'] });
             toast({ title: "Задача удалена.", variant: "destructive" });
         },
     });
