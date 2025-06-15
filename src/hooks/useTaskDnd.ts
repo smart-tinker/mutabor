@@ -20,9 +20,18 @@ export const useTaskDnd = (initialTasks: Task[] | undefined, projectId: string |
     }, [initialTasks]);
 
     const handleDragEnd = (event: DragEndEvent) => {
+        console.log("DragEnd event:", event);
         const { active, over } = event;
 
-        if (!over || !optimisticTasks || active.id === over.id) return;
+        if (!over || !optimisticTasks || active.id === over.id) {
+            console.log("DragEnd aborted", { over, hasOptimisticTasks: !!optimisticTasks, activeId: active.id, overId: over?.id });
+            return;
+        }
+
+        console.log("Active item:", active.id, "Over item:", over.id);
+        if (over.data.current) {
+            console.log("Over data:", over.data.current);
+        }
 
         const originalTasks = [...optimisticTasks];
         

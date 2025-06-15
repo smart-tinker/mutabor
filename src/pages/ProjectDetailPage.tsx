@@ -8,7 +8,7 @@ import { ArrowLeft, Settings } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import TaskColumn from '@/components/TaskColumn';
-import { DndContext, PointerSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core';
+import { DndContext, PointerSensor, useSensor, useSensors, closestCorners } from '@dnd-kit/core';
 import { useTaskDnd } from '@/hooks/useTaskDnd';
 
 const ProjectDetailPage = () => {
@@ -87,7 +87,7 @@ const ProjectDetailPage = () => {
                 </div>
             </div>
 
-            <DndContext sensors={sensors} onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
+            <DndContext sensors={sensors} onDragEnd={handleDragEnd} collisionDetection={closestCorners}>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-start">
                     {columns?.sort((a,b) => a.order - b.order).map(column => (
                         <TaskColumn 
