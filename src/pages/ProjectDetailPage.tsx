@@ -57,14 +57,13 @@ const ProjectDetailPage = () => {
             const activeIndex = oldTasks.findIndex((t) => t.id === activeId);
             const activeTask = oldTasks[activeIndex];
             
-            // Determine target column
             const overIsColumn = over.data.current?.type === 'Column';
             const overIsTask = over.data.current?.type === 'Task';
             let newColumnId: string | null = null;
 
             if (overIsTask) {
                 const overIndex = oldTasks.findIndex((t) => t.id === overId);
-                newColumnId = oldTasks[overIndex].column_id;
+                newColumnId = oldTasks[overIndex]?.column_id;
             } else if (overIsColumn) {
                 newColumnId = overId;
             }
@@ -72,25 +71,22 @@ const ProjectDetailPage = () => {
             if (!newColumnId) return oldTasks;
             
             let newTasks = [...oldTasks];
+            const originalColumnId = activeTask.column_id;
 
-            // 1. Update column if it has changed
-            if (activeTask.column_id !== newColumnId) {
+            // Step 1: Optimistically update array for UI
+            // First, update column_id if it's changing
+            if (originalColumnId !== newColumnId) {
                 newTasks[activeIndex] = { ...activeTask, column_id: newColumnId };
-                updateTaskMutation.mutate({
-                    taskId: activeId,
-                    updates: { column_id: newColumnId },
-                    silent: true,
-                });
             }
             
-            // 2. Reorder tasks in the array
             const finalActiveIndex = newTasks.findIndex(t => t.id === activeId);
 
             if (overIsTask) {
                 const finalOverIndex = newTasks.findIndex(t => t.id === overId);
-                newTasks = arrayMove(newTasks, finalActiveIndex, finalOverIndex);
-            } else if (overIsColumn && activeTask.column_id !== newColumnId) {
-                // When moving to a new column (not over a specific task), move the task to the end of that column
+                if (finalOverIndex !== -1) {
+                  newTasks = arrayMove(newTasks, finalActiveIndex, finalOverIndex);
+                }
+            } else if (overIsColumn && originalColumnId !== newColumnId) {
                 const taskToMove = newTasks.splice(finalActiveIndex, 1)[0];
                 
                 let lastIndexOfNewColumn = -1;
@@ -106,18 +102,32 @@ const ProjectDetailPage = () => {
                      newTasks.push(taskToMove);
                 }
             }
-
-
-            // 3. Recalculate `order` for affected columns to reflect the new visual order
-            const affectedColumns = new Set([activeTask.column_id, newColumnId]);
+            
+            // Step 2: Recalculate order for affected columns and collect updates
+            const updatesToPersist: {taskId: string, updates: Partial<Task>}[] = [];
+            const affectedColumns = new Set([originalColumnId, newColumnId]);
             
             affectedColumns.forEach(columnId => {
                 let orderCounter = 0;
                 newTasks.forEach((task, index) => {
                     if (task.column_id === columnId) {
-                        newTasks[index] = { ...task, order: orderCounter++ };
+                        const originalTask = oldTasks.find(t => t.id === task.id);
+                        const newOrder = orderCounter++;
+                        
+                        if (originalTask?.order !== newOrder || originalTask?.column_id !== task.column_id) {
+                            updatesToPersist.push({
+                                taskId: task.id,
+                                updates: { order: newOrder, column_id: task.column_id }
+                            });
+                        }
+                        newTasks[index] = { ...task, order: newOrder };
                     }
                 });
+            });
+
+            // Step 3: Fire all mutations
+            updatesToPersist.forEach(update => {
+                updateTaskMutation.mutate({ ...update, silent: true });
             });
 
             return newTasks;
