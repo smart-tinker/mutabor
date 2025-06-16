@@ -1,73 +1,119 @@
-# Welcome to your Lovable project
+# Mutabor: Интеллектуальный Таск-менеджер
 
-## Project info
+[![CI/CD Status](https://img.shields.io/badge/CI%2FCD-passing-brightgreen)](https://github.com/your-repo/mutabor/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**URL**: https://lovable.dev/projects/fd17ea36-472e-4bf9-917f-2f84cec766c1
+"Mutabor" — это веб-приложение для управления задачами с Kanban-доской, созданное для небольших команд. Ключевая особенность — встроенный AI-ассистент, который помогает автоматизировать рутинные задачи, такие как декомпозиция и анализ.
 
-## How can I edit this code?
+Продукт спроектирован как платформа, позволяющая пользователям подключать свои собственные ключи к AI-провайдерам для персонализации и контроля над расходами.
 
-There are several ways of editing your application.
+## 🚀 Быстрый старт (Quick Start)
 
-**Use Lovable**
+### Предварительные требования
+- [Node.js](https://nodejs.org/) (v18.x или выше)
+- [Docker](https://www.docker.com/) и [Docker Compose](https://docs.docker.com/compose/)
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/fd17ea36-472e-4bf9-917f-2f84cec766c1) and start prompting.
+### 1. Установка и запуск
 
-Changes made via Lovable will be committed automatically to this repo.
+```bash
+# Клонировать репозиторий
+git clone https://github.com/your-repo/mutabor.git
+cd mutabor
 
-**Use your preferred IDE**
+# Установить все зависимости (для API и Client)
+npm install
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+# Создать .env файл для бэкенда.
+# Скопируйте содержимое из `api/.env.example` в новый файл `api/.env`
+# и укажите ваш секретный ключ для JWT.
+cp api/.env.example api/.env
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+# Запустить все сервисы (API, Client, DB) через Docker
+docker-compose up --build
 ```
 
-**Edit a file directly in GitHub**
+- **Backend API** будет доступен по адресу: `http://localhost:3001`
+- **Frontend App** будет доступен по адресу: `http://localhost:3000`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### 2. Конфигурация окружения
 
-**Use GitHub Codespaces**
+Для запуска приложения требуется всего одна обязательная переменная окружения.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+**`api/.env`**
+```env
+# Секретный ключ для подписи JWT-токенов.
+# Критически важен для безопасности. Используйте длинную, случайную строку.
+# Для локальной разработки подойдет любая строка.
+JWT_SECRET="YOUR_SUPER_SECRET_JWT_KEY_THAT_NOBODY_KNOWS"
 
-## What technologies are used for this project?
+# Строка подключения к базе данных.
+# Уже настроена для работы внутри Docker Compose, менять не нужно.
+DATABASE_URL="postgresql://user:password@db:5432/mutabor?schema=public"
+```
 
-This project is built with:
+## 🛠️ Основные команды для разработки
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- `npm run dev`: Запустить frontend и backend в режиме разработки с hot-reload.
+- `npm run build`: Собрать продакшн-версии приложений.
+- `npm run test`: Запустить тесты (unit и интеграционные) для backend.
+- `npm run lint`: Проверить код на соответствие стандартам стиля.
+- `npm run db:migrate`: Применить новые миграции схемы базы данных (выполнять в `api/` директории).
 
-## How can I deploy this project?
+## 🏛️ Архитектура
 
-Simply open [Lovable](https://lovable.dev/projects/fd17ea36-472e-4bf9-917f-2f84cec766c1) and click on Share -> Publish.
+Проект построен как монорепозиторий с двумя основными частями: `/api` (backend на Nest.js) и `/client` (frontend на React).
 
-## Can I connect a custom domain to my Lovable project?
+- **Ключевые модули (`/api/src`):** `auth`, `users`, `projects`, `tasks`, `notifications`, `ai`, `realtime`.
+- **Основная логика AI** инкапсулирована в `ai.module.ts`. Этот модуль отвечает за взаимодействие с внешними провайдерами и является единственной точкой расширения для новых интеллектуальных функций.
 
-Yes, you can!
+## 🔌 API Документация
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+Автоматически генерируемая интерактивная документация API (Swagger) доступна после запуска приложения по адресу:
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+**`http://localhost:3001/api-docs`**
+
+Используйте её для изучения и тестирования эндпоинтов.
+
+## 💡 Точки расширения
+
+### 1. Добавление новой AI-функции
+
+Это основной способ наращивания функциональности продукта.
+
+**Пример: Добавление функции "AI-генерация тегов для задачи"**
+
+1.  **`ai.service.ts`**: Добавьте новый метод в сервис-адаптер. Он должен принимать текст задачи и API-ключ пользователя.
+    ```typescript
+    // api/src/ai/ai.service.ts
+    async generateTags(taskTitle: string, userApiKey: string): Promise<string[]> {
+      const prompt = `Предложи 3-4 релевантных тега для задачи: "${taskTitle}".`;
+      // Логика вызова внешнего AI с использованием userApiKey
+    }
+    ```
+2.  **`tasks.controller.ts`**: Создайте новый эндпоинт.
+    ```typescript
+    // api/src/tasks/tasks.controller.ts
+    @Post(':id/generate-tags')
+    async generateTags(@Param('id') id: string, @Req() req) {
+      // Получаем userApiKey из настроек пользователя (req.user.settings.apiKey)
+      return this.tasksService.generateTagsForTask(id, req.user.settings.apiKey);
+    }
+    ```
+3.  **`tasks.service.ts`**: Вызовите `AiService` и сохраните результат.
+
+### 2. Интеграция с Git-репозиторием (Стратегическое направление)
+
+Следующим большим шагом является привязка проектов "Mutabor" к Git-репозиториям. Это позволит AI-ассистенту работать с кодовой базой напрямую.
+
+- **Шаг 1: Модель данных.** Расширить модель `Project`, добавив поля `gitRepoUrl` и `gitProviderToken` (зашифрованный).
+- **Шаг 2: Сервис-адаптер.** Создать `GitService`, который будет инкапсулировать логику клонирования репозитория (во временную директорию) и чтения файлов.
+- **Шаг 3: Расширение AI.** Научить `AiService` принимать не только текст, но и пути к файлам в репозитории, чтобы формировать более контекстные промпты (например, "Проанализируй этот файл и предложи рефакторинг").
+
+## ✅ Тестирование
+
+Мы используем Jest для тестирования бэкенда. Стратегия включает:
+
+- **Unit-тесты** для сервисов (`*.service.spec.ts`): Проверка изолированной бизнес-логики.
+- **Интеграционные тесты** для контроллеров (`*.controller.spec.ts`): Проверка полного цикла работы эндпоинта (request -> controller -> service -> response).
+
+Запустить все тесты: `cd api && npm run test`.
