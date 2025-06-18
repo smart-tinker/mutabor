@@ -1,0 +1,15 @@
+{
+    "name": "mutabor-monorepo",
+    "version": "1.0.0",
+    "private": true,
+    "workspaces": [
+      "api",
+      "client"
+    ],
+    "scripts": {
+      "dev": "npm run dev --workspace=client & npm run start:dev --workspace=api",
+      "build": "npm run build --workspace=client && npm run build --workspace=api",
+      "test": "npm run test --workspace=api",
+      "lint": "npm run lint --workspace=api && npm run lint --workspace=client"
+    }
+  }

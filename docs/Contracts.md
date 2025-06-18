@@ -1,60 +1,35 @@
 # Contracts: Mutabor
 
-Этот документ является **Единым Источником Истины (Single Source of Truth)** для всех взаимодействий внутри и снаружи системы. Он определяет форматы данных (DTO), интерфейсы сервисов и публичный API. Любое изменение в контрактах требует обязательного обновления этого документа. Это не опция, а закон проекта.
+Этот документ является единым источником истины для всех взаимодействий внутри и снаружи системы. Он определяет форматы данных (DTO), интерфейсы сервисов и публичный API.
 
 ## 1. API Contract (OpenAPI / Swagger)
 
-**Назначение:** Формальный, машиночитаемый договор между Frontend, Backend и любыми другими системами. Описывает все публичные эндпоинты, их HTTP-методы, параметры, а также структуры запросов и ответов.
-
--   **Расположение:** Генерируется автоматически фреймворком Nest.js и доступен по адресу `/api-docs` после запуска бэкенд-сервиса.
--   **Принцип:** Все, что описано в OpenAPI, является публичным обещанием. Фронтенд-разработчик может и должен полагаться на эти эндпоинты и структуры данных без необходимости заглядывать в код бэкенда.
+**Назначение:** Формальный договор между Frontend и Backend.
+-   **Расположение:** Генерируется автоматически и доступен по адресу `/api-docs`.
 
 ---
 
 ## 2. Internal Service Contracts (TypeScript Interfaces)
 
-**Назначение:** Обеспечивают слабую связанность и взаимозаменяемость модулей бэкенда. Определяют **"что"** сервис должен делать, но не **"как"**. Каждый сервис обязан реализовывать (`implements`) соответствующий интерфейс.
+**Назначение:** Обеспечивают слабую связанность между модулями бэкенда.
 
-### `IUserService.ts`
+### `IProjectsService.ts`
 ```typescript
-// DTO импортируются для обеспечения строгой типизации
-import { UserProfileDTO, UserSummaryDTO, UpdateUserDTO } from '../dto/user.dto';
-import { User } from '@prisma/client'; // Импорт сущности для внутреннего использования
-
-export interface IUserService {
-  /** Найти полную сущность пользователя по ID. Используется только внутри бэкенда. */
-  findUserEntityById(id: string): Promise<User | null>;
-
-  /** Получить публичный профиль пользователя. Безопасно для отображения другим пользователям. */
-  getUserSummary(id: string): Promise<UserSummaryDTO | null>;
-
-  /** Получить полный профиль для аутентифицированного пользователя. Содержит приватные данные. */
-  getUserProfile(userId: string): Promise<UserProfileDTO>;
-
-  /** Обновить профиль пользователя. */
-  updateUserProfile(userId: string, data: UpdateUserDTO): Promise<UserProfileDTO>;
+export interface IProjectsService {
+  create(dto: CreateProjectDto, ownerId: string): Promise<Project>;
+  findAllForUser(ownerId: string): Promise<Project[]>;
+  findOneById(id: number): Promise<ProjectWithBoard>; // ProjectWithBoard - кастомный тип с доской
+  addMember(projectId: number, dto: AddMemberDto, currentUserId: string): Promise<ProjectMember>;
 }
 ```
 
-### `ITaskService.ts`
+### `ITasksService.ts`
 ```typescript
-import { TaskDTO, CreateTaskDTO, UpdateTaskDTO, MoveTaskDTO } from '../dto/task.dto';
-
-export interface ITaskService {
-  /** Создать новую задачу. */
-  createTask(data: CreateTaskDTO, authorId: string): Promise<TaskDTO>;
-
-  /** Получить задачу по ID. Пользователь должен иметь доступ к проекту. */
-  getTaskById(taskId: string, userId: string): Promise<TaskDTO>;
-
-  /** Обновить данные задачи (заголовок, описание, исполнитель). */
-  updateTask(taskId: string, data: UpdateTaskDTO, userId: string): Promise<TaskDTO>;
-
-  /** Переместить задачу в другую колонку или изменить ее порядок. */
-  moveTask(taskId: string, data: MoveTaskDTO, userId: string): Promise<TaskDTO>;
-
-  /** Удалить задачу. */
-  deleteTask(taskId: string, userId: string): Promise<void>;
+export interface ITasksService {
+  create(dto: CreateTaskDto): Promise<Task>;
+  findOneByHumanId(humanId: string): Promise<TaskWithDetails>; // TaskWithDetails - с комментариями и т.д.
+  move(taskId: string, dto: MoveTaskDto): Promise<void>;
+  addComment(taskId: string, dto: CreateCommentDto, author: User): Promise<Comment>;
 }
 ```
 
@@ -62,97 +37,49 @@ export interface ITaskService {
 
 ## 3. Data Contracts (Data Transfer Objects - DTO)
 
-**Назначение:** Страховка от хаоса. Гарантируют, что данные, пересекающие границы слоев (Controller <-> Service, Backend <-> Frontend), имеют строгую, предсказуемую и безопасную структуру.
+**Назначение:** Гарантируют, что данные, пересекающие границы слоев, имеют строгую и предсказуемую структуру.
 
 ### Generic DTOs
-
-```typescript
-/** Контракт для любого ответа, содержащего список с пагинацией. */
-export interface PaginatedResponseDTO<T> {
-  items: T[];
-  totalItems: number;
-  currentPage: number;
-  totalPages: number;
-}
-
-/** Контракт для любого ответа с ошибкой. */
-export interface ErrorResponseDTO {
-  statusCode: number;
-  message: string | string[]; // Сообщение может быть массивом при ошибках валидации полей.
-  error: string;
-}
-```
+-   `PaginatedResponseDTO<T>`
+-   `ErrorResponseDTO`
 
 ### User DTOs
+-   `UserSummaryDTO`
+-   `UserProfileDTO`
+-   `UpdateUserDTO`
 
+### Project DTOs
 ```typescript
-/**
- * Публичные данные о пользователе.
- * Безопасно для отображения в списках участников, комментариях, исполнителях задач.
- * НЕ ДОЛЖЕН содержать email или другую приватную информацию.
- */
-export class UserSummaryDTO {
-  id: string;
+// DTO для создания проекта
+export class CreateProjectDto {
   name: string;
-  avatarUrl?: string;
+  prefix: string; // Уникальный префикс для задач
 }
 
-/**
- * Личные данные пользователя.
- * Доступен только самому пользователю на странице его профиля/настроек.
- */
-export class UserProfileDTO {
-  id: string;
-  name: string;
+// DTO для добавления участника в проект
+export class AddMemberDto {
   email: string;
-  createdAt: Date;
 }
 ```
 
-### Task & Project DTOs
-
+### Task & Comment DTOs
 ```typescript
-/** DTO для комментария. */
-export class CommentDTO {
-  id: string;
-  text: string;
-  author: UserSummaryDTO; // Вложенный контракт, гарантирующий безопасность.
-  createdAt: Date;
-}
-
-/**
- * Основной DTO для задачи.
- * Является "глубоким" объектом, чтобы минимизировать количество запросов с фронтенда.
- */
-export class TaskDTO {
-  id: string;
+// DTO для создания задачи
+export class CreateTaskDto {
   title: string;
   description?: string;
   columnId: string;
-  position: number;
-  assignee?: UserSummaryDTO; // Вложенный контракт.
-  comments: CommentDTO[];    // Вложенный контракт. Задача "не живет" без комментариев.
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-/** DTO для создания задачи. */
-export class CreateTaskDTO {
-  title: string;
-  columnId: string;
-  description?: string;
   assigneeId?: string;
 }
 
-/** DTO для обновления полей задачи. */
-export class UpdateTaskDTO {
-  title?: string;
-  description?: string;
-  assigneeId?: string | null; // null для снятия исполнителя
-}
-
-/** DTO для перемещения задачи. */
-export class MoveTaskDTO {
+// DTO для перемещения задачи
+export class MoveTaskDto {
   newColumnId: string;
   newPosition: number;
 }
+
+// DTO для создания комментария
+export class CreateCommentDto {
+  text: string;
+}
+```
