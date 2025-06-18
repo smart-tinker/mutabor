@@ -54,7 +54,7 @@ graph TD
     subgraph "Бэкенд-инфраструктура"
         Backend["Backend API (Node.js/Python)"]
         Realtime[WebSocket Server]
-        DB[(База данных: Supabase (PostgreSQL))]
+        DB[("База данных: Supabase (PostgreSQL)")]
     end
 
     subgraph "Внешние сервисы"
