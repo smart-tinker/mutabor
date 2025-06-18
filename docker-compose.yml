@@ -8,28 +8,43 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      - api
+      api: # Added condition for api healthcheck
+        condition: service_healthy
     environment:
-      - REACT_APP_API_URL=http://localhost:3001
+      - VITE_API_URL=http://localhost:3001 # Changed to VITE_ and confirmed URL for browser access
     volumes:
       - ./client/src:/app/src
       - ./client/public:/app/public
+    healthcheck: # Added healthcheck for Client
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   api: # Сервис бэкенда
     build:
       context: ./api
       dockerfile: Dockerfile
     ports:
-      - "3001:3001"
+      - "3001:3000" # Corrected port mapping
     depends_on:
-      - db
+      db: # Added condition for db healthcheck if possible, or just depends_on: - db
+        condition: service_healthy # Or remove this line if db doesn't have a healthcheck yet
+    env_file: # Added env_file directive
+      - ./api/.env
     environment:
       # DATABASE_URL для подключения к сервису 'db' в Docker Compose
       - DATABASE_URL=postgresql://user:password@db:5432/mutabor?schema=public
-      # JWT_SECRET должен быть тем же, что и в api/.env, если .env файл не используется Docker образом API
-      - JWT_SECRET=YOUR_SUPER_SECRET_JWT_KEY_PLEASE_CHANGE_ME
+      # JWT_SECRET is now managed via .env file
     volumes:
       - ./api/src:/app/src
+    healthcheck: # Added healthcheck for API
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   db: # Сервис базы данных PostgreSQL
     image: postgres:13
@@ -42,6 +57,12 @@ services:
       POSTGRES_DB: mutabor
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck: # Added healthcheck for DB
+      test: ["CMD-SHELL", "pg_isready -U user -d mutabor -h localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
 volumes:
   postgres_data:
