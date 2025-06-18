@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  client: # Сервис фронтенда
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    environment:
+      - REACT_APP_API_URL=http://localhost:3001
+    volumes:
+      - ./client/src:/app/src
+      - ./client/public:/app/public
+
+  api: # Сервис бэкенда
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    depends_on:
+      - db
+    environment:
+      # DATABASE_URL для подключения к сервису 'db' в Docker Compose
+      - DATABASE_URL=postgresql://user:password@db:5432/mutabor?schema=public
+      # JWT_SECRET должен быть тем же, что и в api/.env, если .env файл не используется Docker образом API
+      - JWT_SECRET=YOUR_SUPER_SECRET_JWT_KEY_PLEASE_CHANGE_ME
+    volumes:
+      - ./api/src:/app/src
+
+  db: # Сервис базы данных PostgreSQL
+    image: postgres:13
+    ports:
+      # Порт 54321 на хосте будет связан с портом 5432 внутри контейнера
+      - "54321:5432"
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: mutabor
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
