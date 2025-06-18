@@ -1,0 +1,149 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ========================================
+// MODELS
+// ========================================
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  name          String
+  password_hash String
+  created_at    DateTime @default(now())
+
+  projects Project[]
+  project_memberships ProjectMember[]
+  
+  assigned_tasks   Task[]    @relation("assigned_tasks")
+  authored_comments Comment[] @relation("authored_comments")
+
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model Project {
+  id         Int      @id @default(autoincrement())
+  name       String
+  created_at DateTime @default(now())
+
+  // Связь с пользователем-владельцем
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+
+  // Связь с колонками
+  columns Column[]
+
+  taskPrefix     String @unique // Уникальный префикс для задач, например "DEV"
+  lastTaskNumber Int    @default(0) // Счетчик последнего номера задачи
+
+  tasks          Task[]
+  members        ProjectMember[]
+
+  @@map("projects")
+}
+
+model ProjectMember {
+  // Связь с проектом
+  projectId Int
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade) // При удалении проекта удаляем и записи об участниках
+
+  // Связь с пользователем
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade) // При удалении пользователя удаляем его из проектов
+
+  role      String  @default("member") // Роли: 'admin', 'member'
+
+  // Композитный первичный ключ: один юзер может быть в проекте только один раз
+  @@id([projectId, userId])
+  @@map("project_members")
+}
+
+model Column {
+  id         String   @id @default(uuid())
+  name       String
+  position   Int
+  created_at DateTime @default(now())
+
+  projectId Int
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  // Одна колонка может содержать много задач
+  tasks     Task[]
+
+  @@unique([name, projectId])
+  @@map("columns")
+}
+
+model Task {
+  id          String    @id @default(uuid())
+  
+  humanReadableId String  @unique // Например, "DEV-19". По этому ID будем искать.
+  taskNumber      Int     // Числовая часть, например 19.
+
+  title       String
+  description String?   // ? означает, что поле опциональное (может быть NULL)
+  position    Int
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+  due_date    DateTime? // Срок выполнения, опционально
+
+  // Связь с колонкой
+  columnId String
+  column   Column @relation(fields: [columnId], references: [id], onDelete: Cascade)
+
+  // Связь с проектом для генерации ID
+  projectId Int
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // Связь с исполнителем
+  assigneeId String?
+  assignee   User?   @relation("assigned_tasks", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  // Связь с комментариями
+  comments Comment[]
+
+  // Составной индекс для уникальности номера задачи в рамках проекта
+  @@unique([projectId, taskNumber])
+  @@map("tasks")
+}
+
+model Comment {
+  id         String   @id @default(uuid())
+  text       String
+  created_at DateTime @default(now())
+
+  // Связь с задачей
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  // Связь с автором комментария
+  authorId String?
+  author   User?    @relation("authored_comments", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@map("comments")
+}
+
+model Notification {
+  id         String   @id @default(uuid())
+  is_read    Boolean  @default(false)
+  text       String
+  source_url String   // Ссылка на источник (например, /tasks/PHX-1)
+  created_at DateTime @default(now())
+
+  // Связь с получателем уведомления
+  recipientId String
+  recipient   User   @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
