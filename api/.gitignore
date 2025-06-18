@@ -11,3 +11,4 @@ prisma/dev.db-journal # Example if using sqlite
 # OS specific
 .DS_Store
 Thumbs.db
+.env
