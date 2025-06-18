@@ -1,0 +1,79 @@
+.header {
+  background-color: var(--color-background-element);
+  padding: 0 calc(var(--spacing-base) * 3); /* 0 24px */
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.headerContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: calc(var(--spacing-base) * 8); /* 64px */
+  max-width: 1200px; /* Consistent with MainLayout content width */
+  margin: 0 auto; /* Center header content */
+}
+
+.logo {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.logo:hover {
+  text-decoration: none; /* Ensure no underline on hover for logo */
+  opacity: 0.85;
+}
+
+.navigation ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+
+.navigation li {
+  margin-left: calc(var(--spacing-base) * 3); /* 24px */
+}
+
+.navigation a,
+.navigation button { /* For LogoutButton styling consistency */
+  text-decoration: none;
+  color: var(--color-text-main);
+  font-weight: 500;
+  padding: calc(var(--spacing-base) * 0.5) calc(var(--spacing-base) * 1); /* 4px 8px */
+  border-radius: var(--border-radius-small);
+  transition: color 0.2s ease-in-out, background-color 0.2s ease-in-out;
+}
+
+.navigation a:hover,
+.navigation button:hover {
+  color: var(--color-primary);
+  background-color: rgba(109, 40, 217, 0.05); /* Light primary background */
+}
+
+/* Style for active link if needed, requires NavLink from react-router-dom */
+.navigation a.active {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+/* Ensure LogoutButton integrates well */
+.navigation button {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.navigation button.secondary { /* Targeting the LogoutButton's specific class if it has one */
+    color: var(--color-text-main); /* Default state */
+    border: 1px solid var(--color-border); /* Match other links better */
+}
+
+.navigation button.secondary:hover {
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+    background-color: rgba(109, 40, 217, 0.05);
+}
