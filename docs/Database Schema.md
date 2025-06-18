@@ -1,5 +1,7 @@
 # Database Schema: Mutabor
 
+Note: This project uses Supabase as the managed database platform. The underlying database is PostgreSQL, so the schema definitions and ERD remain accurate.
+
 ## 1. ERD (Entity-Relationship Diagram)
 
 Эта диаграмма является визуальным представлением финальной структуры базы данных, связей и ключевых ограничений целостности данных.
