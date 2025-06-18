@@ -26,4 +26,35 @@ export const taskService = {
     return response.data;
   },
   // Add other task-related API calls here if needed (e.g., updateTask, getTaskById)
+
+  getTaskComments: async (taskId: string): Promise<CommentDto[]> => {
+    const response = await apiClient.get<CommentDto[]>(`/tasks/${taskId}/comments`);
+    return response.data;
+  },
+
+  addTaskComment: async (taskId: string, data: CreateCommentPayloadDto): Promise<CommentDto> => {
+    const response = await apiClient.post<CommentDto>(`/tasks/${taskId}/comments`, data);
+    return response.data;
+  },
 };
+
+// DTOs for Comments
+export interface CommentAuthorDto {
+  id: string;
+  name?: string | null;
+  email: string;
+}
+
+export interface CommentDto {
+  id: string;
+  text: string;
+  taskId: string;
+  authorId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  author?: CommentAuthorDto | null;
+}
+
+export interface CreateCommentPayloadDto {
+  text: string;
+}

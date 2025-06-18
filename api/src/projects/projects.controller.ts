@@ -1,6 +1,7 @@
 import { Controller, Post, Body, Get, Param, UseGuards, Req, ParseIntPipe } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
+import { AddMemberDto } from './dto/add-member.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'; // Path to your JwtAuthGuard
 import { User } from '@prisma/client'; // Import User from Prisma or your user decorator
 // If you have a @User decorator to extract user from request:
@@ -28,5 +29,26 @@ export class ProjectsController {
   async findOne(@Param('id', ParseIntPipe) id: number, @Req() req) {
     const user = req.user as User;
     return this.projectsService.findProjectById(id, user);
+  }
+
+  @Post(':projectId/members')
+  async addMember(
+    @Param('projectId', ParseIntPipe) projectId: number,
+    @Body() addMemberDto: AddMemberDto,
+    @Req() req,
+  ) {
+    const user = req.user as User;
+    return this.projectsService.addMemberToProject(projectId, addMemberDto, user.id);
+  }
+
+  @Get(':projectId/members')
+  async getMembers(
+    @Param('projectId', ParseIntPipe) projectId: number,
+    @Req() req,
+  ) {
+    const user = req.user as User;
+    // Ensure user has access to the project first (findProjectById also checks membership)
+    await this.projectsService.findProjectById(projectId, user);
+    return this.projectsService.getProjectMembers(projectId, user.id);
   }
 }

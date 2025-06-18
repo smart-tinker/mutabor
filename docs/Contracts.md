@@ -59,6 +59,7 @@ export class CreateProjectDto {
 // DTO для добавления участника в проект
 export class AddMemberDto {
   email: string;
+  role: string; // e.g., 'editor', 'viewer'
 }
 ```
 

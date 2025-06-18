@@ -5,6 +5,7 @@ import { UpdateTaskDto } from './dto/update-task.dto';
 import { MoveTaskDto } from './dto/move-task.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { User } from '@prisma/client';
+import { CreateCommentDto } from './dto/create-comment.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('tasks')
@@ -41,5 +42,27 @@ export class TasksController {
   ) {
     const user = req.user as User;
     return this.tasksService.moveTask(id, moveTaskDto, user);
+  }
+
+  // Comments Endpoints
+  @Post(':taskId/comments')
+  // @UseGuards(JwtAuthGuard) // Guard is already on controller level
+  async createComment(
+    @Param('taskId', ParseUUIDPipe) taskId: string,
+    @Body() createCommentDto: CreateCommentDto,
+    @Req() req,
+  ) {
+    const user = req.user as User;
+    return this.tasksService.addCommentToTask(taskId, createCommentDto, user);
+  }
+
+  @Get(':taskId/comments')
+  // @UseGuards(JwtAuthGuard) // Guard is already on controller level
+  async getComments(
+    @Param('taskId', ParseUUIDPipe) taskId: string,
+    @Req() req,
+  ) {
+    const user = req.user as User;
+    return this.tasksService.getCommentsForTask(taskId, user);
   }
 }

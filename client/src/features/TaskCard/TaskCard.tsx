@@ -5,9 +5,10 @@ import { TaskDto } from '../../shared/api/projectService'; // Adjust path
 
 interface TaskCardProps {
   task: TaskDto;
+  onTaskClick: (task: TaskDto) => void; // New prop
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
+const TaskCard: React.FC<TaskCardProps> = ({ task, onTaskClick }) => {
   const {
     attributes,
     listeners,
@@ -30,9 +31,9 @@ const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners} onClick={() => onTaskClick(task)}>
       <strong>{task.humanReadableId}</strong>: {task.title}
-      {task.description && <p style={{ fontSize: '0.8em', whiteSpace: 'pre-wrap', margin: '4px 0 0' }}>{task.description}</p>}
+      {task.description && <p style={{ fontSize: '0.8em', whiteSpace: 'pre-wrap', margin: '4px 0 0' }}>{task.description?.substring(0,100)}...</p>}
     </div>
   );
 };

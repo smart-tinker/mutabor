@@ -1,0 +1,6 @@
+/* client/src/features/Comments/ui/CommentList.module.css */
+.commentList {
+  list-style: none;
+  padding: 0;
+  margin-top: 10px;
+}
