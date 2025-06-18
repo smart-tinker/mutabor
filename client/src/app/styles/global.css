@@ -1,0 +1,145 @@
+/* Global Styles for Mutabor */
+
+/* 1. CSS Variables (Design Tokens) */
+:root {
+  /* Primary Color */
+  --color-primary: #6D28D9; /* Deep, calm purple */
+
+  /* Semantic Colors */
+  --color-success: #10B981; /* Green */
+  --color-error: #EF4444;   /* Red */
+  --color-warning: #F59E0B; /* Amber */
+  --color-info: #3B82F6;    /* Blue */
+
+  /* Neutral Palette (Greys) */
+  --color-background-page: #F9FAFB;    /* Almost white, light tint */
+  --color-background-element: #FFFFFF; /* Pure white for cards, modals */
+  --color-border: #E5E7EB;           /* Light grey borders */
+  --color-text-main: #1F2937;         /* Main text, almost black */
+  --color-text-secondary: #6B7280;    /* Secondary text, grey */
+  --color-text-disabled: #D1D5DB;     /* Text for disabled elements */
+
+  /* Typography */
+  --font-family-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-family-mono: "SF Mono", "Menlo", "Consolas", "Courier New", monospace;
+
+  /* Spacing Unit */
+  --spacing-base: 8px;
+
+  /* Border Radius */
+  --border-radius-small: 4px;
+  --border-radius-medium: 6px;
+  --border-radius-large: 8px;
+}
+
+/* 2. Basic Body and HTML Styles */
+html {
+  box-sizing: border-box;
+  font-size: 16px; /* Base font size */
+}
+
+*, *:before, *:after {
+  box-sizing: inherit;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-family-main);
+  background-color: var(--color-background-page);
+  color: var(--color-text-main);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 3. Basic Typography */
+h1, h2, h3, h4, h5, h6 {
+  margin-top: 0;
+  margin-bottom: calc(var(--spacing-base) * 2); /* 16px */
+  font-weight: 600; /* Default to semi-bold for headings */
+}
+
+h1 { font-size: 32px; font-weight: 700; }
+h2 { font-size: 24px; }
+h3 { font-size: 20px; }
+
+p {
+  margin-top: 0;
+  margin-bottom: calc(var(--spacing-base) * 2); /* 16px */
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* 4. Basic Form Styling (can be overridden by component-specific styles) */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea,
+select {
+  font-family: var(--font-family-main);
+  padding: calc(var(--spacing-base) * 1.5); /* 12px */
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-medium); /* 6px */
+  font-size: 16px;
+  background-color: var(--color-background-element);
+  color: var(--color-text-main);
+  width: 100%; /* Default to full width */
+  margin-bottom: calc(var(--spacing-base) * 2); /* 16px */
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(var(--color-primary), 0.2); /* Using RGB for alpha, assuming #6D28D9 */
+}
+
+button {
+  font-family: var(--font-family-main);
+  padding: calc(var(--spacing-base) * 1.25) calc(var(--spacing-base) * 2.5); /* 10px 20px */
+  border: none;
+  border-radius: var(--border-radius-medium); /* 6px */
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  transition: background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+button.primary {
+  background-color: var(--color-primary);
+  color: var(--color-background-element);
+}
+
+button.primary:hover {
+  background-color: #5a1eae; /* Darken(--color-primary, 10%) - manual for now */
+}
+
+button.secondary {
+  background-color: var(--color-background-element);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+}
+
+button.secondary:hover {
+  background-color: #f3eefc; /* Lighten(--color-primary, ~90%) - manual for now */
+}
+
+/* Utility Classes (Optional, but can be useful) */
+.text-center { text-align: center; }
+.mt-1 { margin-top: var(--spacing-base); }
+.mb-1 { margin-bottom: var(--spacing-base); }
+/* ... add more spacing utilities as needed ... */
+
+/* Specific styles for RegistrationForm if needed, or keep them in the component's module.css */
+/* For now, the global input/button styles will apply. */
