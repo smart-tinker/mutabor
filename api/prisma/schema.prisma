@@ -10,7 +10,99 @@ generator client {
 model User {
   id            String   @id @default(cuid())
   email         String   @unique
-  name          String
-  password_hash String
+  name          String?
+  password      String
   createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  ownedProjects Project[]
+  assignedTasks Task[]    @relation("AssigneeTasks")
+  createdTasks  Task[]    @relation("CreatorTasks")
+  comments      Comment[] // Added relation to Comment model
+  notifications Notification[] // Added relation to Notification model
+}
+
+model Project {
+  id        Int      @id @default(autoincrement())
+  name      String
+  taskPrefix String  @unique
+  lastTaskNumber Int @default(0)
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  columns   Column[]
+  tasks     Task[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+}
+
+model Column {
+  id        String   @id @default(uuid())
+  name      String
+  position  Int
+  projectId Int
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks     Task[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name, projectId])
+  @@index([projectId])
+}
+
+model Task {
+  id              String    @id @default(uuid())
+  humanReadableId String    @unique
+  taskNumber      Int
+  title           String
+  description     String?
+  position        Int
+  projectId       Int
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  columnId        String
+  column          Column    @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  assigneeId      String?
+  assignee        User?     @relation("AssigneeTasks", fields: [assigneeId], references: [id], onDelete: SetNull)
+  creatorId       String
+  creator         User      @relation("CreatorTasks", fields: [creatorId], references: [id], onDelete: Restrict)
+  dueDate         DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  comments        Comment[] // Added relation to Comment model
+  notifications   Notification[] // Added relation to Notification model
+
+  @@unique([projectId, taskNumber])
+  @@index([columnId])
+  @@index([assigneeId])
+  @@index([creatorId])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([taskId])
+  @@index([userId])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  message   String
+  read      Boolean  @default(false)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskId    String?
+  task      Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([taskId])
 }

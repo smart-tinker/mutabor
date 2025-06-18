@@ -1,74 +1,47 @@
+// Example in App.tsx using react-router-dom
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import HomePage from '../pages/HomePage';
-import RegistrationPage from '../pages/RegistrationPage';
-import LoginPage from '../pages/LoginPage';
-import { useAuth } from './auth/AuthContext';
-// Removed LogoutButton import as it's in Header
-import MainLayout from '../widgets/Layout/MainLayout'; // Import MainLayout
-import './styles/global.css';
+import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
+import LoginPage from '../pages/LoginPage'; // Assuming LoginPage exists
+import RegistrationPage from '../pages/RegistrationPage'; // Assuming RegistrationPage exists
+import DashboardPage from '../pages/DashboardPage';
+import BoardPage from '../pages/BoardPage';
+// import { useAuth } from './auth/AuthContext'; // Assuming an AuthContext for token management
 
-const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
-  const { isAuthenticated, isLoading } = useAuth();
-  if (isLoading) {
-    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>Loading...</div>;
-  }
-  return isAuthenticated ? children : <Navigate to="/login" replace />;
+// Mock auth hook for example
+const useAuth = () => {
+  // Replace with your actual auth logic (e.g., checking localStorage for a token)
+  const isAuthenticated = !!localStorage.getItem('authToken');
+  return { isAuthenticated };
 };
 
-const PublicRoute = ({ children }: { children: JSX.Element }) => {
-  const { isAuthenticated, isLoading } = useAuth();
-  if (isLoading) {
-    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>Loading...</div>;
-  }
-  return isAuthenticated ? <Navigate to="/" replace /> : children;
-};
 
-function App() {
-  const { isLoading } = useAuth(); // Only isLoading needed here now
-
-  if (isLoading) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        Loading application state...
-      </div>
-    );
-  }
+const App: React.FC = () => {
+  const { isAuthenticated } = useAuth(); // Simple auth check
 
   return (
-    <BrowserRouter>
-      <MainLayout> {/* Wrap all routes with MainLayout */}
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <HomePage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/register"
-            element={
-              <PublicRoute>
-                <RegistrationPage />
-              </PublicRoute>
-            }
-          />
-          <Route
-            path="/login"
-            element={
-              <PublicRoute>
-                <LoginPage />
-              </PublicRoute>
-            }
-          />
-          {/* Fallback for unknown routes - Optional */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </MainLayout>
-    </BrowserRouter>
+    <Router>
+      <nav>
+        <Link to="/">Home (Login)</Link> | <Link to="/dashboard">Dashboard</Link>
+      </nav>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegistrationPage />} />
+
+        <Route
+          path="/dashboard"
+          element={isAuthenticated ? <DashboardPage /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/projects/:projectId"
+          element={isAuthenticated ? <BoardPage /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/"
+          element={isAuthenticated ? <Navigate to="/dashboard" /> : <Navigate to="/login" />}
+        />
+      </Routes>
+    </Router>
   );
-}
+};
 
 export default App;

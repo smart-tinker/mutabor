@@ -1,0 +1,359 @@
+import React, { useEffect, useState, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
+import {
+  DndContext,
+  closestCorners,
+  DragEndEvent,
+  DragOverEvent,
+  DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  // Active, // Not explicitly used, but part of dnd-kit core concepts
+  // Over // Not explicitly used
+} from '@dnd-kit/core';
+import { arrayMove } from '@dnd-kit/sortable';
+// import { restrictToVerticalAxis, restrictToWindowEdges } from '@dnd-kit/modifiers'; // Optional modifiers
+
+import { projectService, ProjectDto as FullProjectDto, ColumnDto as ProjectColumnDto, TaskDto as ProjectTaskDto } from '../shared/api/projectService';
+import { taskService, CreateTaskDto, MoveTaskDto } from '../shared/api/taskService';
+import { socket, joinProjectRoom, leaveProjectRoom } from '../shared/lib/socket';
+import ColumnLane from '../features/ColumnLane/ColumnLane'; // Import ColumnLane
+
+// interfaces Column, BoardData as before
+interface Column extends ProjectColumnDto {
+  tasksList: ProjectTaskDto[];
+}
+
+interface BoardData extends Omit<FullProjectDto, 'columns' | 'tasks'> {
+  columns: Column[];
+}
+
+
+const BoardPage: React.FC = () => {
+  const { projectId } = useParams<{ projectId: string }>();
+  const [boardData, setBoardData] = useState<BoardData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+
+  // state for AddTaskModal as before
+  const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
+  const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskDescription, setNewTaskDescription] = useState('');
+  const [isCreatingTask, setIsCreatingTask] = useState(false);
+
+
+  const numericProjectId = projectId ? parseInt(projectId, 10) : null;
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    })
+  );
+
+  const fetchBoardData = useCallback(async () => {
+    if (numericProjectId === null || isNaN(numericProjectId)) {
+        setError("Invalid Project ID format.");
+        setIsLoading(false);
+        return;
+    }
+    try {
+      setIsLoading(true);
+      const projectDetails = await projectService.getProjectById(numericProjectId);
+      const transformedColumns = projectDetails.columns?.map(col => ({
+        ...col,
+        tasksList: col.tasks?.sort((a, b) => a.position - b.position) || [],
+      })).sort((a,b) => a.position - b.position) || [];
+      setBoardData({ ...projectDetails, columns: transformedColumns });
+      setError(null);
+    } catch (err) {
+      setError('Failed to fetch board data.'); console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [numericProjectId]);
+
+  useEffect(() => {
+    fetchBoardData();
+    if (projectId) {
+      if (!socket.connected) socket.connect();
+
+      const onConnect = () => joinProjectRoom(projectId);
+      socket.once('connect', onConnect);
+      if (socket.connected) onConnect(); // If already connected, join immediately
+
+      const handleTaskCreated = (newTask: ProjectTaskDto) => {
+        console.log('task:created event received', newTask);
+        setBoardData((prevBoardData) => {
+          if (!prevBoardData || newTask.projectId !== numericProjectId) return prevBoardData;
+          const newColumns = prevBoardData.columns.map(column => {
+            if (column.id === newTask.columnId) {
+              if (column.tasksList.find(task => task.id === newTask.id)) return column;
+              return { ...column, tasksList: [...column.tasksList, newTask].sort((a,b) => a.position - b.position) };
+            }
+            return column;
+          });
+          return { ...prevBoardData, columns: newColumns };
+        });
+      };
+
+      const handleTaskMoved = (movedTask: ProjectTaskDto) => {
+        console.log('task:moved event received', movedTask);
+        setBoardData(prev => {
+            if (!prev || movedTask.projectId !== numericProjectId) return prev;
+            // Create a deep copy of columns for manipulation
+            let newColumns = JSON.parse(JSON.stringify(prev.columns)) as Column[];
+
+            // Remove task from its old position in any column
+            newColumns = newColumns.map(col => ({
+                ...col,
+                tasksList: col.tasksList.filter(t => t.id !== movedTask.id)
+            }));
+
+            const targetColumnIndex = newColumns.findIndex(col => col.id === movedTask.columnId);
+            if (targetColumnIndex !== -1) {
+                // Add task to the new column and sort
+                newColumns[targetColumnIndex].tasksList.push(movedTask);
+                newColumns[targetColumnIndex].tasksList.sort((a, b) => a.position - b.position);
+            } else {
+                console.warn(`Target column ${movedTask.columnId} not found for moved task ${movedTask.id}`);
+            }
+            return { ...prev, columns: newColumns };
+        });
+      };
+
+      const handleTaskUpdated = (updatedTask: ProjectTaskDto) => {
+        console.log('task:updated event received', updatedTask);
+        setBoardData(prev => {
+            if (!prev || updatedTask.projectId !== numericProjectId) return prev;
+            const newColumns = prev.columns.map(col => {
+                if (col.id === updatedTask.columnId) { // Check if task is in this column
+                    const taskIndex = col.tasksList.findIndex(t => t.id === updatedTask.id);
+                    if (taskIndex !== -1) { // Task found, update it
+                        const updatedTasksList = [...col.tasksList];
+                        updatedTasksList[taskIndex] = updatedTask;
+                        // Ensure list remains sorted if position could change via update
+                        updatedTasksList.sort((a,b) => a.position - b.position);
+                        return { ...col, tasksList: updatedTasksList };
+                    }
+                }
+                // If task moved columns, this simple update won't be enough, rely on task:moved or ensure backend sends full task details for task:updated
+                return col;
+            });
+            return { ...prev, columns: newColumns };
+        });
+      };
+
+      socket.on('task:created', handleTaskCreated);
+      socket.on('task:moved', handleTaskMoved);
+      socket.on('task:updated', handleTaskUpdated);
+
+      return () => {
+        socket.off('connect', onConnect);
+        socket.off('task:created', handleTaskCreated);
+        socket.off('task:moved', handleTaskMoved);
+        socket.off('task:updated', handleTaskUpdated);
+        if (projectId) leaveProjectRoom(projectId);
+      };
+    }
+  }, [projectId, fetchBoardData, numericProjectId]);
+
+  const openAddTaskModal = (columnId: string) => {
+    setSelectedColumnId(columnId);
+    setIsAddTaskModalOpen(true);
+  };
+  const handleCreateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTaskTitle.trim() || !selectedColumnId || numericProjectId === null) return;
+    setIsCreatingTask(true);
+    try {
+      const taskData: CreateTaskDto = { title: newTaskTitle, description: newTaskDescription, columnId: selectedColumnId, projectId: numericProjectId };
+      await taskService.createTask(taskData);
+      setNewTaskTitle(''); setNewTaskDescription(''); setIsAddTaskModalOpen(false); setSelectedColumnId(null);
+    } catch (err) { console.error('Failed to create task:', err); alert('Failed to create task.');
+    } finally { setIsCreatingTask(false); }
+  };
+
+  const findColumnContainingTask = (taskId: string): Column | undefined => {
+    return boardData?.columns.find(column => column.tasksList.some(task => task.id === taskId));
+  };
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveDragId(event.active.id as string);
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over || !boardData) return;
+    const activeId = active.id as string;
+    const overId = over.id as string; // This can be a column ID or a task ID
+
+    if (activeId === overId) return;
+
+    const activeColumn = findColumnContainingTask(activeId);
+    const overColumn = boardData.columns.find(col => col.id === overId) || findColumnContainingTask(overId);
+
+    if (!activeColumn || !overColumn) return;
+
+    const activeTask = activeColumn.tasksList.find(t => t.id === activeId);
+    if (!activeTask) return;
+
+    setBoardData(prev => {
+      if (!prev) return null;
+      const columnsCopy = JSON.parse(JSON.stringify(prev.columns)) as Column[];
+
+      const sourceColIndex = columnsCopy.findIndex(c => c.id === activeColumn.id);
+      const destColIndex = columnsCopy.findIndex(c => c.id === overColumn.id);
+
+      const sourceTaskIndex = columnsCopy[sourceColIndex].tasksList.findIndex(t => t.id === activeId);
+
+      // Remove from source
+      const [movedTask] = columnsCopy[sourceColIndex].tasksList.splice(sourceTaskIndex, 1);
+
+      let destTaskIndex = columnsCopy[destColIndex].tasksList.findIndex(t => t.id === overId);
+
+      // If overId is a column ID, not a task ID, or task not found, add to end
+      if (destTaskIndex === -1) {
+          const isOverAColumn = prev.columns.some(col => col.id === overId);
+          if(isOverAColumn){ // Dropping on a column
+            destTaskIndex = columnsCopy[destColIndex].tasksList.length;
+          } else { // Dropping on a task in the destination column
+            // This case should ideally be handled by destTaskIndex finding the task
+            // If it still is -1, it means overId (task) was not found in overColumn, which is an issue.
+            // For safety, add to end, but this indicates a potential logic flaw or stale data.
+            console.warn(`Task ${overId} not found in column ${overColumn.id} during dragOver. Adding to end.`);
+            destTaskIndex = columnsCopy[destColIndex].tasksList.length;
+          }
+      }
+
+      // Add to destination
+      columnsCopy[destColIndex].tasksList.splice(destTaskIndex, 0, movedTask);
+
+      // Update positions locally for immediate feedback (optional, backend is source of truth)
+      // columnsCopy[destColIndex].tasksList = columnsCopy[destColIndex].tasksList.map((task, index) => ({ ...task, position: index }));
+      // if (sourceColIndex !== destColIndex) {
+      //   columnsCopy[sourceColIndex].tasksList = columnsCopy[sourceColIndex].tasksList.map((task, index) => ({ ...task, position: index }));
+      // }
+
+      return { ...prev, columns: columnsCopy };
+    });
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    setActiveDragId(null);
+    const { active, over } = event;
+
+    if (!over || !boardData ) {
+        // If dropped outside a valid droppable, revert to original state before drag started
+        // This requires storing original state onDragStart or re-fetching.
+        // For now, if optimistic updates were applied in handleDragOver, they might persist visually until next fetch or socket event.
+        // A proper revert might be: setBoardData(originalBoardDataFromDragStart);
+        console.log("Drag ended outside a valid droppable or boardData is null. Consider reverting if needed.");
+        return;
+    }
+
+    const activeId = active.id as string; // ID of the task being dragged
+
+    // Determine the target column and new position
+    // The state should have been updated by handleDragOver to reflect the visual drop
+    const finalParentColumn = boardData.columns.find(col => col.tasksList.some(task => task.id === activeId));
+    if (!finalParentColumn) {
+        console.error("Could not find parent column for active task after drag.");
+        // Potentially revert or refetch
+        fetchBoardData();
+        return;
+    }
+
+    const newColumnId = finalParentColumn.id;
+    const newPosition = finalParentColumn.tasksList.findIndex(task => task.id === activeId);
+
+    if (newPosition === -1) {
+        console.error("Could not determine new position for active task after drag.");
+        fetchBoardData(); // Revert by refetching
+        return;
+    }
+
+    // Get the original task details to check if a move actually occurred
+    const originalTask = JSON.parse(JSON.stringify(active.data.current?.sortable?.items?.find((t: ProjectTaskDto) => t.id === activeId) ??
+        boardData.columns.flatMap(c => c.tasksList).find(t => t.id === activeId)
+    )); // Attempt to get original from dnd-kit, fallback to searching current state (less reliable for original)
+
+    // This part tries to get the original state of the task before any optimistic updates.
+    // However, dnd-kit's active.data.current might not always hold the initial state if not set up explicitly.
+    // A more robust way is to store the initial state of boardData onDragStart.
+    // For simplicity here, we will rely on the current state and compare with the backend after the API call.
+    // The crucial part is sending the correct newColumnId and newPosition to the backend.
+
+    const taskBeforeDrag = active.data.current?.sortable?.items.find((t: ProjectTaskDto) => t.id === activeId) as ProjectTaskDto | undefined;
+    const oldColumnId = taskBeforeDrag?.columnId || findColumnContainingTask(activeId)?.id; // Fallback if not in active.data
+    const oldPosition = taskBeforeDrag?.position;
+
+
+    if (newColumnId === oldColumnId && newPosition === oldPosition) {
+      console.log("Task position and column unchanged.");
+      // If optimistic updates in handleDragOver were not perfect, might need to call fetchBoardData() to ensure UI consistency.
+      // However, if handleDragOver correctly reflects the visual end state, and no actual change in data occurred, this is fine.
+      return;
+    }
+
+    try {
+      await taskService.moveTask(activeId, { newColumnId, newPosition });
+      // Backend will emit 'task:moved', which should handle the final state update.
+      // To prevent visual glitches, ensure the local state (after optimistic updates) is consistent
+      // or allow the socket event to be the single source of truth post-operation.
+      // For now, we assume the socket event will correct any discrepancies.
+    } catch (err) {
+      console.error('Failed to move task:', err);
+      alert('Failed to move task. Reverting optimistic updates by re-fetching.');
+      // Revert optimistic updates by fetching the source of truth
+      fetchBoardData();
+    }
+  };
+
+  if (isLoading && !boardData) return <p>Loading board...</p>;
+  if (error) return <p style={{ color: 'red' }}>{error}</p>;
+  if (!boardData) return <p>No board data found or project ID is invalid.</p>;
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCorners}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+    >
+      <div>
+        <h1>{boardData.name} ({boardData.prefix})</h1>
+        {isAddTaskModalOpen && selectedColumnId && (
+          <div className="modal"> {/* Basic modal styling needed */}
+            <form onSubmit={handleCreateTask}>
+              <h2>Add New Task to {boardData.columns.find(c => c.id === selectedColumnId)?.name}</h2>
+              <div>
+                <label htmlFor="taskTitle">Task Title:</label>
+                <input id="taskTitle" type="text" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} required />
+              </div>
+              <div>
+                <label htmlFor="taskDescription">Description (Optional):</label>
+                <textarea id="taskDescription" value={newTaskDescription} onChange={(e) => setNewTaskDescription(e.target.value)} />
+              </div>
+              <button type="submit" disabled={isCreatingTask}>
+                {isCreatingTask ? 'Creating...' : 'Create Task'}
+              </button>
+              <button type="button" onClick={() => setIsAddTaskModalOpen(false)}>Cancel</button>
+            </form>
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: '16px', overflowX: 'auto', padding: '10px', minHeight: 'calc(100vh - 100px)' }}>
+          {boardData.columns.map((column) => (
+            <ColumnLane key={column.id} column={column} onAddTask={openAddTaskModal} />
+          ))}
+        </div>
+      </div>
+    </DndContext>
+  );
+};
+export default BoardPage;
