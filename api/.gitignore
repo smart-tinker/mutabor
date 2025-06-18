@@ -1,0 +1,13 @@
+node_modules
+prisma/migrations/*-* # Also ignore migration directories if they are not meant to be committed yet, but for now just node_modules
+prisma/dev.db # Example if using sqlite for local dev, not relevant here but good .gitignore practice
+prisma/dev.db-journal # Example if using sqlite
+*.log
+
+# IDE specific
+.vscode/
+.idea/
+
+# OS specific
+.DS_Store
+Thumbs.db
