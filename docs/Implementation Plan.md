@@ -1,7 +1,7 @@
 # Implementation Plan: Mutabor
 
 ## Общие принципы
-- **Стек:** Nest.js (Backend), React (Frontend), PostgreSQL (DB), Prisma (ORM), Socket.IO (Real-time).
+- **Стек:** Nest.js (Backend), React (Frontend), Supabase (DB), Prisma (ORM), Socket.IO (Real-time).
 - **Подход:** Разработка ведется "вертикальными срезами" (feature slicing). Каждая фича реализуется сквозным образом (DB -> Backend API -> Frontend UI).
 - **Real-time:** Каждый API-эндпоинт, изменяющий состояние доски, немедленно сопровождается реализацией WebSocket-события для синхронизации всех клиентов.
 
@@ -14,7 +14,7 @@
 1.  **DevOps & Setup:**
     - Создать монорепозиторий (например, через `npm/yarn/pnpm workspaces`).
     - Инициализировать Nest.js приложение (`/api`) и React приложение (`/client`).
-    - Создать `docker-compose.yml` для одновременного запуска `api`, `client` и `postgres` контейнеров.
+    - Для локальной разработки базы данных рекомендуется использовать Supabase CLI (`supabase start`), который запускает локальный Supabase-стек (включая Postgres). Как альтернатива, можно подключиться к облачному экземпляру Supabase для разработки. Существующий `docker-compose.yml` может быть адаптирован для запуска `api` и `client` сервисов; запуск Postgres через Docker становится опциональным, если используется Supabase CLI или облачный Supabase.
 
 2.  **Фича: Регистрация пользователя:**
     - **DB (Prisma):** Определить модель `User` (`id`, `email`, `name`, `password_hash`, `createdAt`).
