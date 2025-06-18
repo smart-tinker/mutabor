@@ -1,0 +1,21 @@
+/* client/src/features/Comments/ui/AddCommentForm.module.css */
+.addCommentForm {
+  margin-top: 15px;
+}
+.addCommentForm textarea {
+  width: calc(100% - 22px); /* Full width minus padding/border */
+  min-height: 60px;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+.addCommentForm button {
+  padding: 8px 15px;
+  cursor: pointer;
+}
+.errorText {
+  color: red;
+  font-size: 0.9em;
+  margin-top: 5px;
+}

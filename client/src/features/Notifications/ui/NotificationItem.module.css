@@ -1,0 +1,26 @@
+/* client/src/features/Notifications/ui/NotificationItem.module.css */
+.notificationItem {
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+  background-color: white;
+}
+.notificationItem:last-child {
+  border-bottom: none;
+}
+.notificationItem.unread {
+  background-color: #f8f9fa; /* Slightly different background for unread */
+  font-weight: bold;
+}
+.notificationItem:hover {
+  background-color: #e9ecef;
+}
+.notificationText {
+  font-size: 0.9em;
+  color: #333;
+  margin-bottom: 4px;
+}
+.notificationTimestamp {
+  font-size: 0.75em;
+  color: #777;
+}

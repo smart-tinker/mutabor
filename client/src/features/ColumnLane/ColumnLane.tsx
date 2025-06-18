@@ -2,18 +2,19 @@ import React from 'react';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
 import TaskCard from '../TaskCard/TaskCard'; // Adjust path
-import { ColumnDto as ProjectColumnDto, TaskDto as ProjectTaskDto } from '../../shared/api/projectService'; // Adjust path
+import { ColumnDto as ProjectColumnDto, TaskDto } from '../../shared/api/projectService'; // Use TaskDto directly
 
 interface Column extends ProjectColumnDto {
-  tasksList: ProjectTaskDto[];
+  tasksList: TaskDto[]; // Use TaskDto
 }
 
 interface ColumnLaneProps {
   column: Column;
   onAddTask: (columnId: string) => void; // Function to open add task modal
+  onTaskClick: (task: TaskDto) => void; // New prop for task click
 }
 
-const ColumnLane: React.FC<ColumnLaneProps> = ({ column, onAddTask }) => {
+const ColumnLane: React.FC<ColumnLaneProps> = ({ column, onAddTask, onTaskClick }) => {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
 
   const style = {
@@ -41,7 +42,7 @@ const ColumnLane: React.FC<ColumnLaneProps> = ({ column, onAddTask }) => {
           {column.tasksList.length === 0 ? (
             <p style={{ fontSize: '0.9em', color: 'grey', textAlign: 'center', marginTop: '20px' }}>No tasks here.</p>
           ) : (
-            column.tasksList.map(task => <TaskCard key={task.id} task={task} />)
+            column.tasksList.map(task => <TaskCard key={task.id} task={task} onTaskClick={onTaskClick} />)
           )}
         </SortableContext>
       </div>

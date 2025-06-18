@@ -1,0 +1,24 @@
+/* client/src/features/Notifications/ui/NotificationBell.module.css */
+.bellContainer {
+  position: relative;
+  cursor: pointer;
+  padding: 8px; /* For easier clicking */
+}
+.bellIcon { /* Basic representation, replace with actual SVG or font icon */
+  font-size: 1.5em; /* Example size */
+  color: #333;
+}
+.unreadBadge {
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  background-color: red;
+  color: white;
+  border-radius: 50%;
+  padding: 2px 6px;
+  font-size: 0.7em;
+  font-weight: bold;
+  min-width: 10px; /* Ensure it's circular even for single digit */
+  text-align: center;
+  line-height: 1;
+}

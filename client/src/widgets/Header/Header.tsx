@@ -2,10 +2,11 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../app/auth/AuthContext';
 import LogoutButton from '../../features/authByEmail/ui/LogoutButton';
+import { NotificationBell } from '../../features/Notifications'; // Import NotificationBell
 import styles from './Header.module.css';
 
 const Header = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth(); // Add user from useAuth
 
   return (
     <header className={styles.header}>
@@ -20,10 +21,18 @@ const Header = () => {
             </li>
             {isLoading ? (
               <li>Loading...</li>
-            ) : isAuthenticated ? (
-              <li>
-                <LogoutButton />
-              </li>
+            ) : isAuthenticated && user ? ( // Check for user object as well
+              <>
+                <li className={styles.welcomeMessage}> {/* Optional: Add styling for welcome message */}
+                  <span>Welcome, {user.name || user.email}</span>
+                </li>
+                <li>
+                  <NotificationBell />
+                </li>
+                <li>
+                  <LogoutButton />
+                </li>
+              </>
             ) : (
               <>
                 <li>

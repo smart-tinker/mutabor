@@ -5,12 +5,15 @@ import { MoveTaskDto } from './dto/move-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { User } from '@prisma/client';
 import { EventsGateway } from '../events/events.gateway'; // Import EventsGateway
+import { CommentsService } from '../comments/comments.service';
+import { CreateCommentDto } from './dto/create-comment.dto';
 
 @Injectable()
 export class TasksService {
   constructor(
     private prisma: PrismaService,
     @Inject(EventsGateway) private eventsGateway: EventsGateway, // Inject EventsGateway
+    private commentsService: CommentsService, // Inject CommentsService
   ) {}
 
   async createTask(createTaskDto: CreateTaskDto, user: User) {
@@ -145,5 +148,38 @@ export class TasksService {
         if (finalMovedTask) this.eventsGateway.emitTaskMoved(finalMovedTask);
     }
     return finalMovedTask;
+  }
+
+  async addCommentToTask(taskId: string, createCommentDto: CreateCommentDto, author: User) {
+    // Task existence and user's permission to comment on task should be checked here.
+    // Permission check: is user part of the project this task belongs to?
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: { project: { include: { members: true, owner: true }}} // Include owner too
+    });
+    if (!task) {
+      throw new NotFoundException(`Task with ID ${taskId} not found.`);
+    }
+    const project = task.project;
+    if (project.ownerId !== author.id && !project.members.some(member => member.userId === author.id)) {
+      throw new ForbiddenException('You do not have permission to comment on this task.');
+    }
+    return this.commentsService.createComment(taskId, createCommentDto, author.id);
+  }
+
+  async getCommentsForTask(taskId: string, user: User) {
+    // Similar permission check as above
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: { project: { include: { members: true, owner: true }}} // Include owner too
+    });
+    if (!task) {
+      throw new NotFoundException(`Task with ID ${taskId} not found.`);
+    }
+    const project = task.project;
+    if (project.ownerId !== user.id && !project.members.some(member => member.userId === user.id)) {
+      throw new ForbiddenException('You do not have permission to view comments for this task.');
+    }
+    return this.commentsService.getCommentsForTask(taskId);
   }
 }

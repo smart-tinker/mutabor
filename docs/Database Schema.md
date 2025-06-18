@@ -89,8 +89,20 @@ erDiagram
 | `humanReadableId`          | `string`           | `UNIQUE`                                          | Человеко-понятный ID (например, "PHX-1"). Используется в URL.             |
 | `(projectId, taskNumber)`  | `(Int, Int)`       | `UNIQUE`                                          | Номер задачи уникален в рамках одного проекта.                             |
 | `projectId`                | `Int`              | `FK to PROJECT(id)`, `ON DELETE CASCADE`          | Связь с проектом для генерации ID и каскадного удаления.                  |
-| `assignee_id`              | `string` (UUID)    | `FK to USER(id)`, `ON DELETE SET NULL`, `NULLABLE` | Исполнитель. При удалении пользователя становится `NULL`.                 |
+| `assignee_id`              | `string?` (UUID)   | `FK to USER(id)`, `ON DELETE SET NULL`            | Исполнитель. При удалении пользователя становится `NULL`.                 |
 | **COMMENT**                |                    |                                                   | Комментарии к задачам.                                                    |
-| `author_id`                | `string` (UUID)    | `FK to USER(id)`, `ON DELETE SET NULL`, `NULLABLE` | Автор. При удалении пользователя становится `NULL` (анонимизируется).      |
+| `id`                       | `string` (UUID)    | `PRIMARY KEY`                                     | Уникальный ID комментария.                                                |
+| `text`                     | `string`           | `NOT NULL`                                        | Текст комментария.                                                        |
+| `taskId`                   | `string` (UUID)    | `FK to TASK(id)`, `ON DELETE CASCADE`             | Связь с задачей.                                                          |
+| `authorId`                 | `string?` (UUID)   | `FK to USER(id)`, `ON DELETE SET NULL`          | Автор. При удалении пользователя становится NULL (анонимизируется).      |
+| `createdAt`                | `DateTime`         | `DEFAULT now()`                                   | Время создания.                                                          |
+| `updatedAt`                | `DateTime`         | `updatedAt`                                       | Время последнего обновления.                                              |
 | **NOTIFICATION**           |                    |                                                   | Уведомления для пользователей.                                            |
-| `recipientId`              | `string` (UUID)    | `FK to USER(id)`, `ON DELETE CASCADE`             | Получатель. При удалении пользователя его уведомления удаляются.          |
+| `id`                       | `string` (UUID)    | `PRIMARY KEY`                                     | Уникальный ID уведомления.                                                |
+| `text`                     | `string`           | `NOT NULL`                                        | Содержание уведомления.                                                   |
+| `isRead`                   | `boolean`          | `DEFAULT false`                                   | Статус прочтения уведомления.                                             |
+| `recipientId`              | `string` (UUID)    | `FK to USER(id)`, `ON DELETE CASCADE`             | Получатель уведомления.                                                    |
+| `sourceUrl`                | `string?`          | `NULLABLE`                                        | Опциональная ссылка для перехода к источнику уведомления.                  |
+| `taskId`                   | `string?` (UUID)   | `FK to TASK(id)`, `ON DELETE CASCADE`, `NULLABLE` | Опциональная ссылка на связанную задачу.                                   |
+| `createdAt`                | `DateTime`         | `DEFAULT now()`                                   | Время создания.                                                          |
+| `updatedAt`                | `DateTime`         | `updatedAt`                                       | Время последнего обновления.                                              |

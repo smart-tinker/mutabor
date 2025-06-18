@@ -1,0 +1,23 @@
+// client/src/features/Comments/ui/CommentList.tsx
+import React from 'react';
+import { CommentDto } from '../../../shared/api/taskService';
+import CommentItem from './CommentItem';
+import styles from './CommentList.module.css';
+
+interface CommentListProps {
+  comments: CommentDto[];
+}
+
+const CommentList: React.FC<CommentListProps> = ({ comments }) => {
+  if (comments.length === 0) {
+    return <p>No comments yet.</p>;
+  }
+  return (
+    <div className={styles.commentList}>
+      {comments.map(comment => (
+        <CommentItem key={comment.id} comment={comment} />
+      ))}
+    </div>
+  );
+};
+export default CommentList;

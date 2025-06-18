@@ -15,14 +15,16 @@ import {
 import { arrayMove } from '@dnd-kit/sortable';
 // import { restrictToVerticalAxis, restrictToWindowEdges } from '@dnd-kit/modifiers'; // Optional modifiers
 
-import { projectService, ProjectDto as FullProjectDto, ColumnDto as ProjectColumnDto, TaskDto as ProjectTaskDto } from '../shared/api/projectService';
+import { projectService, ProjectDto as FullProjectDto, ColumnDto as ProjectColumnDto, TaskDto } from '../shared/api/projectService'; // Use TaskDto from projectService
 import { taskService, CreateTaskDto, MoveTaskDto } from '../shared/api/taskService';
 import { socket, joinProjectRoom, leaveProjectRoom } from '../shared/lib/socket';
 import ColumnLane from '../features/ColumnLane/ColumnLane'; // Import ColumnLane
+import { ManageProjectMembersModal } from '../features/ProjectMembers'; // Import ManageProjectMembersModal
+import { TaskDetailModal } from '../features/TaskDetailModal'; // Import TaskDetailModal
 
 // interfaces Column, BoardData as before
 interface Column extends ProjectColumnDto {
-  tasksList: ProjectTaskDto[];
+  tasksList: TaskDto[]; // Ensure this uses the imported TaskDto
 }
 
 interface BoardData extends Omit<FullProjectDto, 'columns' | 'tasks'> {
@@ -39,6 +41,8 @@ const BoardPage: React.FC = () => {
 
   // state for AddTaskModal as before
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
+  const [isMembersModalOpen, setIsMembersModalOpen] = useState(false); // State for members modal
+  const [selectedTask, setSelectedTask] = useState<TaskDto | null>(null); // State for selected task
   const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDescription, setNewTaskDescription] = useState('');
@@ -86,7 +90,7 @@ const BoardPage: React.FC = () => {
       socket.once('connect', onConnect);
       if (socket.connected) onConnect(); // If already connected, join immediately
 
-      const handleTaskCreated = (newTask: ProjectTaskDto) => {
+      const handleTaskCreated = (newTask: TaskDto) => { // Use imported TaskDto
         console.log('task:created event received', newTask);
         setBoardData((prevBoardData) => {
           if (!prevBoardData || newTask.projectId !== numericProjectId) return prevBoardData;
@@ -101,7 +105,7 @@ const BoardPage: React.FC = () => {
         });
       };
 
-      const handleTaskMoved = (movedTask: ProjectTaskDto) => {
+      const handleTaskMoved = (movedTask: TaskDto) => { // Use imported TaskDto
         console.log('task:moved event received', movedTask);
         setBoardData(prev => {
             if (!prev || movedTask.projectId !== numericProjectId) return prev;
@@ -126,7 +130,7 @@ const BoardPage: React.FC = () => {
         });
       };
 
-      const handleTaskUpdated = (updatedTask: ProjectTaskDto) => {
+      const handleTaskUpdated = (updatedTask: TaskDto) => { // Use imported TaskDto
         console.log('task:updated event received', updatedTask);
         setBoardData(prev => {
             if (!prev || updatedTask.projectId !== numericProjectId) return prev;
@@ -176,6 +180,10 @@ const BoardPage: React.FC = () => {
       setNewTaskTitle(''); setNewTaskDescription(''); setIsAddTaskModalOpen(false); setSelectedColumnId(null);
     } catch (err) { console.error('Failed to create task:', err); alert('Failed to create task.');
     } finally { setIsCreatingTask(false); }
+  };
+
+  const handleTaskClick = (task: TaskDto) => { // Handler for task click
+    setSelectedTask(task);
   };
 
   const findColumnContainingTask = (taskId: string): Column | undefined => {
@@ -278,7 +286,7 @@ const BoardPage: React.FC = () => {
     }
 
     // Get the original task details to check if a move actually occurred
-    const originalTask = JSON.parse(JSON.stringify(active.data.current?.sortable?.items?.find((t: ProjectTaskDto) => t.id === activeId) ??
+    const originalTask = JSON.parse(JSON.stringify(active.data.current?.sortable?.items?.find((t: TaskDto) => t.id === activeId) ?? // Use imported TaskDto
         boardData.columns.flatMap(c => c.tasksList).find(t => t.id === activeId)
     )); // Attempt to get original from dnd-kit, fallback to searching current state (less reliable for original)
 
@@ -288,7 +296,7 @@ const BoardPage: React.FC = () => {
     // For simplicity here, we will rely on the current state and compare with the backend after the API call.
     // The crucial part is sending the correct newColumnId and newPosition to the backend.
 
-    const taskBeforeDrag = active.data.current?.sortable?.items.find((t: ProjectTaskDto) => t.id === activeId) as ProjectTaskDto | undefined;
+    const taskBeforeDrag = active.data.current?.sortable?.items.find((t: TaskDto) => t.id === activeId) as TaskDto | undefined; // Use imported TaskDto
     const oldColumnId = taskBeforeDrag?.columnId || findColumnContainingTask(activeId)?.id; // Fallback if not in active.data
     const oldPosition = taskBeforeDrag?.position;
 
@@ -319,18 +327,27 @@ const BoardPage: React.FC = () => {
   if (!boardData) return <p>No board data found or project ID is invalid.</p>;
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCorners}
-      onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
-      onDragEnd={handleDragEnd}
-    >
-      <div>
-        <h1>{boardData.name} ({boardData.prefix})</h1>
-        {isAddTaskModalOpen && selectedColumnId && (
-          <div className="modal"> {/* Basic modal styling needed */}
-            <form onSubmit={handleCreateTask}>
+    <> {/* Using React Fragment to wrap DndContext and Modal */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+      >
+        <div> {/* Main container for BoardPage content */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '10px' }}>
+            <h1>{boardData.name} ({boardData.prefix})</h1>
+            <button
+              onClick={() => setIsMembersModalOpen(true)}
+              style={{ padding: '8px 15px', cursor: 'pointer' }}
+            >
+              Manage Members
+            </button>
+          </div>
+          {isAddTaskModalOpen && selectedColumnId && (
+            <div className="modal"> {/* Basic modal styling needed */}
+              <form onSubmit={handleCreateTask}>
               <h2>Add New Task to {boardData.columns.find(c => c.id === selectedColumnId)?.name}</h2>
               <div>
                 <label htmlFor="taskTitle">Task Title:</label>
@@ -349,11 +366,27 @@ const BoardPage: React.FC = () => {
         )}
         <div style={{ display: 'flex', gap: '16px', overflowX: 'auto', padding: '10px', minHeight: 'calc(100vh - 100px)' }}>
           {boardData.columns.map((column) => (
-            <ColumnLane key={column.id} column={column} onAddTask={openAddTaskModal} />
+            <ColumnLane key={column.id} column={column} onAddTask={openAddTaskModal} onTaskClick={handleTaskClick} />
           ))}
         </div>
       </div>
     </DndContext>
+    {numericProjectId !== null && (
+        <ManageProjectMembersModal
+            projectId={numericProjectId}
+            isOpen={isMembersModalOpen}
+            onClose={() => setIsMembersModalOpen(false)}
+        />
+    )}
+    {selectedTask && numericProjectId !== null && (
+      <TaskDetailModal
+        task={selectedTask}
+        isOpen={!!selectedTask}
+        onClose={() => setSelectedTask(null)}
+        projectId={numericProjectId}
+      />
+    )}
+    </>
   );
 };
 export default BoardPage;

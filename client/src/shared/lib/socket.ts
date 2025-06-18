@@ -45,3 +45,16 @@ export const leaveProjectRoom = (projectId: string) => {
     console.warn('Socket not connected, cannot leave room.');
   }
 };
+
+export const joinUserRoom = (userId: string) => {
+  if (socket.connected) {
+    socket.emit('joinUserRoom', userId);
+    console.log(`Attempted to join user room: user:${userId}`);
+  } else {
+    // Queue or handle error: socket not connected when trying to join room
+    console.warn('Socket not connected. Cannot join user room immediately.');
+    // Could use socket.once('connect', () => socket.emit('joinUserRoom', userId));
+    // Or, if connect is called elsewhere, rely on onConnect handler in NotificationBell
+  }
+};
+// No need for leaveUserRoom for now based on current gateway setup

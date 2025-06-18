@@ -1,0 +1,66 @@
+/* client/src/features/ProjectMembers/ui/ManageProjectMembersModal.module.css */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modalContent {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  min-width: 400px;
+  max-width: 600px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.modalContent h2 {
+  margin-top: 0;
+}
+
+.formGroup {
+  margin-bottom: 15px;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.formGroup input {
+  width: calc(100% - 22px); /* Adjust for padding/border */
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.buttonContainer button {
+  margin-right: 10px;
+}
+
+.errorText {
+  color: red;
+  font-size: 0.9em;
+}
+
+.memberList {
+  list-style: none;
+  padding: 0;
+}
+
+.memberItem {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+}
+.memberItem:last-child {
+  border-bottom: none;
+}

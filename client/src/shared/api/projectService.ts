@@ -46,6 +46,26 @@ export interface CreateProjectDto {
   prefix: string;
 }
 
+// Add near other DTO definitions in projectService.ts
+export interface UserSummaryDto { // For nested user details
+  id: string;
+  email: string;
+  name?: string | null;
+}
+
+export interface ProjectMemberDto {
+  userId: string;
+  projectId: number;
+  role: string;
+  user?: UserSummaryDto; // Based on backend response
+  // Add other fields if the backend sends more for a ProjectMember
+}
+
+export interface AddMemberDto {
+  email: string;
+  role: string;
+}
+
 export const projectService = {
   createProject: async (data: CreateProjectDto): Promise<ProjectDto> => {
     const response = await apiClient.post<ProjectDto>('/projects', data);
@@ -59,6 +79,16 @@ export const projectService = {
 
   getProjectById: async (projectId: number): Promise<ProjectDto> => {
     const response = await apiClient.get<ProjectDto>(`/projects/${projectId}`);
+    return response.data;
+  },
+
+  addProjectMember: async (projectId: number, data: AddMemberDto): Promise<ProjectMemberDto> => {
+    const response = await apiClient.post<ProjectMemberDto>(`/projects/${projectId}/members`, data);
+    return response.data;
+  },
+
+  getProjectMembers: async (projectId: number): Promise<ProjectMemberDto[]> => {
+    const response = await apiClient.get<ProjectMemberDto[]>(`/projects/${projectId}/members`);
     return response.data;
   },
 };
