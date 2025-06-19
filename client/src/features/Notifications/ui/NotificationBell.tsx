@@ -1,11 +1,10 @@
 // client/src/features/Notifications/ui/NotificationBell.tsx
-import React, { useState, useEffect, useCallback, useContext } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getUserNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '../api';
-import { NotificationDto } from '../../../shared/api/notificationService';
+import type { NotificationDto } from '../../../shared/api/notificationService';
 import NotificationDropdown from './NotificationDropdown';
 import { socket } from '../../../shared/lib/socket';
-import { AuthContext } from '../../../app/auth/AuthContext';
 import { joinUserRoom } from '../../../shared/lib/socket';
 import styles from './NotificationBell.module.css';
 import { useAuth } from '../../../app/auth/AuthContext'; // Import useAuth hook

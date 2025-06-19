@@ -1,6 +1,6 @@
 // client/src/features/Notifications/ui/NotificationItem.tsx
 import React from 'react';
-import { NotificationDto } from '../../../shared/api/notificationService';
+import type { NotificationDto } from '../../../shared/api/notificationService';
 import styles from './NotificationItem.module.css';
 
 interface NotificationItemProps {

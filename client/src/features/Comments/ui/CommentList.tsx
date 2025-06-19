@@ -1,6 +1,6 @@
 // client/src/features/Comments/ui/CommentList.tsx
 import React from 'react';
-import { CommentDto } from '../../../shared/api/taskService';
+import type { CommentDto } from '../../../shared/api/taskService';
 import CommentItem from './CommentItem';
 import styles from './CommentList.module.css';
 

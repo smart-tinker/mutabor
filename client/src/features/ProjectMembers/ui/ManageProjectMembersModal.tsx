@@ -1,7 +1,7 @@
 // client/src/features/ProjectMembers/ui/ManageProjectMembersModal.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { getProjectMembers, addProjectMember } from '../api';
-import { ProjectMemberDto, AddMemberDto } from '../../../shared/api/projectService';
+import type { ProjectMemberDto, AddMemberDto } from '../../../shared/api/projectService';
 import styles from './ManageProjectMembersModal.module.css';
 
 interface ManageProjectMembersModalProps {

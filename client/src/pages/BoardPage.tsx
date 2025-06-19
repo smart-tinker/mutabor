@@ -12,11 +12,13 @@ import {
   // Active, // Not explicitly used, but part of dnd-kit core concepts
   // Over // Not explicitly used
 } from '@dnd-kit/core';
-import { arrayMove } from '@dnd-kit/sortable';
+// import { arrayMove } from '@dnd-kit/sortable'; // Not used
 // import { restrictToVerticalAxis, restrictToWindowEdges } from '@dnd-kit/modifiers'; // Optional modifiers
 
-import { projectService, ProjectDto as FullProjectDto, ColumnDto as ProjectColumnDto, TaskDto } from '../shared/api/projectService'; // Use TaskDto from projectService
-import { taskService, CreateTaskDto, MoveTaskDto } from '../shared/api/taskService';
+import { projectService } from '../shared/api/projectService'; // Use TaskDto from projectService
+import type { ProjectDto as FullProjectDto, ColumnDto as ProjectColumnDto, TaskDto } from '../shared/api/projectService';
+import { taskService } from '../shared/api/taskService';
+import type { CreateTaskDto, MoveTaskDto } from '../shared/api/taskService';
 import { socket, joinProjectRoom, leaveProjectRoom } from '../shared/lib/socket';
 import ColumnLane from '../features/ColumnLane/ColumnLane'; // Import ColumnLane
 import { ManageProjectMembersModal } from '../features/ProjectMembers'; // Import ManageProjectMembersModal

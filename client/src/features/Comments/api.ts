@@ -1,5 +1,6 @@
 // client/src/features/Comments/api.ts
-import { taskService, CreateCommentPayloadDto, CommentDto } from '../../shared/api/taskService';
+import { taskService } from '../../shared/api/taskService';
+import type { CreateCommentPayloadDto, CommentDto } from '../../shared/api/taskService';
 
 export const getTaskComments = (taskId: string): Promise<CommentDto[]> => {
   return taskService.getTaskComments(taskId);

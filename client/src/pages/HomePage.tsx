@@ -3,7 +3,7 @@ import { useAuth } from '../app/auth/AuthContext'; // Assuming you might want to
 import styles from './PageStyles.module.css'; // Create a common style for pages
 
 const HomePage = () => {
-  const { authToken } = useAuth(); // Example: retrieve token or user info
+  // const { authToken } = useAuth(); // Example: retrieve token or user info - authToken is unused
 
   // You could decode the token here if it contains user information like name
   // For now, just a generic welcome.

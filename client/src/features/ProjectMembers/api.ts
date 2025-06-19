@@ -1,5 +1,6 @@
 // client/src/features/ProjectMembers/api.ts
-import { projectService, AddMemberDto, ProjectMemberDto } from '../../shared/api/projectService';
+import { projectService } from '../../shared/api/projectService';
+import type { AddMemberDto, ProjectMemberDto } from '../../shared/api/projectService';
 
 export const addProjectMember = (projectId: number, data: AddMemberDto): Promise<ProjectMemberDto> => {
   return projectService.addProjectMember(projectId, data);

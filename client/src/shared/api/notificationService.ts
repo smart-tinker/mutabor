@@ -1,5 +1,5 @@
 // client/src/shared/api/notificationService.ts
-import { apiClient } from './axiosInstance';
+import apiClient from './axiosInstance';
 
 export interface NotificationDto {
   id: string;

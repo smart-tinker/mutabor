@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { TaskDto } from '../../shared/api/projectService'; // Adjust path
+import type { TaskDto } from '../../shared/api/projectService'; // Adjust path
 
 interface TaskCardProps {
   task: TaskDto;

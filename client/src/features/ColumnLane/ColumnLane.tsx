@@ -2,7 +2,7 @@ import React from 'react';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
 import TaskCard from '../TaskCard/TaskCard'; // Adjust path
-import { ColumnDto as ProjectColumnDto, TaskDto } from '../../shared/api/projectService'; // Use TaskDto directly
+import type { ColumnDto as ProjectColumnDto, TaskDto } from '../../shared/api/projectService'; // Use TaskDto directly
 
 interface Column extends ProjectColumnDto {
   tasksList: TaskDto[]; // Use TaskDto

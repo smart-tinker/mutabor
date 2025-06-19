@@ -1,5 +1,5 @@
-import { apiClient } from './axiosInstance'; // Your configured axios instance
-import { TaskDto } from './projectService'; // Reuse TaskDto from projectService for now
+import apiClient from './axiosInstance'; // Your configured axios instance
+import type { TaskDto } from './projectService'; // Reuse TaskDto from projectService for now
 
 export interface CreateTaskDto {
   title: string;
