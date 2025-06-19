@@ -62,7 +62,7 @@ export class CommentsService {
   }
 
   // Placeholder for mention handling logic
-  private async handleMentions(comment: Comment, taskTitle: string, commentAuthorId: string, projectId: number) {
+  private async handleMentions(comment: Comment & { author: User }, taskTitle: string, commentAuthorId: string, projectId: number) {
     const regex = /@([a-zA-Z0-9_.-]+)/g; // Assuming mention by name-like identifier
     const mentionedNames = new Set<string>();
     let match;

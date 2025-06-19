@@ -20,6 +20,7 @@ model User {
   createdTasks  Task[]    @relation("CreatorTasks")
   comments      Comment[]
   notifications Notification[] // Added relation to Notification model
+  projectMemberships ProjectMember[] // Added relation to ProjectMember
 }
 
 model Project {
@@ -31,6 +32,7 @@ model Project {
   owner     User     @relation(fields: [ownerId], references: [id], onDelete: Restrict)
   columns   Column[]
   tasks     Task[]
+  members   ProjectMember[] // Added relation to ProjectMember
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -106,4 +108,18 @@ model Notification {
 
   @@index([recipientId]) // Updated index
   @@index([taskId])
+}
+
+model ProjectMember {
+  projectId Int
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String // Consider making this an enum: Admin, Member, Viewer etc.
+
+  assignedAt DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@id([projectId, userId])
+  @@index([userId])
 }

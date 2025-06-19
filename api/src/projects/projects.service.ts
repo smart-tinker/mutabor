@@ -82,82 +82,82 @@ export class ProjectsService {
     return project;
   }
 
-  // async addMemberToProject(projectId: number, addMemberDto: AddMemberDto, currentUserId: string) {
-  //   const project = await this.prisma.project.findUnique({
-  //     where: { id: projectId },
-  //   });
+  async addMemberToProject(projectId: number, addMemberDto: AddMemberDto, currentUserId: string) {
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+    });
 
-  //   if (!project) {
-  //     throw new NotFoundException(`Project with ID ${projectId} not found.`);
-  //   }
+    if (!project) {
+      throw new NotFoundException(`Project with ID ${projectId} not found.`);
+    }
 
-  //   if (project.ownerId !== currentUserId) {
-  //     throw new ForbiddenException('Only project owners can add members.');
-  //   }
+    if (project.ownerId !== currentUserId) {
+      throw new ForbiddenException('Only project owners can add members.');
+    }
 
-  //   const userToAdd = await this.prisma.user.findUnique({
-  //     where: { email: addMemberDto.email },
-  //   });
+    const userToAdd = await this.prisma.user.findUnique({
+      where: { email: addMemberDto.email },
+    });
 
-  //   if (!userToAdd) {
-  //     throw new NotFoundException(`User with email ${addMemberDto.email} not found.`);
-  //   }
+    if (!userToAdd) {
+      throw new NotFoundException(`User with email ${addMemberDto.email} not found.`);
+    }
 
-  //   if (userToAdd.id === currentUserId) {
-  //     throw new ConflictException('Cannot add the project owner as a member.');
-  //   }
+    if (userToAdd.id === currentUserId) {
+      throw new ConflictException('Cannot add the project owner as a member.');
+    }
 
-  //   const existingMembership = await this.prisma.projectMember.findUnique({
-  //     where: {
-  //       projectId_userId: {
-  //         projectId: projectId,
-  //         userId: userToAdd.id,
-  //       },
-  //     },
-  //   });
+    const existingMembership = await this.prisma.projectMember.findUnique({
+      where: {
+        projectId_userId: {
+          projectId: projectId,
+          userId: userToAdd.id,
+        },
+      },
+    });
 
-  //   if (existingMembership) {
-  //     throw new ConflictException(`User ${addMemberDto.email} is already a member of this project.`);
-  //   }
+    if (existingMembership) {
+      throw new ConflictException(`User ${addMemberDto.email} is already a member of this project.`);
+    }
 
-  //   return this.prisma.projectMember.create({
-  //     data: {
-  //       projectId: projectId,
-  //       userId: userToAdd.id,
-  //       role: addMemberDto.role,
-  //     },
-  //     include: { // Include user details in the response
-  //       user: {
-  //         select: { id: true, email: true, name: true }
-  //       }
-  //     }
-  //   });
-  // }
+    return this.prisma.projectMember.create({
+      data: {
+        projectId: projectId,
+        userId: userToAdd.id,
+        role: addMemberDto.role,
+      },
+      include: { // Include user details in the response
+        user: {
+          select: { id: true, email: true, name: true }
+        }
+      }
+    });
+  }
 
-  // async getProjectMembers(projectId: number, currentUserId: string) {
-  //   const project = await this.prisma.project.findUnique({
-  //     where: { id: projectId },
-  //     // No need to include members here if access is checked by controller calling findProjectById first
-  //   });
+  async getProjectMembers(projectId: number, currentUserId: string) {
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      // No need to include members here if access is checked by controller calling findProjectById first
+    });
 
-  //   if (!project) {
-  //     throw new NotFoundException(`Project with ID ${projectId} not found.`);
-  //   }
+    if (!project) {
+      throw new NotFoundException(`Project with ID ${projectId} not found.`);
+    }
 
-  //   // Access control is expected to be handled by the controller, typically by calling
-  //   // findProjectById(projectId, currentUser) BEFORE calling this method.
-  //   // If this method were to be called without such prior check, it would need its own comprehensive check.
+    // Access control is expected to be handled by the controller, typically by calling
+    // findProjectById(projectId, currentUser) BEFORE calling this method.
+    // If this method were to be called without such prior check, it would need its own comprehensive check.
 
-  //   return this.prisma.projectMember.findMany({
-  //     where: { projectId: projectId },
-  //     include: {
-  //       user: {
-  //         select: { id: true, email: true, name: true },
-  //       },
-  //     },
-  //     orderBy: {
-  //      user: { name: 'asc' }
-  //     }
-  //   });
-  // }
+    return this.prisma.projectMember.findMany({
+      where: { projectId: projectId },
+      include: {
+        user: {
+          select: { id: true, email: true, name: true },
+        },
+      },
+      orderBy: {
+       user: { name: 'asc' }
+      }
+    });
+  }
 }
