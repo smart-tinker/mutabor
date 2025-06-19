@@ -88,7 +88,7 @@
         depends_on:
           - api
         environment:
-          - REACT_APP_API_URL=http://localhost:3001
+          - VITE_API_URL=http://localhost:3001
         volumes:
           - ./client/src:/app/src
           - ./client/public:/app/public
@@ -97,15 +97,21 @@
         build:
           context: ./api
           dockerfile: Dockerfile
+        env_file: # Указываем Docker Compose использовать этот файл для переменных окружения
+          - ./api/.env
         ports:
-          - "3001:3001"
+          # PORT из api/.env будет использован для внутреннего порта контейнера,
+          # а 3001 - это порт на хост-машине.
+          # Пример: если в api/.env PORT=3000, то будет 3001:3000
+          - "3001:3000" # Убедитесь, что значение PORT в api/.env соответствует внутреннему порту
         depends_on:
           - db
         environment:
-          # DATABASE_URL для подключения к сервису 'db' в Docker Compose
+          # DATABASE_URL для подключения к сервису 'db' в Docker Compose.
+          # Это значение ПЕРЕЗАПИШЕТ DATABASE_URL из файла api/.env при запуске через Docker Compose,
+          # так как переменные в 'environment' имеют более высокий приоритет, чем в 'env_file'.
           - DATABASE_URL=postgresql://user:password@db:5432/mutabor?schema=public
-          # JWT_SECRET должен быть тем же, что и в api/.env, если .env файл не используется Docker образом API
-          - JWT_SECRET=YOUR_SUPER_SECRET_JWT_KEY_PLEASE_CHANGE_ME
+          # JWT_SECRET и PORT будут взяты из файла api/.env благодаря директиве env_file.
         volumes:
           - ./api/src:/app/src
 
@@ -124,10 +130,14 @@
     volumes:
       postgres_data:
     ```
-    **Примечание:** Убедитесь, что у вас есть соответствующие `Dockerfile` в директориях `client` и `api`. Переменные окружения для сервиса `api` (включая `DATABASE_URL` и `JWT_SECRET`) задаются в секции `environment` файла `docker-compose.yml` и будут использоваться контейнером. Если ваш Docker-образ `api` также загружает переменные из файла `api/.env`, убедитесь, что значения согласованы, чтобы избежать путаницы.
+    **Примечание:** Убедитесь, что у вас есть соответствующие `Dockerfile` в директориях `client` и `api`.
 
 2.  **Проверьте конфигурацию окружения для сервиса `api`**:
-    Значения `DATABASE_URL` и `JWT_SECRET` для контейнера `api` устанавливаются напрямую в секции `environment` файла `docker-compose.yml`. Файл `api/.env` в первую очередь используется для режима ручного локального запуска (см. соответствующий раздел). Если вы также используете `api/.env` с Docker Compose (например, если ваш образ API его читает), убедитесь, что значения в `api/.env` не конфликтуют с теми, что указаны в `docker-compose.yml`.
+    Сервис `api` в файле `docker-compose.yml` настроен на использование `env_file: - ./api/.env`. Это означает, что он будет загружать переменные окружения из вашего файла `api/.env` (который вы создали, скопировав `api/.env.example`).
+    Переменные, такие как `PORT` (для внутреннего порта контейнера) и `JWT_SECRET`, должны быть определены в вашем файле `api/.env`.
+    Некоторые переменные, как например `DATABASE_URL`, также установлены напрямую в секции `environment` сервиса `api` в `docker-compose.yml`. Это сделано потому, что имя хоста базы данных (`db`) является специфичным для внутренней сети Docker.
+    **Важно:** Любая переменная, установленная напрямую в секции `environment` файла `docker-compose.yml`, будет иметь приоритет и перезапишет значение той же переменной, если она также присутствует в файле `.env`, загруженном через `env_file`. Таким образом, значение `DATABASE_URL` из `docker-compose.yml` будет использовано при запуске через Docker.
+    Убедитесь, что ваш `JWT_SECRET` корректно указан в файле `api/.env`, так как он загружается оттуда. В примере `docker-compose.yml` ниже, `JWT_SECRET` не устанавливается напрямую в секции `environment` сервиса `api`, а ожидается из `api/.env`.
 
 3.  **Запустите сервисы**:
     Эта команда соберет образы (если необходимо) и запустит все сервисы: фронтенд, бэкенд и базу данных.
