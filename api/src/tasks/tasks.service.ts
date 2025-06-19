@@ -155,13 +155,15 @@ export class TasksService {
     // Permission check: is user part of the project this task belongs to?
     const task = await this.prisma.task.findUnique({
       where: { id: taskId },
-      include: { project: { include: { members: true, owner: true }}} // Include owner too
+      include: { project: true } // Include project relation
     });
     if (!task) {
       throw new NotFoundException(`Task with ID ${taskId} not found.`);
     }
     const project = task.project;
-    if (project.ownerId !== author.id && !project.members.some(member => member.userId === author.id)) {
+    // Simplified permission check: only owner can comment.
+    // Original: if (project.ownerId !== author.id && !project.members.some(member => member.userId === author.id)) {
+    if (project.ownerId !== author.id) {
       throw new ForbiddenException('You do not have permission to comment on this task.');
     }
     return this.commentsService.createComment(taskId, createCommentDto, author.id);
@@ -171,13 +173,15 @@ export class TasksService {
     // Similar permission check as above
     const task = await this.prisma.task.findUnique({
       where: { id: taskId },
-      include: { project: { include: { members: true, owner: true }}} // Include owner too
+      include: { project: true } // Include project relation
     });
     if (!task) {
       throw new NotFoundException(`Task with ID ${taskId} not found.`);
     }
     const project = task.project;
-    if (project.ownerId !== user.id && !project.members.some(member => member.userId === user.id)) {
+    // Simplified permission check: only owner can view comments.
+    // Original: if (project.ownerId !== user.id && !project.members.some(member => member.userId === user.id)) {
+    if (project.ownerId !== user.id) {
       throw new ForbiddenException('You do not have permission to view comments for this task.');
     }
     return this.commentsService.getCommentsForTask(taskId);

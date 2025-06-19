@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { EventsGateway } from '../../events/events.gateway'; // Import EventsGateway
+import { EventsGateway } from '../events/events.gateway'; // Import EventsGateway
 
 @Injectable()
 export class NotificationsService {

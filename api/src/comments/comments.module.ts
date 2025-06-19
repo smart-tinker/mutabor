@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { CommentsService } from './comments.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { NotificationsModule } from '../notifications/notifications.module'; // Import NotificationsModule
-import { EventsModule } from '../../events/events.module'; // Import EventsModule
+import { EventsModule } from '../events/events.module'; // Import EventsModule
 // Remove CommentsController if not creating it
 // import { CommentsController } from './comments.controller';
 

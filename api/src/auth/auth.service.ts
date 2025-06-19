@@ -13,12 +13,12 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async validateUser(email: string, pass: string): Promise<Omit<User, 'password_hash'> | null> {
+  async validateUser(email: string, pass: string): Promise<Omit<User, 'password'> | null> {
     const user = await this.prisma.user.findUnique({ where: { email } });
-    if (user && user.password_hash) {
-      const isMatch = await bcrypt.compare(pass, user.password_hash);
+    if (user && user.password) {
+      const isMatch = await bcrypt.compare(pass, user.password);
       if (isMatch) {
-        const { password_hash, ...result } = user;
+        const { password, ...result } = user;
         return result;
       }
     }
@@ -31,7 +31,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
     // Ensure user object has id, email, and name for the payload
-    // The 'user' object from validateUser already excludes password_hash
+    // The 'user' object from validateUser already excludes password
     // and should contain id, email, name if they exist on the User model.
     const payload = { email: user.email, sub: user.id, name: user.name };
     return {
@@ -54,11 +54,11 @@ export class AuthService {
       data: {
         email: dto.email,
         name: dto.name,
-        password_hash: hashedPassword,
+        password: hashedPassword,
       },
     });
 
-    const { password_hash, ...result } = newUser;
+    const { password, ...result } = newUser;
     return result;
   }
 }
