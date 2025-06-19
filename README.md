@@ -47,17 +47,27 @@
     Эта команда также установит зависимости для `client` и `api`, если вы используете npm workspaces (проверьте ваш корневой `package.json`). Если нет, вам может потребоваться выполнить `npm install` в каждой директории (`./api` и `./client`) отдельно для ручного режима запуска.
 
 3.  **Создать файл `.env` для API**:
-    Скопируйте или создайте файл `.env` в директории `api/` (`api/.env`). Этот файл будет содержать переменные окружения для бэкенда.
-    Минимально необходимые переменные:
+    Скопируйте файл `api/.env.example` в `api/.env` и измените его (`cp api/.env.example api/.env`). Этот файл будет содержать переменные окружения для бэкенда.
+    Файл `api/.env.example` выглядит так:
     ```env
-    # api/.env
+    # Example environment variables for the API
+
+    # Port for the API server
+    PORT=3000
+
+    # Connection string for the PostgreSQL database
+    # Example for Docker Compose: postgresql://user:password@db:5432/mutabor?schema=public
+    # Example for Supabase CLI: postgresql://postgres:postgres@localhost:54322/postgres
+    # Example for local PostgreSQL: postgresql://user:password@localhost:5432/mutabor
+    DATABASE_URL="postgresql://user:password@localhost:5432/mydatabase?schema=public"
+
+    # JWT Secret Key
     JWT_SECRET="YOUR_SUPER_SECRET_JWT_KEY_PLEASE_CHANGE_ME"
-    DATABASE_URL="YOUR_DATABASE_CONNECTION_STRING_GOES_HERE"
-    # Например, для Docker Compose: postgresql://user:password@db:5432/mutabor?schema=public
-    # Например, для Supabase CLI: postgresql://postgres:postgres@localhost:54322/postgres
-    # Например, для ручного запуска PostgreSQL на хосте: postgresql://user:password@localhost:5432/mutabor
     ```
-    **Важно:** Замените `YOUR_SUPER_SECRET_JWT_KEY_PLEASE_CHANGE_ME` на надежный случайный ключ. `DATABASE_URL` будет зависеть от выбранного вами способа запуска базы данных (см. ниже).
+    **Важно:**
+    - Замените `YOUR_SUPER_SECRET_JWT_KEY_PLEASE_CHANGE_ME` на надежный случайный ключ для `JWT_SECRET`.
+    - `DATABASE_URL` будет зависеть от выбранного вами способа запуска базы данных (см. ниже).
+    - Измените `PORT`, если порт `3000` уже занят или вам нужен другой.
 
 ### Локальный запуск через Docker Compose (Full Stack Docker Compose Setup)
 
@@ -187,11 +197,7 @@ JWT_SECRET="YOUR_SUPER_SECRET_JWT_KEY_PLEASE_CHANGE_ME"
     2.  Установите зависимости (если не делали этого ранее): `npm install`
     3.  Запустите в режиме разработки: `npm run dev`
     *   Фронтенд будет доступен по адресу: `http://localhost:3000`
-    *   **Конфигурация API для клиента:** Убедитесь, что ваше клиентское приложение настроено для отправки запросов на API по адресу `http://localhost:3001`. Если клиент использует переменную окружения для определения URL API (например, `REACT_APP_API_URL` для Create React App), создайте файл `.env` в корневой директории клиента (например, `client/.env`) и установите в нем:
-        ```env
-        REACT_APP_API_URL=http://localhost:3001
-        ```
-        Перезапустите процесс разработки клиента, если он уже был запущен, чтобы изменения в `.env` файле применились.
+    *   **Конфигурация API для клиента:** Клиент использует переменную окружения `VITE_API_URL` для определения URL API. Файл `client/.env.example` уже содержит стандартное значение (`http://localhost:3001`). Если вам нужно изменить это значение, скопируйте `client/.env.example` в `client/.env` (`cp client/.env.example client/.env`) и внесите необходимые изменения. Затем перезапустите процесс разработки клиента.
 
 Этот подход дает вам больше контроля над каждым сервисом и их логами напрямую в терминале.
 
