@@ -1,8 +1,8 @@
 // client/src/features/TaskDetailModal/ui/TaskDetailModal.tsx
 import React, { useEffect, useState, useCallback } from 'react';
 // Use CommentDto from taskService, TaskDto from projectService
-import { TaskDto } from '../../../shared/api/projectService';
-import { CommentDto } from '../../../shared/api/taskService';
+import type { TaskDto } from '../../../shared/api/projectService';
+import type { CommentDto } from '../../../shared/api/taskService';
 import { getTaskComments } from '../../Comments/api';
 import { CommentList, AddCommentForm } from '../../Comments';
 import { socket } from '../../../shared/lib/socket';

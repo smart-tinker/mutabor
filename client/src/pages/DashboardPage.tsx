@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom'; // Assuming react-router-dom is used
-import { projectService, ProjectDto, CreateProjectDto } from '../shared/api/projectService'; // Adjust path as needed
+import { projectService } from '../shared/api/projectService'; // Adjust path as needed
+import type { ProjectDto, CreateProjectDto } from '../shared/api/projectService';
 
 const DashboardPage: React.FC = () => {
   const [projects, setProjects] = useState<ProjectDto[]>([]);

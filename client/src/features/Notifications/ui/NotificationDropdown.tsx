@@ -1,6 +1,6 @@
 // client/src/features/Notifications/ui/NotificationDropdown.tsx
 import React from 'react';
-import { NotificationDto } from '../../../shared/api/notificationService';
+import type { NotificationDto } from '../../../shared/api/notificationService';
 import NotificationItem from './NotificationItem';
 import styles from './NotificationDropdown.module.css';
 
