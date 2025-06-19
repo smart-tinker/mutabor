@@ -8,7 +8,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: [], // Using empty array as per plan
+    setupFiles: ['./src/setupTests.ts'],
     css: true,
   },
 })

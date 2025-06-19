@@ -1,4 +1,3 @@
-import React from 'react';
 import LoginForm from '../features/authByEmail/ui/LoginForm';
 import styles from './PageStyles.module.css'; // Import common page styles
 

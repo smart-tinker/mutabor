@@ -1,4 +1,3 @@
-import React from 'react';
 import type { ReactNode } from 'react';
 import Header from '../Header/Header'; // Uncomment and import Header
 import styles from './MainLayout.module.css';

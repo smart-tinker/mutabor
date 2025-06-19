@@ -40,8 +40,10 @@ const NotificationBell: React.FC = () => {
       if (!socket.connected) socket.connect();
 
       const onSocketConnect = () => {
-        console.log('Socket connected for notifications, joining user room:', auth.user.id);
-        joinUserRoom(auth.user.id); // Pass user ID string to joinUserRoom
+        if (auth.user) { // Add null check for auth.user
+          console.log('Socket connected for notifications, joining user room:', auth.user.id);
+          joinUserRoom(auth.user.id); // Pass user ID string to joinUserRoom
+        }
       };
 
       socket.on('connect', onSocketConnect);
