@@ -1,6 +1,6 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import { createContext, useState, useContext, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { jwtDecode } from 'jwt-decode'; // Import jwt-decode
+import jwtDecode from 'jwt-decode'; // Import jwt-decode
 
 // Define the user structure based on typical JWT payload
 export interface AuthenticatedUser {

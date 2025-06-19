@@ -31,8 +31,8 @@
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "@types/socket.io-client": "^3.0.0",
-    "@vitejs/plugin-react": "^4.4.1",
-    "@vitest/ui": "^1.6.0",
+    "@vitejs/plugin-react": "latest",
+    "@vitest/ui": "latest",
     "eslint": "^9.25.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",
@@ -40,7 +40,7 @@
     "jsdom": "^24.1.0",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.30.1",
-    "vite": "^6.3.5",
-    "vitest": "^1.6.0"
+    "vite": "latest",
+    "vitest": "latest"
   }
 }

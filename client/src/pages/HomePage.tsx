@@ -1,5 +1,3 @@
-import React from 'react';
-import { useAuth } from '../app/auth/AuthContext'; // Assuming you might want to display user info
 import styles from './PageStyles.module.css'; // Create a common style for pages
 
 const HomePage = () => {

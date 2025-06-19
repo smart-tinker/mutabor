@@ -3,22 +3,21 @@ import { useParams } from 'react-router-dom';
 import {
   DndContext,
   closestCorners,
-  DragEndEvent,
-  DragOverEvent,
-  DragStartEvent,
+  DragOverlay, // Import DragOverlay
   PointerSensor,
   useSensor,
   useSensors,
   // Active, // Not explicitly used, but part of dnd-kit core concepts
   // Over // Not explicitly used
 } from '@dnd-kit/core';
+import type { DragEndEvent, DragOverEvent, DragStartEvent } from '@dnd-kit/core';
 // import { arrayMove } from '@dnd-kit/sortable'; // Not used
 // import { restrictToVerticalAxis, restrictToWindowEdges } from '@dnd-kit/modifiers'; // Optional modifiers
 
 import { projectService } from '../shared/api/projectService'; // Use TaskDto from projectService
 import type { ProjectDto as FullProjectDto, ColumnDto as ProjectColumnDto, TaskDto } from '../shared/api/projectService';
 import { taskService } from '../shared/api/taskService';
-import type { CreateTaskDto, MoveTaskDto } from '../shared/api/taskService';
+import type { CreateTaskDto } from '../shared/api/taskService';
 import { socket, joinProjectRoom, leaveProjectRoom } from '../shared/lib/socket';
 import ColumnLane from '../features/ColumnLane/ColumnLane'; // Import ColumnLane
 import { ManageProjectMembersModal } from '../features/ProjectMembers'; // Import ManageProjectMembersModal
@@ -39,7 +38,7 @@ const BoardPage: React.FC = () => {
   const [boardData, setBoardData] = useState<BoardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [activeDragId, setActiveDragId] = useState<string | null>(null); // Re-add activeDragId
 
   // state for AddTaskModal as before
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
@@ -288,9 +287,9 @@ const BoardPage: React.FC = () => {
     }
 
     // Get the original task details to check if a move actually occurred
-    const originalTask = JSON.parse(JSON.stringify(active.data.current?.sortable?.items?.find((t: TaskDto) => t.id === activeId) ?? // Use imported TaskDto
-        boardData.columns.flatMap(c => c.tasksList).find(t => t.id === activeId)
-    )); // Attempt to get original from dnd-kit, fallback to searching current state (less reliable for original)
+    // const originalTask = JSON.parse(JSON.stringify(active.data.current?.sortable?.items?.find((t: TaskDto) => t.id === activeId) ?? // Use imported TaskDto
+    //     boardData.columns.flatMap(c => c.tasksList).find(t => t.id === activeId)
+    // )); // Attempt to get original from dnd-kit, fallback to searching current state (less reliable for original)
 
     // This part tries to get the original state of the task before any optimistic updates.
     // However, dnd-kit's active.data.current might not always hold the initial state if not set up explicitly.
@@ -298,17 +297,17 @@ const BoardPage: React.FC = () => {
     // For simplicity here, we will rely on the current state and compare with the backend after the API call.
     // The crucial part is sending the correct newColumnId and newPosition to the backend.
 
-    const taskBeforeDrag = active.data.current?.sortable?.items.find((t: TaskDto) => t.id === activeId) as TaskDto | undefined; // Use imported TaskDto
-    const oldColumnId = taskBeforeDrag?.columnId || findColumnContainingTask(activeId)?.id; // Fallback if not in active.data
-    const oldPosition = taskBeforeDrag?.position;
+    // const taskBeforeDrag = active.data.current?.sortable?.items.find((t: TaskDto) => t.id === activeId) as TaskDto | undefined; // Use imported TaskDto
+    // const oldColumnId = taskBeforeDrag?.columnId || findColumnContainingTask(activeId)?.id; // Fallback if not in active.data
+    // const oldPosition = taskBeforeDrag?.position;
 
 
-    if (newColumnId === oldColumnId && newPosition === oldPosition) {
-      console.log("Task position and column unchanged.");
-      // If optimistic updates in handleDragOver were not perfect, might need to call fetchBoardData() to ensure UI consistency.
+    // if (newColumnId === oldColumnId && newPosition === oldPosition) {
+    //   console.log("Task position and column unchanged.");
+    // If optimistic updates in handleDragOver were not perfect, might need to call fetchBoardData() to ensure UI consistency.
       // However, if handleDragOver correctly reflects the visual end state, and no actual change in data occurred, this is fine.
-      return;
-    }
+    //  return;
+    // }
 
     try {
       await taskService.moveTask(activeId, { newColumnId, newPosition });
@@ -388,6 +387,7 @@ const BoardPage: React.FC = () => {
         projectId={numericProjectId}
       />
     )}
+    <DragOverlay>{activeDragId ? <div style={{ border: '1px solid gray', padding: '10px', backgroundColor: 'lightyellow' }}>Dragging: {activeDragId}</div> : null}</DragOverlay>
     </>
   );
 };

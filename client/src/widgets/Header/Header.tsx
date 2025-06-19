@@ -1,4 +1,3 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../app/auth/AuthContext';
 import LogoutButton from '../../features/authByEmail/ui/LogoutButton';
