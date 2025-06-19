@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateCommentDto } from '../tasks/dto/create-comment.dto'; // Correct path
 import { NotificationsService } from '../notifications/notifications.service'; // Import NotificationsService
 import { Comment, User } from '@prisma/client'; // Import Comment for type usage
-import { EventsGateway } from '../../events/events.gateway'; // Import EventsGateway
+import { EventsGateway } from '../events/events.gateway'; // Import EventsGateway
 
 @Injectable()
 export class CommentsService {
@@ -30,17 +30,15 @@ export class CommentsService {
         taskId: taskId,
         authorId: authorId,
       },
-      include: { // Include author details in the response
-        author: {
-          select: { id: true, email: true, name: true }
-        }
+      include: { // Include full author object
+        author: true
       }
     });
 
     if (comment) {
       // Ensure comment.author is populated if needed by handleMentions, which it is.
       // The include above should make comment.author.name available.
-      this.handleMentions(comment, taskData.title, authorId, taskData.projectId);
+      this.handleMentions(comment as Comment & { author: User }, taskData.title, authorId, taskData.projectId);
       this.eventsGateway.emitCommentCreated(comment, taskData.projectId); // Emit event
     }
 
@@ -55,9 +53,7 @@ export class CommentsService {
     return this.prisma.comment.findMany({
       where: { taskId: taskId },
       include: {
-        author: {
-          select: { id: true, email: true, name: true },
-        },
+        author: true, // Include full author object
       },
       orderBy: {
         createdAt: 'asc',
@@ -89,17 +85,19 @@ export class CommentsService {
     const sourceUrl = `/projects/${projectId}/tasks/${comment.taskId}`;
 
     // comment.author should be populated from the include in createComment
-    const authorName = (comment.author as User)?.name || 'Someone'; // Type assertion for author
+    // Type assertion used when calling handleMentions to ensure author is present
+    const authorName = comment.author?.name || 'Someone';
     const finalNotificationText = `You were mentioned by ${authorName} in a comment on task "${taskTitle}": "${textToParse.substring(0, 50)}..."`;
 
     for (const user of usersToNotify) {
       // Check if user is part of the project before notifying
-      const projectMember = await this.prisma.projectMember.findUnique({
-          where: { projectId_userId: { projectId: projectId, userId: user.id } }
-      });
+      // const projectMember = await this.prisma.projectMember.findUnique({
+      //     where: { projectId_userId: { projectId: projectId, userId: user.id } }
+      // });
       const projectOwner = await this.prisma.project.findFirst({ where: { id: projectId, ownerId: user.id }});
 
-      if (projectMember || projectOwner) {
+      // if (projectMember || projectOwner) { // Original check
+      if (projectOwner) { // Modified check, only owner
            await this.notificationService.createNotification(
               user.id,
               finalNotificationText,
