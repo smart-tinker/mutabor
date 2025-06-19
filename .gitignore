@@ -1,0 +1,16 @@
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+
+# NestJS
+dist/
+.DS_Store
+
+# Specific to this project structure
+api/dist/
+api/node_modules/
+web/dist/
+web/node_modules/
+web/.next/
