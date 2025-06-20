@@ -1,0 +1,5 @@
+.addTaskButton {
+  margin-top: auto; /* Push to bottom */
+  /* The global .secondary class will handle visual styling */
+  width: 100%; /* Make button full width of column */
+}

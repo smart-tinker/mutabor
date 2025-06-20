@@ -14,7 +14,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
         {children}
       </main>
       <footer className={styles.footer}>
-        <p>&copy; {new Date().getFullYear()} Mutabor. All rights reserved.</p>
+        <p className="text-caption">&copy; {new Date().getFullYear()} Mutabor. All rights reserved.</p>
       </footer>
     </div>
   );

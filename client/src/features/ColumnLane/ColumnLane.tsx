@@ -1,4 +1,5 @@
 import React from 'react';
+import styles from './ColumnLane.module.css'; // Import the CSS module
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
 import TaskCard from '../TaskCard/TaskCard'; // Adjust path
@@ -47,7 +48,7 @@ const ColumnLane: React.FC<ColumnLaneProps> = ({ column, onAddTask, onTaskClick 
         </SortableContext>
       </div>
       <button
-        style={{ marginTop: 'auto', paddingTop: '10px', paddingBottom: '10px' }}
+        className={`${styles.addTaskButton} secondary`}
         onClick={() => onAddTask(column.id)}>
         + Add Task
       </button>

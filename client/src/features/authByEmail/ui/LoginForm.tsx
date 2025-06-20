@@ -55,6 +55,7 @@ const LoginForm = () => {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             disabled={isLoading}
+            className={error ? 'input-error' : ''}
           />
         </div>
 
@@ -66,6 +67,7 @@ const LoginForm = () => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={isLoading}
+            className={error ? 'input-error' : ''}
           />
         </div>
 
