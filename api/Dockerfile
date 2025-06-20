@@ -32,4 +32,4 @@ COPY --from=builder /usr/src/app/node_modules/.prisma ./node_modules/.prisma
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma migrate reset --force && npx prisma migrate deploy && node dist/main.js"]
+CMD ["sh", "-c", "npx prisma migrate reset --force && if [ $? -eq 0 ]; then npx prisma migrate deploy && if [ $? -eq 0 ]; then node dist/main.js; else echo \"Prisma migrate deploy failed\"; exit 1; fi; else echo \"Prisma migrate reset failed\"; exit 1; fi"]
