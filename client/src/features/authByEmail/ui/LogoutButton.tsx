@@ -7,7 +7,7 @@ const LogoutButton = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/login'); // Redirect to login page after logout
+    navigate('/'); // Redirect to the landing page after logout
   };
 
   if (!isAuthenticated) {

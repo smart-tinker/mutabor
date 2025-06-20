@@ -34,4 +34,13 @@ export class AuthController {
   getProfileEmail(@GetUser('email') email: string) {
     return { email };
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('logout')
+  @HttpCode(200)
+  async logout() {
+    // For stateless JWT, server-side logout primarily relies on client clearing the token.
+    // This endpoint is here for completeness and could be expanded if token blacklisting is implemented.
+    return { message: 'Logged out successfully' };
+  }
 }
