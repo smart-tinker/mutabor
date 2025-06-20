@@ -2,7 +2,7 @@ import { Controller, Post, Body, Get, Param, UseGuards, Req, ParseUUIDPipe, Http
 import { CommentsService } from './comments.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { User as CurrentUser } from '../auth/decorators/user.decorator'; // Assuming you have a @User decorator
+import { GetUser as CurrentUser } from '../auth/decorators/get-user.decorator'; // Assuming you have a @User decorator
 import { User } from '@prisma/client';
 
 @UseGuards(JwtAuthGuard)
