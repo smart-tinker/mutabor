@@ -18,9 +18,9 @@ model User {
   ownedProjects Project[]
   assignedTasks Task[]    @relation("AssigneeTasks")
   createdTasks  Task[]    @relation("CreatorTasks")
-  comments      Comment[]
-  notifications Notification[] // Added relation to Notification model
-  projectMemberships ProjectMember[] // Added relation to ProjectMember
+  projectMembers         ProjectMember[]
+  comments               Comment[]
+  notifications          Notification[] @relation("RecipientNotifications")
 }
 
 model Project {
@@ -32,7 +32,7 @@ model Project {
   owner     User     @relation(fields: [ownerId], references: [id], onDelete: Restrict)
   columns   Column[]
   tasks     Task[]
-  members   ProjectMember[] // Added relation to ProjectMember
+  members   ProjectMember[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -71,8 +71,8 @@ model Task {
   dueDate         DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
-  comments        Comment[] // Added relation to Comment model
-  notifications   Notification[] // Added relation to Notification model
+  comments      Comment[]
+  notifications Notification[] @relation("TaskNotifications")
 
   @@unique([projectId, taskNumber])
   @@index([columnId])
@@ -81,45 +81,40 @@ model Task {
 }
 
 model Comment {
-  id        String   @id @default(uuid())
-  text      String    // Renamed from content
+  id        String   @id @default(cuid())
+  text      String
   taskId    String
-  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  authorId  String?   // Renamed from userId and made optional
-  author    User?     @relation(fields: [authorId], references: [id], onDelete: SetNull) // Updated relation
+  authorId  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author    User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
 
-  @@index([taskId])
-  @@index([authorId]) // Updated index
+  @@map("comments")
 }
 
 model Notification {
-  id          String   @id @default(uuid())
-  text        String   // Renamed from message
-  isRead      Boolean  @default(false) // Renamed from read
-  recipientId String   // Renamed from userId
-  recipient   User     @relation(fields: [recipientId], references: [id], onDelete: Cascade) // Updated relation
-  taskId      String?
-  task        Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  sourceUrl   String?  // Added new field
+  id          String   @id @default(cuid())
+  text        String
+  sourceUrl   String?
+  isRead      Boolean  @default(false)
+  recipientId String
+  taskId      String? // Optional link to a task
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  recipient   User     @relation("RecipientNotifications", fields: [recipientId], references: [id], onDelete: Cascade)
+  task        Task?    @relation("TaskNotifications", fields: [taskId], references: [id], onDelete: Cascade)
 
-  @@index([recipientId]) // Updated index
-  @@index([taskId])
+  @@map("notifications")
 }
 
 model ProjectMember {
   projectId Int
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   userId    String
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role      String // Consider making this an enum: Admin, Member, Viewer etc.
-
-  assignedAt DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  role      String
+  project   Project @relation(fields: [projectId], references: [id])
+  user      User    @relation(fields: [userId], references: [id])
 
   @@id([projectId, userId])
-  @@index([userId])
+  @@map("project_members") // Explicitly map to the table name used in Database Schema.md
 }

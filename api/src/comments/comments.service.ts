@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateCommentDto } from '../tasks/dto/create-comment.dto'; // Correct path
+import { CreateCommentDto } from './dto/create-comment.dto'; // Correct path
 import { NotificationsService } from '../notifications/notifications.service'; // Import NotificationsService
 import { Comment, User } from '@prisma/client'; // Import Comment for type usage
 import { EventsGateway } from '../events/events.gateway'; // Import EventsGateway
@@ -91,13 +91,12 @@ export class CommentsService {
 
     for (const user of usersToNotify) {
       // Check if user is part of the project before notifying
-      // const projectMember = await this.prisma.projectMember.findUnique({
-      //     where: { projectId_userId: { projectId: projectId, userId: user.id } }
-      // });
+      const projectMember = await this.prisma.projectMember.findUnique({
+          where: { projectId_userId: { projectId: projectId, userId: user.id } }
+      });
       const projectOwner = await this.prisma.project.findFirst({ where: { id: projectId, ownerId: user.id }});
 
-      // if (projectMember || projectOwner) { // Original check
-      if (projectOwner) { // Modified check, only owner
+      if (projectMember || projectOwner) { // Original check
            await this.notificationService.createNotification(
               user.id,
               finalNotificationText,
