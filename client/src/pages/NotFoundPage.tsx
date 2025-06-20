@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../../app/auth/AuthContext'; // Assuming this path is correct
+import { useAuth } from '../app/auth/AuthContext';
 
 // Basic inline styles for demonstration
 const styles = {

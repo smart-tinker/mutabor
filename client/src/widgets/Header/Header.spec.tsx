@@ -1,9 +1,7 @@
-import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import Header from './Header';
 import { useAuth } from '../../app/auth/AuthContext';
-import { vi } from 'vitest';
 
 // Mock useAuth
 vi.mock('../../app/auth/AuthContext');
