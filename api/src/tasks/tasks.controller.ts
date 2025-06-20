@@ -4,7 +4,7 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { MoveTaskDto } from './dto/move-task.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { User } from '@prisma/client';
+// import { User } from '@prisma/client'; // User type removed
 import { CreateCommentDto } from './dto/create-comment.dto';
 
 @UseGuards(JwtAuthGuard)
@@ -15,13 +15,13 @@ export class TasksController {
   @Post()
   @HttpCode(HttpStatus.CREATED) // Added HttpCode
   async create(@Body() createTaskDto: CreateTaskDto, @Req() req) {
-    const user = req.user as User;
+    const user = req.user as any; // Replaced User with any
     return this.tasksService.createTask(createTaskDto, user);
   }
 
   @Get(':id')
   async findOne(@Param('id', ParseUUIDPipe) id: string, @Req() req) {
-    const user = req.user as User;
+    const user = req.user as any; // Replaced User with any
     return this.tasksService.findTaskById(id, user);
   }
 
@@ -32,7 +32,7 @@ export class TasksController {
     @Body() updateTaskDto: UpdateTaskDto,
     @Req() req,
   ) {
-    const user = req.user as User;
+    const user = req.user as any; // Replaced User with any
     return this.tasksService.updateTask(id, updateTaskDto, user);
   }
 
@@ -43,7 +43,7 @@ export class TasksController {
     @Body() moveTaskDto: MoveTaskDto,
     @Req() req,
   ) {
-    const user = req.user as User;
+    const user = req.user as any; // Replaced User with any
     return this.tasksService.moveTask(id, moveTaskDto, user);
   }
 
@@ -56,7 +56,7 @@ export class TasksController {
     @Body() createCommentDto: CreateCommentDto,
     @Req() req,
   ) {
-    const user = req.user as User;
+    const user = req.user as any; // Replaced User with any
     return this.tasksService.addCommentToTask(taskId, createCommentDto, user);
   }
 
@@ -66,7 +66,7 @@ export class TasksController {
     @Param('taskId', ParseUUIDPipe) taskId: string,
     @Req() req,
   ) {
-    const user = req.user as User;
+    const user = req.user as any; // Replaced User with any
     return this.tasksService.getCommentsForTask(taskId, user);
   }
 }

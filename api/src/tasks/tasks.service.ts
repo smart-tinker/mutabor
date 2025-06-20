@@ -1,187 +1,208 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Inject } from '@nestjs/common'; // Added Inject
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Inject } from '@nestjs/common';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { MoveTaskDto } from './dto/move-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
-import { User } from '@prisma/client';
-import { EventsGateway } from '../events/events.gateway'; // Import EventsGateway
+import { EventsGateway } from '../events/events.gateway';
 import { CommentsService } from '../comments/comments.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
+import { Knex } from 'knex';
+import { KNEX_CONNECTION } from '../knex/knex.constants';
+import * as crypto from 'crypto';
+import { TaskRecord, UserRecord } from '../../types/db-records'; // Import types
+
+// Helper to convert DB record to TaskRecord
+function toTaskRecord(dbTask: any): TaskRecord {
+    if (!dbTask) return null;
+    return {
+        ...dbTask,
+        due_date: dbTask.due_date ? new Date(dbTask.due_date) : null,
+        created_at: new Date(dbTask.created_at),
+        updated_at: new Date(dbTask.updated_at),
+    };
+}
 
 @Injectable()
 export class TasksService {
   constructor(
-    private prisma: PrismaService,
-    @Inject(EventsGateway) private eventsGateway: EventsGateway, // Inject EventsGateway
-    private commentsService: CommentsService, // Inject CommentsService
+    @Inject(KNEX_CONNECTION) private readonly knex: Knex,
+    @Inject(EventsGateway) private eventsGateway: EventsGateway,
+    private commentsService: CommentsService,
   ) {}
 
-  async createTask(createTaskDto: CreateTaskDto, user: User) {
+  async createTask(createTaskDto: CreateTaskDto, user: UserRecord): Promise<TaskRecord> {
     const { projectId, columnId, title, description, assigneeId } = createTaskDto;
 
-    // Verify project and column exist and user has access to project
-    const project = await this.prisma.project.findUnique({
-      where: { id: projectId },
-      include: { columns: { where: { id: columnId } } },
-    });
+    const project = await this.knex('projects')
+      .leftJoin('project_members', 'projects.id', 'project_members.project_id')
+      .where('projects.id', projectId)
+      .select('projects.id as project_id_val', 'projects.owner_id', 'projects.task_prefix', 'project_members.user_id as member_id')
+      .first(builder => builder.where('projects.owner_id', user.id).orWhere('project_members.user_id', user.id));
 
-    if (!project) throw new NotFoundException(`Project with ID ${projectId} not found.`); // Corrected this line
-    if (project.ownerId !== user.id) throw new ForbiddenException('No permission for this project.'); // Corrected this line
-    if (!project.columns || project.columns.length === 0) throw new NotFoundException(`Column ${columnId} not found in project ${projectId}.`); // Corrected this line
 
-    const updatedProject = await this.prisma.project.update({
-      where: { id: projectId },
-      data: { lastTaskNumber: { increment: 1 } },
-    });
-    const taskNumber = updatedProject.lastTaskNumber;
-    const humanReadableId = `${project.taskPrefix}-${taskNumber}`;
-    const tasksInColumn = await this.prisma.task.count({ where: { columnId } });
-    const position = tasksInColumn;
+    if (!project) throw new NotFoundException(`Project with ID ${projectId} not found or user lacks access.`);
 
-    const newTask = await this.prisma.task.create({
-      data: {
-        title,
-        description,
-        humanReadableId,
-        taskNumber,
-        position,
-        projectId,
-        columnId,
-        creatorId: user.id,
-        assigneeId: assigneeId || null,
-      },
-    });
+    const column = await this.knex('columns').where({id: columnId, project_id: project.project_id_val}).first();
+    if(!column) throw new NotFoundException(`Column ${columnId} not found in project ${projectId}.`);
 
-    this.eventsGateway.emitTaskCreated(newTask); // Emit event
+
+    const [updatedProject] = await this.knex('projects')
+      .where({ id: project.project_id_val })
+      .increment('last_task_number', 1)
+      .returning(['last_task_number', 'task_prefix']);
+
+    const taskNumber = updatedProject.last_task_number;
+    const humanReadableId = `${updatedProject.task_prefix}-${taskNumber}`;
+
+    const tasksInColumn = await this.knex('tasks').where({ column_id: columnId }).count({ count: '*' }).first();
+    const position = parseInt(tasksInColumn.count as string, 10); // count returns string in some drivers
+
+    const taskId = crypto.randomUUID();
+    const newTaskData = {
+      id: taskId,
+      title,
+      description,
+      human_readable_id: humanReadableId, // Assuming column name
+      task_number: taskNumber, // Assuming column name
+      position,
+      project_id: project.project_id_val, // Assuming column name
+      column_id: columnId, // Assuming column name
+      creator_id: user.id, // Assuming column name
+      assignee_id: assigneeId || null, // Assuming column name
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
+
+    const [insertedTask] = await this.knex('tasks').insert(newTaskData).returning('*');
+    const newTask = toTaskRecord(insertedTask);
+
+    this.eventsGateway.emitTaskCreated(newTask);
     return newTask;
   }
 
-  async findTaskById(taskId: string, user: User) {
-    const task = await this.prisma.task.findUnique({ where: { id: taskId } });
-    if (!task) {
+  async findTaskById(taskId: string, user: UserRecord): Promise<TaskRecord> {
+    const taskFromDb = await this.knex('tasks').where({ id: taskId }).first();
+    if (!taskFromDb) {
       throw new NotFoundException(`Task with ID ${taskId} not found.`);
     }
-    const project = await this.prisma.project.findUnique({ where: { id: task.projectId } });
-    // Added a null check for project, which is good practice.
-    if (!project || project.ownerId !== user.id) {
+
+    const project = await this.knex('projects')
+        .leftJoin('project_members', 'projects.id', 'project_members.project_id')
+        .where('projects.id', task.project_id)
+        .select('projects.owner_id', 'project_members.user_id as member_id')
+        .first(builder => builder.where('projects.owner_id', user.id).orWhere('project_members.user_id', user.id));
+
+    if (!project) {
       throw new ForbiddenException('You do not have permission to view this task.');
     }
-    return task;
+    return toTaskRecord(taskFromDb);
   }
 
-  async updateTask(taskId: string, updateTaskDto: UpdateTaskDto, user: User) {
-    const task = await this.findTaskById(taskId, user); // Auth check
-    if (updateTaskDto.columnId && updateTaskDto.columnId !== task.columnId) {
-        throw new BadRequestException('To move a task, please use the dedicated move endpoint.');
-    }
+  async updateTask(taskId: string, updateTaskDto: UpdateTaskDto, user: UserRecord): Promise<TaskRecord> {
+    const task = await this.findTaskById(taskId, user); // Auth check included & returns TaskRecord
 
-    const updatedTask = await this.prisma.task.update({
-        where: { id: taskId },
-        data: { ...updateTaskDto },
-    });
-    this.eventsGateway.emitTaskUpdated(updatedTask); // Emit event
+    if (updateTaskDto.columnId && updateTaskDto.columnId !== task.column_id) { // task is now TaskRecord
+      throw new BadRequestException('To move a task, please use the dedicated move endpoint.');
+    }
+    const { columnId, ...updatableDto } = updateTaskDto;
+
+
+    const [updatedDbTask] = await this.knex('tasks')
+      .where({ id: taskId })
+      .update({ ...updatableDto, updated_at: new Date() })
+      .returning('*');
+
+    const updatedTask = toTaskRecord(updatedDbTask);
+    this.eventsGateway.emitTaskUpdated(updatedTask);
     return updatedTask;
   }
 
-
-  async moveTask(taskId: string, moveTaskDto: MoveTaskDto, user: User) {
+  async moveTask(taskId: string, moveTaskDto: MoveTaskDto, user: UserRecord): Promise<TaskRecord> {
     const { newColumnId, newPosition } = moveTaskDto;
-    // ... (existing logic for finding task, project, targetColumn, permission checks)
-    const taskToMove = await this.prisma.task.findUnique({ where: { id: taskId } });
-    if (!taskToMove) throw new NotFoundException(`Task with ID ${taskId} not found.`);
 
-    const project = await this.prisma.project.findUnique({ where: { id: taskToMove.projectId } });
-    if (!project || project.ownerId !== user.id) {
-      throw new ForbiddenException('You do not have permission to move tasks in this project.');
-    }
+    return this.knex.transaction(async (trx) => {
+      const taskToMoveFromDb = await trx('tasks').where({ id: taskId }).forUpdate().first();
+      if (!taskToMoveFromDb) throw new NotFoundException(`Task with ID ${taskId} not found.`);
+      const taskToMove = toTaskRecord(taskToMoveFromDb); // Convert to TaskRecord for consistent use
 
-    const targetColumn = await this.prisma.column.findUnique({ where: { id: newColumnId } });
-    if (!targetColumn || targetColumn.projectId !== taskToMove.projectId) {
-      throw new NotFoundException(`Target column with ID ${newColumnId} not found or does not belong to the same project.`);
-    }
+      const project = await trx('projects')
+        .leftJoin('project_members', 'projects.id', 'project_members.project_id')
+        .where('projects.id', taskToMove.project_id)
+        .select('projects.owner_id', 'project_members.user_id as member_id')
+        .first(builder => builder.where('projects.owner_id', user.id).orWhere('project_members.user_id', user.id));
 
-    const oldColumnId = taskToMove.columnId;
-    const oldPosition = taskToMove.position;
-    let finalMovedTask;
-
-    await this.prisma.$transaction(async (tx) => {
-      // ... (existing transaction logic for reordering)
-      if (oldColumnId !== newColumnId) {
-        await tx.task.updateMany({
-          where: { columnId: oldColumnId, position: { gt: oldPosition } },
-          data: { position: { decrement: 1 } },
-        });
-      } else {
-         if (newPosition < oldPosition) {
-            await tx.task.updateMany({
-                where: { columnId: oldColumnId, position: { gte: newPosition, lt: oldPosition }},
-                data: { position: { increment: 1 }}
-            });
-         } else if (newPosition > oldPosition) {
-            await tx.task.updateMany({
-                where: { columnId: oldColumnId, position: { gt: oldPosition, lte: newPosition }},
-                data: { position: { decrement: 1 }}
-            });
-         }
+      if (!project) {
+        throw new ForbiddenException('You do not have permission to move tasks in this project.');
       }
 
-      if (oldColumnId !== newColumnId) {
-        await tx.task.updateMany({
-          where: { columnId: newColumnId, position: { gte: newPosition } },
-          data: { position: { increment: 1 } },
-        });
+      const targetColumn = await trx('columns').where({ id: newColumnId, project_id: taskToMove.project_id }).first();
+      if (!targetColumn) {
+        throw new NotFoundException(`Target column with ID ${newColumnId} not found or does not belong to the same project.`);
       }
 
-      finalMovedTask = await tx.task.update({ // Assign to outer scope variable
-        where: { id: taskId },
-        data: { columnId: newColumnId, position: newPosition },
-      });
-      return finalMovedTask; // Return from transaction
+      const oldColumnId = taskToMove.column_id;
+      const oldPosition = taskToMove.position;
+
+      // Decrement positions in old column
+      await trx('tasks')
+        .where({ column_id: oldColumnId })
+        .andWhere('position', '>', oldPosition)
+        .decrement('position');
+
+      // Increment positions in new column
+      await trx('tasks')
+        .where({ column_id: newColumnId })
+        .andWhere('position', '>=', newPosition)
+        .increment('position');
+
+      // Update the task
+      const [finalMovedDbTask] = await trx('tasks')
+        .where({ id: taskId })
+        .update({
+          column_id: newColumnId,
+          position: newPosition,
+          updated_at: new Date(),
+        })
+        .returning('*');
+
+      const finalMovedTask = toTaskRecord(finalMovedDbTask);
+      this.eventsGateway.emitTaskMoved(finalMovedTask);
+      return finalMovedTask;
     });
-
-    // Ensure finalMovedTask is the one from the transaction before emitting
-    if(finalMovedTask) {
-        this.eventsGateway.emitTaskMoved(finalMovedTask); // Emit event
-    } else {
-        // Fallback or error, though transaction should ensure it's set
-        finalMovedTask = await this.prisma.task.findUnique({where: {id: taskId}});
-        if (finalMovedTask) this.eventsGateway.emitTaskMoved(finalMovedTask);
-    }
-    return finalMovedTask;
   }
 
-  async addCommentToTask(taskId: string, createCommentDto: CreateCommentDto, author: User) {
-    // Task existence and user's permission to comment on task should be checked here.
-    // Permission check: is user part of the project this task belongs to?
-    const task = await this.prisma.task.findUnique({
-      where: { id: taskId },
-      include: { project: true } // Include project relation
-    });
+  async addCommentToTask(taskId: string, createCommentDto: CreateCommentDto, author: UserRecord) {
+    const task = await this.knex('tasks').where({ id: taskId }).first(); // Fetches the raw task
     if (!task) {
       throw new NotFoundException(`Task with ID ${taskId} not found.`);
     }
-    const project = task.project;
-    // Simplified permission check: only owner can comment.
-    // Original: if (project.ownerId !== author.id && !project.members.some(member => member.userId === author.id)) {
-    if (project.ownerId !== author.id) {
+
+    // Permission check based on the raw task's project_id
+    const project = await this.knex('projects')
+        .leftJoin('project_members', 'projects.id', 'project_members.project_id')
+        .where('projects.id', task.project_id) // Use task.project_id from the fetched task
+        .select('projects.owner_id', 'project_members.user_id as member_id')
+        .first(builder => builder.where('projects.owner_id', author.id).orWhere('project_members.user_id', author.id));
+
+    if (!project) {
       throw new ForbiddenException('You do not have permission to comment on this task.');
     }
     return this.commentsService.createComment(taskId, createCommentDto, author.id);
   }
 
-  async getCommentsForTask(taskId: string, user: User) {
-    // Similar permission check as above
-    const task = await this.prisma.task.findUnique({
-      where: { id: taskId },
-      include: { project: true } // Include project relation
-    });
+  async getCommentsForTask(taskId: string, user: UserRecord) {
+    const task = await this.knex('tasks').where({ id: taskId }).first(); // Fetches the raw task
     if (!task) {
       throw new NotFoundException(`Task with ID ${taskId} not found.`);
     }
-    const project = task.project;
-    // Simplified permission check: only owner can view comments.
-    // Original: if (project.ownerId !== user.id && !project.members.some(member => member.userId === user.id)) {
-    if (project.ownerId !== user.id) {
+
+    // Permission check based on the raw task's project_id
+    const project = await this.knex('projects')
+        .leftJoin('project_members', 'projects.id', 'project_members.project_id')
+        .where('projects.id', task.project_id) // Use task.project_id from the fetched task
+        .select('projects.owner_id', 'project_members.user_id as member_id')
+        .first(builder => builder.where('projects.owner_id', user.id).orWhere('project_members.user_id', user.id));
+
+    if (!project) {
       throw new ForbiddenException('You do not have permission to view comments for this task.');
     }
     return this.commentsService.getCommentsForTask(taskId);

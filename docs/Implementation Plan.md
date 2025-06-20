@@ -1,7 +1,7 @@
 # Implementation Plan: Mutabor
 
 ## Общие принципы
-- **Стек:** Nest.js (Backend), React (Frontend), Supabase (DB), Prisma (ORM), Socket.IO (Real-time).
+- **Стек:** Nest.js (Backend), React (Frontend), Supabase (DB), Knex.js (Query Builder), Liquibase (Schema Migration), Socket.IO (Real-time).
 - **Подход:** Разработка ведется "вертикальными срезами" (feature slicing). Каждая фича реализуется сквозным образом (DB -> Backend API -> Frontend UI).
 - **Real-time:** Каждый API-эндпоинт, изменяющий состояние доски, немедленно сопровождается реализацией WebSocket-события для синхронизации всех клиентов.
 
@@ -17,7 +17,7 @@
     - Для локальной разработки базы данных рекомендуется использовать Supabase CLI (`supabase start`), который запускает локальный Supabase-стек (включая Postgres). Как альтернатива, можно подключиться к облачному экземпляру Supabase для разработки. Существующий `docker-compose.yml` может быть адаптирован для запуска `api` и `client` сервисов; запуск Postgres через Docker становится опциональным, если используется Supabase CLI или облачный Supabase.
 
 2.  **Фича: Регистрация пользователя:**
-    - **DB (Prisma):** Определить модель `User` (`id`, `email`, `name`, `password_hash`, `createdAt`).
+    - **DB (Liquibase/Knex.js):** Определить модель `User` (`id`, `email`, `name`, `password_hash`, `createdAt`) используя миграции Liquibase и Knex.js для запросов.
     - **Backend (Nest.js):**
         - Создать `AuthModule`.
         - Реализовать `POST /auth/register` эндпоинт в `AuthController`.
@@ -46,7 +46,7 @@
 **Цель:** Создать полнофункциональную личную Kanban-доску.
 
 1.  **Фича: Создание и просмотр проектов (досок):**
-    - **DB (Prisma):** Определить модели `Project` и `Column`. Установить связи: `User` -> `Project` (один ко многим, владелец), `Project` -> `Column` (один ко многим).
+    - **DB (Liquibase/Knex.js):** Определить модели `Project` и `Column` используя миграции Liquibase. Установить связи: `User` -> `Project` (один ко многим, владелец), `Project` -> `Column` (один ко многим). Knex.js будет использоваться для запросов.
     - **Backend (Nest.js):**
         - Создать `ProjectModule`.
         - Реализовать эндпоинты: `POST /projects`, `GET /projects`, `GET /projects/:id` (с вложенными колонками и задачами).
@@ -56,7 +56,7 @@
         - Создать страницу `BoardPage` (`/projects/:id`), которая будет получать и отображать данные конкретной доски.
 
 2.  **Фича: Управление задачами:**
-    - **DB (Prisma):** Определить модель `Task`. Связи: `Column` -> `Task`, `User` -> `Task` (исполнитель).
+    - **DB (Liquibase/Knex.js):** Определить модель `Task` используя миграции Liquibase. Связи: `Column` -> `Task`, `User` -> `Task` (исполнитель). Knex.js будет использоваться для запросов.
     - **Backend (Nest.js):**
         - Создать `TaskModule`.
         - Реализовать `POST /tasks` (создание задачи). После создания — эмитить событие `task:created` через WebSocket-шлюз.
@@ -83,12 +83,12 @@
 **Цель:** Превратить личную доску в командный инструмент.
 
 1.  **Фича: Приглашение и участники:**
-    - **DB (Prisma):** Создать связующую таблицу `ProjectMember`.
+    - **DB (Liquibase/Knex.js):** Создать связующую таблицу `ProjectMember` используя миграции Liquibase. Knex.js будет использоваться для запросов.
     - **Backend (Nest.js):** Реализовать API для приглашения пользователя в проект и отображения списка участников.
     - **Frontend (React):** Создать UI для управления участниками.
 
 2.  **Фича: Комментарии и @упоминания:**
-    - **DB (Prisma):** Создать модели `Comment` и `Notification`.
+    - **DB (Liquibase/Knex.js):** Создать модели `Comment` и `Notification` используя миграции Liquibase. Knex.js будет использоваться для запросов.
     - **Backend (Nest.js):**
         - Реализовать `POST /tasks/:id/comments`. В сервисе — логика парсинга `@упоминаний`, создание комментария и записи в `Notification`.
         - Эмитить события `comment:created` и `notification:new`.

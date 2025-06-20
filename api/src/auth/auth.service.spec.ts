@@ -1,13 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigModule } from '@nestjs/config'; // Import ConfigModule
 import { AuthService } from './auth.service';
-import { PrismaService } from '../prisma/prisma.service';
+// import { PrismaService } from '../prisma/prisma.service'; // PrismaService removed
 import { JwtService } from '@nestjs/jwt';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
-import { User } from '@prisma/client';
+// import { User } from '@prisma/client'; // User type removed
 
 // Mock bcrypt functions
 jest.mock('bcrypt', () => ({
@@ -15,45 +15,62 @@ jest.mock('bcrypt', () => ({
   hash: jest.fn().mockResolvedValue('mockedHashedPassword'),
 }));
 
+import { KNEX_CONNECTION } from '../knex/knex.constants'; // Assuming this constant is defined for injection
+
+// Mock Knex
+const mockKnex = {
+  where: jest.fn().mockReturnThis(),
+  first: jest.fn(),
+  insert: jest.fn().mockReturnThis(),
+  returning: jest.fn(),
+};
+const knexProvider = {
+  provide: KNEX_CONNECTION,
+  useValue: jest.fn().mockReturnValue(mockKnex), // Mock the knex instance provider
+};
+
+
 describe('AuthService', () => {
   let service: AuthService;
-  // Keep PrismaService and JwtService types for type safety with mocks
-  let prisma: PrismaService;
   let jwt: JwtService;
-
-  const mockPrismaService = {
-    user: {
-      findUnique: jest.fn(),
-      create: jest.fn(),
-    },
-  };
+  // knex will hold the main mock function: jest.fn().mockReturnValue(mockKnexChain)
+  // mockKnexChain will hold the chainable methods: .where, .first etc.
+  let knexFn: jest.Mock;
+  let mockKnexChain = mockKnex; // mockKnex is already defined with chainable jest.fn()
 
   const mockJwtService = {
     sign: jest.fn(),
   };
 
   beforeEach(async () => {
+    // Reset all mocks in the chainable object
+    Object.values(mockKnexChain).forEach(mockMethod => {
+      if (jest.isMockFunction(mockMethod)) {
+        mockMethod.mockClear();
+      }
+    });
+    // If any of these return promises, reset their specific mock states if needed
+    mockKnexChain.first.mockReset(); // e.g. mockResolvedValueOnce
+    mockKnexChain.returning.mockReset(); // e.g. mockResolvedValueOnce
+
+
     const module: TestingModule = await Test.createTestingModule({
-      imports: [ConfigModule.forRoot({ isGlobal: true })], // Add ConfigModule import here
+      imports: [ConfigModule.forRoot({ isGlobal: true })],
       providers: [
         AuthService,
-        { provide: PrismaService, useValue: mockPrismaService },
         { provide: JwtService, useValue: mockJwtService },
+        knexProvider,
       ],
     }).compile();
 
     service = module.get<AuthService>(AuthService);
-    // Store references to the mocked services if needed for direct mock manipulation
-    // though accessing via mockPrismaService.user.findUnique should work.
-    prisma = module.get<PrismaService>(PrismaService);
     jwt = module.get<JwtService>(JwtService);
+    knexFn = module.get(KNEX_CONNECTION); // This is the jest.fn() from useValue
 
-    // Reset mocks before each test
-    jest.clearAllMocks();
-    // Reset bcrypt mocks specifically for 'compare' if its behavior changes per test
+    // Reset other mocks
+    mockJwtService.sign.mockClear();
     (bcrypt.compare as jest.Mock).mockReset();
-    // Ensure hash mock is also reset if its resolved value changes, though usually it's consistent
-    (bcrypt.hash as jest.Mock).mockResolvedValue('mockedHashedPassword');
+    (bcrypt.hash as jest.Mock).mockClear().mockResolvedValue('mockedHashedPassword');
   });
 
   it('should be defined', () => {
@@ -66,59 +83,55 @@ describe('AuthService', () => {
       name: 'Test User',
       password: 'password123',
     };
-    const userMock: Omit<User, 'password' | 'createdAt' | 'updatedAt'> & { id: string } = { // Adjusted mock type, assuming 'password' is the field in DB for hash
-      id: 'some-uuid',
+    // const userMock: Omit<User, 'password' | 'createdAt' | 'updatedAt'> & { id: string } = { // Adjusted mock type, assuming 'password' is the field in DB for hash
+    const userMock: any = {
+      id: 'generated-uuid', // Assuming crypto.randomUUID() generates this
       email: registerDto.email,
       name: registerDto.name,
     };
-     // Prisma's create method would return the full User object including createdAt and updatedAt
-    const createdUserMock: User = {
-      ...userMock, // spread { id, email, name }
-      password: 'mockedHashedPassword', // This field name should match actual User model field storing the hash
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    // Knex insert().returning() typically returns an array of objects
+    const createdUserMockForKnex = [{
+      id: userMock.id,
+      email: userMock.email,
+      name: userMock.name,
+    }];
 
 
     it('should register a new user and return an access_token', async () => {
-      mockPrismaService.user.findUnique.mockResolvedValue(null);
-      // Ensure the mock for user.create returns an object that includes id, email, and name for token payload
-      mockPrismaService.user.create.mockResolvedValue(createdUserMock);
+      mockKnex.first.mockResolvedValueOnce(null); // For existingUser check
+      mockKnex.returning.mockResolvedValueOnce(createdUserMockForKnex); // For newUser creation
 
       const mockToken = 'mock.jwt.token';
       mockJwtService.sign.mockReturnValue(mockToken);
-      // bcrypt.hash is already mocked globally
 
       const result = await service.register(registerDto);
 
-      expect(mockPrismaService.user.findUnique).toHaveBeenCalledWith({
-        where: { email: registerDto.email },
-      });
+      expect(knexFn).toHaveBeenCalledWith('users');
+      expect(mockKnexChain.where).toHaveBeenCalledWith({ email: registerDto.email });
+      expect(mockKnexChain.first).toHaveBeenCalledTimes(1);
       expect(bcrypt.hash).toHaveBeenCalledWith(registerDto.password, 10);
-      expect(mockPrismaService.user.create).toHaveBeenCalledWith({
-        data: {
-          email: registerDto.email,
-          name: registerDto.name,
-          password: 'mockedHashedPassword', // Ensure this matches service logic
-        },
-      });
+      expect(mockKnexChain.insert).toHaveBeenCalledWith(expect.objectContaining({
+        email: registerDto.email,
+        name: registerDto.name,
+        password_hash: 'mockedHashedPassword',
+      }));
+      expect(mockKnexChain.returning).toHaveBeenCalledWith(['id', 'email', 'name']);
       expect(mockJwtService.sign).toHaveBeenCalledWith({
-        email: createdUserMock.email,
-        sub: createdUserMock.id,
-        name: createdUserMock.name,
+        email: userMock.email, // This comes from createdUserMockForKnex[0]
+        sub: userMock.id,
+        name: userMock.name,
       });
-      expect(result).toHaveProperty('access_token');
-      expect(result.access_token).toEqual(mockToken);
+      expect(result).toEqual({ access_token: mockToken });
     });
 
     it('should throw ConflictException if email already exists', async () => {
-      mockPrismaService.user.findUnique.mockResolvedValue(createdUserMock);
+      mockKnex.first.mockResolvedValueOnce({ email: registerDto.email }); // Simulate user exists
 
       await expect(service.register(registerDto)).rejects.toThrow(ConflictException);
-      expect(mockPrismaService.user.findUnique).toHaveBeenCalledWith({
-        where: { email: registerDto.email },
-      });
-      expect(mockPrismaService.user.create).not.toHaveBeenCalled();
+      expect(knexFn).toHaveBeenCalledWith('users');
+      expect(mockKnexChain.where).toHaveBeenCalledWith({ email: registerDto.email });
+      expect(mockKnexChain.first).toHaveBeenCalledTimes(1);
+      expect(mockKnexChain.insert).not.toHaveBeenCalled();
     });
   });
 
@@ -127,56 +140,58 @@ describe('AuthService', () => {
       email: 'test@example.com',
       password: 'password123',
     };
-    const userMock: User = { // Full User object for Prisma findUnique
+    const dbUserMock: any = { // User as it would be in DB
       id: 'some-uuid',
       email: loginDto.email,
       name: 'Test User',
-      password: 'hashedPasswordFromDb', // Changed from password_hash
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      password_hash: 'hashedPasswordFromDb',
+      created_at: new Date(),
+      updated_at: new Date(),
     };
     const expectedUserPayload = { // Payload for JWT
-      email: userMock.email,
-      sub: userMock.id,
-      name: userMock.name,
+      email: dbUserMock.email,
+      sub: dbUserMock.id,
+      name: dbUserMock.name,
     };
     const dummyToken = 'dummy_jwt_token';
 
     it('should successfully log in a user and return an access token', async () => {
-      mockPrismaService.user.findUnique.mockResolvedValue(userMock);
+      // Mock for validateUser's knex call
+      mockKnex.first.mockResolvedValueOnce(dbUserMock);
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
       mockJwtService.sign.mockReturnValue(dummyToken);
 
       const result = await service.login(loginDto);
 
       expect(result).toEqual({ access_token: dummyToken });
-      expect(mockPrismaService.user.findUnique).toHaveBeenCalledWith({
-        where: { email: loginDto.email },
-      });
-      expect(bcrypt.compare).toHaveBeenCalledWith(loginDto.password, userMock.password); // Changed from password_hash
+      // ValidateUser's Knex calls
+      expect(knexFn).toHaveBeenCalledWith('users');
+      expect(mockKnexChain.where).toHaveBeenCalledWith({ email: loginDto.email });
+      expect(mockKnexChain.first).toHaveBeenCalledTimes(1); // This is the first call in login (via validateUser)
+      expect(bcrypt.compare).toHaveBeenCalledWith(loginDto.password, dbUserMock.password_hash);
       expect(mockJwtService.sign).toHaveBeenCalledWith(expectedUserPayload);
     });
 
     it('should throw UnauthorizedException if user is not found', async () => {
-      mockPrismaService.user.findUnique.mockResolvedValue(null);
+      mockKnex.first.mockResolvedValueOnce(null); // validateUser: user not found
 
       await expect(service.login(loginDto)).rejects.toThrow(UnauthorizedException);
-      expect(mockPrismaService.user.findUnique).toHaveBeenCalledWith({
-        where: { email: loginDto.email },
-      });
+      expect(knexFn).toHaveBeenCalledWith('users');
+      expect(mockKnexChain.where).toHaveBeenCalledWith({ email: loginDto.email });
+      expect(mockKnexChain.first).toHaveBeenCalledTimes(1); // This is the first call in login (via validateUser)
       expect(bcrypt.compare).not.toHaveBeenCalled();
       expect(mockJwtService.sign).not.toHaveBeenCalled();
     });
 
     it('should throw UnauthorizedException if password does not match', async () => {
-      mockPrismaService.user.findUnique.mockResolvedValue(userMock);
-      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+      mockKnex.first.mockResolvedValueOnce(dbUserMock); // validateUser: user found
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false); // Password doesn't match
 
       await expect(service.login(loginDto)).rejects.toThrow(UnauthorizedException);
-      expect(mockPrismaService.user.findUnique).toHaveBeenCalledWith({
-        where: { email: loginDto.email },
-      });
-      expect(bcrypt.compare).toHaveBeenCalledWith(loginDto.password, userMock.password); // Changed from password_hash
+      expect(knexFn).toHaveBeenCalledWith('users');
+      expect(mockKnexChain.where).toHaveBeenCalledWith({ email: loginDto.email });
+      expect(mockKnexChain.first).toHaveBeenCalledTimes(1); // This is the first call in login (via validateUser)
+      expect(bcrypt.compare).toHaveBeenCalledWith(loginDto.password, dbUserMock.password_hash);
       expect(mockJwtService.sign).not.toHaveBeenCalled();
     });
   });
@@ -184,49 +199,56 @@ describe('AuthService', () => {
   describe('validateUser', () => {
     const email = 'test@example.com';
     const password = 'password123';
-    const userMock: User = {
+    const dbUserMock: any = { // User as it would be in DB
       id: 'some-uuid',
       email: email,
       name: 'Test User',
-      password: 'hashedPasswordFromDb', // Changed from password_hash
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      password_hash: 'hashedPasswordFromDb',
+      created_at: new Date(),
+      updated_at: new Date(),
     };
-    const expectedUserOutput = { // What validateUser should return (no password)
-      id: userMock.id,
-      email: userMock.email,
-      name: userMock.name,
-      createdAt: userMock.createdAt,
-      updatedAt: userMock.updatedAt,
+    // Expected output from validateUser (password_hash excluded)
+    const expectedValidateUserOutput = {
+      id: dbUserMock.id,
+      email: dbUserMock.email,
+      name: dbUserMock.name,
+      created_at: dbUserMock.created_at,
+      updated_at: dbUserMock.updated_at,
     };
 
-    it('should return user object if validation is successful', async () => {
-      mockPrismaService.user.findUnique.mockResolvedValue(userMock);
+    it('should return user object (without password_hash) if validation is successful', async () => {
+      mockKnex.first.mockResolvedValueOnce(dbUserMock);
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
       const result = await service.validateUser(email, password);
-      expect(result).toEqual(expectedUserOutput);
-      expect(mockPrismaService.user.findUnique).toHaveBeenCalledWith({ where: { email } });
-      expect(bcrypt.compare).toHaveBeenCalledWith(password, userMock.password); // Changed from password_hash
+      expect(result).toEqual(expectedValidateUserOutput);
+      expect(knexFn).toHaveBeenCalledWith('users');
+      expect(mockKnexChain.where).toHaveBeenCalledWith({ email });
+      expect(mockKnexChain.first).toHaveBeenCalledTimes(1);
+      expect(bcrypt.compare).toHaveBeenCalledWith(password, dbUserMock.password_hash);
     });
 
     it('should return null if user not found', async () => {
-      mockPrismaService.user.findUnique.mockResolvedValue(null);
+      mockKnexChain.first.mockResolvedValueOnce(null);
 
       const result = await service.validateUser(email, password);
       expect(result).toBeNull();
-      expect(mockPrismaService.user.findUnique).toHaveBeenCalledWith({ where: { email } });
+      expect(knexFn).toHaveBeenCalledWith('users');
+      expect(mockKnexChain.where).toHaveBeenCalledWith({ email });
+      expect(mockKnexChain.first).toHaveBeenCalledTimes(1);
       expect(bcrypt.compare).not.toHaveBeenCalled();
     });
 
     it('should return null if password does not match', async () => {
-      mockPrismaService.user.findUnique.mockResolvedValue(userMock);
+      mockKnexChain.first.mockResolvedValueOnce(dbUserMock);
       (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
       const result = await service.validateUser(email, password);
       expect(result).toBeNull();
-      expect(mockPrismaService.user.findUnique).toHaveBeenCalledWith({ where: { email } });
-      expect(bcrypt.compare).toHaveBeenCalledWith(password, userMock.password); // Changed from password_hash
+      expect(knexFn).toHaveBeenCalledWith('users');
+      expect(mockKnexChain.where).toHaveBeenCalledWith({ email });
+      expect(mockKnexChain.first).toHaveBeenCalledTimes(1);
+      expect(bcrypt.compare).toHaveBeenCalledWith(password, dbUserMock.password_hash);
     });
   });
 });

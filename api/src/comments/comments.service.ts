@@ -1,68 +1,111 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable, NotFoundException, Inject } from '@nestjs/common';
 import { CreateCommentDto } from './dto/create-comment.dto'; // Correct path
 import { NotificationsService } from '../notifications/notifications.service'; // Import NotificationsService
-import { Comment, User } from '@prisma/client'; // Import Comment for type usage
 import { EventsGateway } from '../events/events.gateway'; // Import EventsGateway
+import { Knex } from 'knex';
+import { KNEX_CONNECTION } from '../knex/knex.constants'; // Assuming this constant is defined for injection
+import * as crypto from 'crypto'; // For UUID generation
+import { CommentRecord, UserRecord } from '../../types/db-records'; // Import new types
 
 @Injectable()
 export class CommentsService {
   constructor(
-    private prisma: PrismaService,
+    @Inject(KNEX_CONNECTION) private readonly knex: Knex,
     private notificationService: NotificationsService, // Inject NotificationsService
     private eventsGateway: EventsGateway, // Inject EventsGateway
   ) {}
 
-  async createComment(taskId: string, dto: CreateCommentDto, authorId: string) {
-    // Fetch task details needed for mentions and to ensure it exists
-    const taskData = await this.prisma.task.findUnique({
-      where: { id: taskId },
-      select: { projectId: true, title: true }
-    });
+  async createComment(taskId: string, dto: CreateCommentDto, authorId: string): Promise<CommentRecord> {
+    const taskData = await this.knex('tasks')
+      .where({ id: taskId })
+      .select('project_id', 'title')
+      .first();
 
     if (!taskData) {
       throw new NotFoundException(`Task with ID ${taskId} not found.`);
     }
 
-    const comment = await this.prisma.comment.create({
-      data: {
-        text: dto.text,
-        taskId: taskId,
-        authorId: authorId,
-      },
-      include: { // Include full author object
-        author: true
-      }
-    });
+    const commentId = crypto.randomUUID();
+    const newComment = {
+      id: commentId,
+      text: dto.text,
+      task_id: taskId, // Assuming column name is task_id
+      author_id: authorId, // Assuming column name is author_id
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
 
-    if (comment) {
-      // Ensure comment.author is populated if needed by handleMentions, which it is.
-      // The include above should make comment.author.name available.
-      this.handleMentions(comment as Comment & { author: User }, taskData.title, authorId, taskData.projectId);
-      this.eventsGateway.emitCommentCreated(comment, taskData.projectId); // Emit event
+    await this.knex('comments').insert(newComment);
+
+    const authorData = await this.knex('users')
+      .where({ id: authorId })
+      .select('id', 'name', 'email', 'created_at', 'updated_at') // Ensure all UserRecord fields
+      .first();
+
+    const author: UserRecord | undefined = authorData ? {
+        id: authorData.id,
+        name: authorData.name,
+        email: authorData.email,
+        created_at: new Date(authorData.created_at),
+        updated_at: new Date(authorData.updated_at),
+    } : undefined;
+
+
+    const fullComment: CommentRecord = { ...newComment, author };
+
+    if (fullComment) {
+      this.handleMentions(fullComment, taskData.title, authorId, taskData.project_id);
+      this.eventsGateway.emitCommentCreated(fullComment, taskData.project_id);
     }
 
-    return comment;
+    return fullComment;
   }
 
-  async getCommentsForTask(taskId: string) {
-    const taskData = await this.prisma.task.findUnique({ where: { id: taskId } }); // Renamed for clarity
-    if (!taskData) {
+  async getCommentsForTask(taskId: string): Promise<CommentRecord[]> {
+    const taskExists = await this.knex('tasks').where({ id: taskId }).first();
+    if (!taskExists) {
       throw new NotFoundException(`Task with ID ${taskId} not found.`);
     }
-    return this.prisma.comment.findMany({
-      where: { taskId: taskId },
-      include: {
-        author: true, // Include full author object
-      },
-      orderBy: {
-        createdAt: 'asc',
-      },
+
+    const commentsFromDb = await this.knex('comments')
+      .join('users', 'comments.author_id', '=', 'users.id')
+      .where({ 'comments.task_id': taskId })
+      .select(
+        'comments.id',
+        'comments.text',
+        'comments.task_id', // Ensure task_id is selected for CommentRecord
+        'comments.author_id', // Ensure author_id is selected for CommentRecord
+        'comments.created_at',
+        'comments.updated_at',
+        'users.id as user_id_for_author', // Use a distinct alias for user id from join
+        'users.name as user_name_for_author',
+        'users.email as user_email_for_author',
+        'users.created_at as user_created_at_for_author', // Select user created_at
+        'users.updated_at as user_updated_at_for_author'  // Select user updated_at
+      )
+      .orderBy('comments.created_at', 'asc');
+
+    return commentsFromDb.map(c => {
+      const author: UserRecord = {
+        id: c.user_id_for_author,
+        name: c.user_name_for_author,
+        email: c.user_email_for_author,
+        created_at: new Date(c.user_created_at_for_author),
+        updated_at: new Date(c.user_updated_at_for_author),
+      };
+      return {
+        id: c.id,
+        text: c.text,
+        task_id: c.task_id,
+        author_id: c.author_id,
+        created_at: new Date(c.created_at),
+        updated_at: new Date(c.updated_at),
+        author,
+      };
     });
   }
 
-  // Placeholder for mention handling logic
-  private async handleMentions(comment: Comment & { author: User }, taskTitle: string, commentAuthorId: string, projectId: number) {
+  private async handleMentions(comment: CommentRecord, taskTitle: string, commentAuthorId: string, projectId: number) {
     const regex = /@([a-zA-Z0-9_.-]+)/g; // Assuming mention by name-like identifier
     const mentionedNames = new Set<string>();
     let match;
@@ -75,34 +118,31 @@ export class CommentsService {
 
     if (mentionedNames.size === 0) return;
 
-    const usersToNotify = await this.prisma.user.findMany({
-      where: {
-        name: { in: Array.from(mentionedNames) }, // Find by name
-        id: { not: commentAuthorId }, // Don't notify the author
-      },
-    });
+    const usersToNotify = await this.knex('users')
+      .whereIn('name', Array.from(mentionedNames))
+      .andWhereNot('id', commentAuthorId)
+      .select('id', 'name', 'email');
 
-    const sourceUrl = `/projects/${projectId}/tasks/${comment.taskId}`;
+    const sourceUrl = `/projects/${projectId}/tasks/${comment.task_id}`; // Assuming comment.task_id from DB
 
-    // comment.author should be populated from the include in createComment
-    // Type assertion used when calling handleMentions to ensure author is present
     const authorName = comment.author?.name || 'Someone';
-    const finalNotificationText = `You were mentioned by ${authorName} in a comment on task "${taskTitle}": "${textToParse.substring(0, 50)}..."`;
+    const finalNotificationText = `You were mentioned by ${authorName} in a comment on task "${taskTitle}": "${comment.text.substring(0, 50)}..."`;
 
     for (const user of usersToNotify) {
-      // Check if user is part of the project before notifying
-      const isProjectMember = await this.prisma.projectMember.findUnique({
-          where: { projectId_userId: { projectId: projectId, userId: user.id } }
-      });
-      const isProjectOwner = await this.prisma.project.findFirst({ where: { id: projectId, ownerId: user.id }});
+      const isProjectMember = await this.knex('project_members') // Assuming table name project_members
+        .where({ project_id: projectId, user_id: user.id }) // Assuming column names
+        .first();
 
-      // Notify the mentioned user if they are a member or the owner of the project
+      const isProjectOwner = await this.knex('projects') // Assuming table name projects
+        .where({ id: projectId, owner_id: user.id }) // Assuming column names
+        .first();
+
       if (isProjectMember || isProjectOwner) {
            await this.notificationService.createNotification(
               user.id,
               finalNotificationText,
               sourceUrl,
-              comment.taskId,
+              comment.task_id, // Assuming comment.task_id
            );
       }
     }

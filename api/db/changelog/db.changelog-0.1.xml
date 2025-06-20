@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="1" author="mutabor-ai-agent">
+        <createTable tableName="users">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="email" type="TEXT">
+                <constraints unique="true" nullable="false"/>
+            </column>
+            <column name="name" type="TEXT">
+                <constraints nullable="true"/>
+            </column>
+            <column name="password_hash" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createTable tableName="projects">
+            <column name="id" type="SERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="task_prefix" type="TEXT">
+                <constraints unique="true" nullable="false"/>
+            </column>
+            <column name="owner_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_projects_owner" references="users(id)" deleteCascade="false"/>
+                <!-- onDelete="RESTRICT" is the default for foreign keys if not specified, or can be set by some DBs.
+                     Liquibase deleteCascade="false" is the closest to RESTRICT.
+                     Actual ON DELETE RESTRICT needs to be handled by DB specific SQL if required. -->
+            </column>
+            <column name="last_task_number" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createTable tableName="columns">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="position" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="project_id" type="INT">
+                <constraints nullable="false" foreignKeyName="fk_columns_project" references="projects(id)" deleteCascade="true"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint
+            columnNames="name,project_id"
+            constraintName="uq_columns_name_project_id"
+            tableName="columns"/>
+
+        <createTable tableName="tasks">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="human_readable_id" type="TEXT">
+                <constraints unique="true" nullable="false"/>
+            </column>
+            <column name="task_number" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="title" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="TEXT">
+                <constraints nullable="true"/>
+            </column>
+            <column name="position" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="project_id" type="INT">
+                <constraints nullable="false" foreignKeyName="fk_tasks_project" references="projects(id)" deleteCascade="true"/>
+            </column>
+            <column name="column_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_tasks_column" references="columns(id)" deleteCascade="true"/>
+            </column>
+            <column name="assignee_id" type="UUID">
+                <constraints nullable="true" foreignKeyName="fk_tasks_assignee" references="users(id)" deleteCascade="true"/>
+                <!-- Prisma had ON DELETE SET NULL. Liquibase's deleteCascade="true" is not the same.
+                     Actual ON DELETE SET NULL needs DB specific SQL if strictly required. For now, using CASCADE for simplicity,
+                     or can be deleteCascade="false" and handled at application/trigger level.
+                     Given the Knex code doesn't explicitly handle this, CASCADE might be acceptable for now or set to false.
+                     Let's use deleteCascade="false" to be safer and avoid accidental user deletion cascading to task assignee. -->
+            </column>
+            <column name="creator_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_tasks_creator" references="users(id)" deleteCascade="false"/>
+            </column>
+            <column name="due_date" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="true"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint
+            columnNames="project_id,task_number"
+            constraintName="uq_tasks_project_id_task_number"
+            tableName="tasks"/>
+
+        <!-- Correction for tasks.assignee_id deleteCascade -->
+    </changeSet>
+    <changeSet id="1.1" author="mutabor-ai-agent-fix">
+        <dropForeignKeyConstraint baseTableName="tasks" constraintName="fk_tasks_assignee"/>
+        <addForeignKeyConstraint baseColumnNames="assignee_id"
+                                 baseTableName="tasks"
+                                 constraintName="fk_tasks_assignee"
+                                 referencedColumnNames="id"
+                                 referencedTableName="users"
+                                 onDelete="SET NULL"/>
+                                 <!-- Note: Some DBs might require deleteCascade="false" and a trigger for SET NULL.
+                                      If 'SET NULL' is not directly supported by Liquibase for a specific DB,
+                                      this might need to be adjusted or handled with <sql> tag.
+                                      For PostgreSQL, ON DELETE SET NULL is valid. -->
+    </changeSet>
+    <changeSet id="2" author="mutabor-ai-agent"> <!-- New changeset for subsequent tables -->
+        <createTable tableName="comments">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="text" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="task_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_comments_task" references="tasks(id)" deleteCascade="true"/>
+            </column>
+            <column name="author_id" type="UUID">
+                <constraints nullable="true" foreignKeyName="fk_comments_author" references="users(id)" onDelete="SET NULL"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createTable tableName="notifications">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="recipient_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_notifications_recipient" references="users(id)" deleteCascade="true"/>
+            </column>
+            <column name="text" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_read" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="source_url" type="TEXT">
+                <constraints nullable="true"/>
+            </column>
+            <column name="task_id" type="UUID">
+                <constraints nullable="true" foreignKeyName="fk_notifications_task" references="tasks(id)" deleteCascade="true"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createTable tableName="project_members">
+            <column name="project_id" type="INT">
+                <constraints nullable="false" foreignKeyName="fk_projectmembers_project" references="projects(id)" deleteCascade="true"/>
+            </column>
+            <column name="user_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_projectmembers_user" references="users(id)" deleteCascade="true"/>
+            </column>
+            <column name="role" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <!-- Composite Primary Key -->
+            <constraints primaryKey="true" primaryKeyName="pk_project_members" columnNames="project_id, user_id"/>
+        </createTable>
+
+        <!-- Add more tables below -->
+    </changeSet> <!-- Closing the changeSet id="2" -->
+
+</databaseChangeLog>

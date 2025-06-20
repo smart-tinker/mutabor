@@ -1,163 +1,233 @@
-import { Injectable, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable, NotFoundException, ForbiddenException, ConflictException, Inject } from '@nestjs/common';
 import { CreateProjectDto } from './dto/create-project.dto';
-import { User } from '@prisma/client'; // Assuming User type is available via Prisma
 import { AddMemberDto } from './dto/add-member.dto';
+import { Knex } from 'knex';
+import { KNEX_CONNECTION } from '../knex/knex.constants'; // Assuming this constant is defined
+import * as crypto from 'crypto';
+import {
+    ProjectRecord, UserRecord, ColumnRecord, TaskRecord, ProjectMemberRecord
+} from '../../types/db-records';
+
+// Helper to convert DB record to ProjectRecord (handles date conversion)
+function toProjectRecord(dbProject: any): ProjectRecord {
+    return {
+        ...dbProject,
+        created_at: new Date(dbProject.created_at),
+        updated_at: new Date(dbProject.updated_at),
+    };
+}
+
+// Helper to convert DB record to ColumnRecord
+function toColumnRecord(dbColumn: any): ColumnRecord {
+    return {
+        ...dbColumn,
+        created_at: new Date(dbColumn.created_at),
+        updated_at: new Date(dbColumn.updated_at),
+    };
+}
+
+// Helper to convert DB record to TaskRecord
+function toTaskRecord(dbTask: any): TaskRecord {
+    return {
+        ...dbTask,
+        due_date: dbTask.due_date ? new Date(dbTask.due_date) : null,
+        created_at: new Date(dbTask.created_at),
+        updated_at: new Date(dbTask.updated_at),
+    };
+}
+
+// Helper to convert DB record to UserRecord
+function toUserRecord(dbUser: any): UserRecord {
+    if (!dbUser) return null; // Handle cases where user might be null (e.g. assignee)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password_hash, ...userProps } = dbUser; // Exclude password_hash
+    return {
+        ...userProps,
+        created_at: new Date(userProps.created_at),
+        updated_at: new Date(userProps.updated_at),
+    };
+}
+
 
 @Injectable()
 export class ProjectsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(@Inject(KNEX_CONNECTION) private readonly knex: Knex) {}
 
-  async createProject(createProjectDto: CreateProjectDto, user: User) {
-    const newProject = await this.prisma.project.create({
-      data: {
-        name: createProjectDto.name,
-        taskPrefix: createProjectDto.prefix,
-        ownerId: user.id,
-        // Create default columns
-        columns: {
-          create: [
-            { name: 'To Do', position: 0 },
-            { name: 'In Progress', position: 1 },
-            { name: 'Done', position: 2 },
-          ],
-        },
-      },
-      include: {
-        columns: true, // Include columns in the response
-      },
-    });
-    return newProject;
-  }
+  async createProject(createProjectDto: CreateProjectDto, user: UserRecord): Promise<ProjectRecord> {
+    return this.knex.transaction(async (trx) => {
+      const [newProject] = await trx('projects')
+        .insert({
+          name: createProjectDto.name,
+          task_prefix: createProjectDto.prefix, // Assuming column name task_prefix
+          owner_id: user.id, // Assuming column name owner_id
+          last_task_number: 0,
+          created_at: new Date(),
+          updated_at: new Date(),
+        })
+        .returning('*');
 
-  async findAllProjectsForUser(user: User) {
-    return this.prisma.project.findMany({
-      where: {
-        ownerId: user.id,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      const defaultColumnsData = [
+        { id: crypto.randomUUID(), name: 'To Do', position: 0, project_id: newProjectFromDb.id, created_at: new Date(), updated_at: new Date() },
+        { id: crypto.randomUUID(), name: 'In Progress', position: 1, project_id: newProjectFromDb.id, created_at: new Date(), updated_at: new Date() },
+        { id: crypto.randomUUID(), name: 'Done', position: 2, project_id: newProjectFromDb.id, created_at: new Date(), updated_at: new Date() },
+      ];
+
+      const insertedDbColumns = await trx('columns').insert(defaultColumnsData).returning('*');
+      const columns: ColumnRecord[] = insertedDbColumns.map(toColumnRecord);
+
+      return { ...toProjectRecord(newProjectFromDb), columns };
     });
   }
 
-  async findProjectById(projectId: number, user: User) {
-    const project = await this.prisma.project.findUnique({
-      where: {
-        id: projectId,
-      },
-      include: {
-        columns: {
-          orderBy: {
-            position: 'asc',
-          },
-          include: {
-            tasks: { // This will be useful when Task model and service are ready
-              orderBy: {
-                position: 'asc',
-              },
-            },
-          },
-        },
-        // Include tasks directly under project if that's a feature,
-        // or all tasks for the board view (tasks are already nested under columns)
-        // tasks: {
-        //   orderBy: {
-        //     createdAt: 'asc'
-        //   }
-        // }
-        // members: true, // Include members for permission checking
-      },
-    });
+  async findAllProjectsForUser(user: UserRecord): Promise<ProjectRecord[]> {
+    const projectsAsOwnerDb = await this.knex('projects')
+      .where({ owner_id: user.id })
+      .orderBy('created_at', 'desc');
 
-    if (!project) {
+    const projectsAsMemberDb = await this.knex('projects')
+      .join('project_members', 'projects.id', '=', 'project_members.project_id')
+      .where('project_members.user_id', user.id)
+      .select('projects.*')
+      .orderBy('projects.created_at', 'desc');
+
+    const allDbProjects = [...projectsAsOwnerDb, ...projectsAsMemberDb];
+    const uniqueDbProjects = Array.from(new Set(allDbProjects.map(p => p.id)))
+      .map(id => allDbProjects.find(p => p.id === id));
+
+    return uniqueDbProjects.map(toProjectRecord);
+  }
+
+  async findProjectById(projectId: number, user: UserRecord): Promise<ProjectRecord> {
+    const projectFromDb = await this.knex('projects').where({ id: projectId }).first();
+
+    if (!projectFromDb) {
       throw new NotFoundException(`Project with ID ${projectId} not found.`);
     }
 
-    // Simplified permission check: only owner can access.
-    // Original: if (project.ownerId !== user.id && !project.members.some(member => member.userId === user.id)) {
-    if (project.ownerId !== user.id) {
+    const isOwner = projectFromDb.owner_id === user.id;
+    let isMember = false;
+    if (!isOwner) {
+      const member = await this.knex('project_members')
+        .where({ project_id: projectId, user_id: user.id })
+        .first();
+      isMember = !!member;
+    }
+
+    if (!isOwner && !isMember) {
       throw new ForbiddenException('You do not have permission to access this project.');
     }
-    return project;
+
+    const columnsFromDb = await this.knex('columns')
+      .where({ project_id: projectId })
+      .orderBy('position', 'asc');
+
+    const tasksFromDb = await this.knex('tasks')
+      .whereIn('column_id', columnsFromDb.map(c => c.id))
+      .orderBy('position', 'asc');
+
+    const columns: ColumnRecord[] = columnsFromDb.map(dbCol => ({
+      ...toColumnRecord(dbCol),
+      tasks: tasksFromDb.filter(dbTask => dbTask.column_id === dbCol.id).map(toTaskRecord),
+    }));
+
+    return { ...toProjectRecord(projectFromDb), columns };
   }
 
-  async addMemberToProject(projectId: number, addMemberDto: AddMemberDto, currentUserId: string) {
-    const project = await this.prisma.project.findUnique({
-      where: { id: projectId },
-    });
+  async addMemberToProject(projectId: number, addMemberDto: AddMemberDto, currentUserId: string): Promise<ProjectMemberRecord & { user: UserRecord }> {
+    const project = await this.knex('projects').where({ id: projectId }).first();
 
     if (!project) {
       throw new NotFoundException(`Project with ID ${projectId} not found.`);
     }
 
-    if (project.ownerId !== currentUserId) {
+    if (project.owner_id !== currentUserId) {
       throw new ForbiddenException('Only project owners can add members.');
     }
 
-    const userToAdd = await this.prisma.user.findUnique({
-      where: { email: addMemberDto.email },
-    });
+    const userToAddFromDb = await this.knex('users')
+      .select('id', 'name', 'email', 'created_at', 'updated_at') // Select all fields for UserRecord
+      .where({ email: addMemberDto.email })
+      .first();
 
-    if (!userToAdd) {
+    if (!userToAddFromDb) {
       throw new NotFoundException(`User with email ${addMemberDto.email} not found.`);
     }
 
-    if (userToAdd.id === currentUserId) {
+    if (userToAddFromDb.id === currentUserId) {
       throw new ConflictException('Cannot add the project owner as a member.');
     }
 
-    const existingMembership = await this.prisma.projectMember.findUnique({
-      where: {
-        projectId_userId: {
-          projectId: projectId,
-          userId: userToAdd.id,
-        },
-      },
-    });
+    const existingMembership = await this.knex('project_members')
+      .where({ project_id: projectId, user_id: userToAddFromDb.id })
+      .first();
 
     if (existingMembership) {
       throw new ConflictException(`User ${addMemberDto.email} is already a member of this project.`);
     }
 
-    return this.prisma.projectMember.create({
-      data: {
-        projectId: projectId,
-        userId: userToAdd.id,
+    const newMemberData = {
+        project_id: projectId,
+        user_id: userToAddFromDb.id,
         role: addMemberDto.role,
-      },
-      include: { // Include user details in the response
-        user: {
-          select: { id: true, email: true, name: true }
-        }
-      }
-    });
+        created_at: new Date(),
+        updated_at: new Date(),
+    };
+
+    const [insertedMember] = await this.knex('project_members')
+      .insert(newMemberData)
+      .returning('*');
+
+    const userRecord = toUserRecord(userToAddFromDb);
+
+    return {
+      project_id: insertedMember.project_id,
+      user_id: insertedMember.user_id,
+      role: insertedMember.role,
+      created_at: new Date(insertedMember.created_at),
+      updated_at: new Date(insertedMember.updated_at),
+      user: userRecord,
+    };
   }
 
-  async getProjectMembers(projectId: number, currentUserId: string) {
-    const project = await this.prisma.project.findUnique({
-      where: { id: projectId },
-      // No need to include members here if access is checked by controller calling findProjectById first
-    });
-
+  async getProjectMembers(projectId: number, currentUserId: string): Promise<Array<{ role: string; user: UserRecord }>> {
+    const project = await this.knex('projects').where({ id: projectId }).first();
     if (!project) {
       throw new NotFoundException(`Project with ID ${projectId} not found.`);
     }
+    const isOwner = project.owner_id === currentUserId;
+    let isMember = false;
+    if(!isOwner) {
+        const membership = await this.knex('project_members')
+            .where({project_id: projectId, user_id: currentUserId})
+            .first();
+        isMember = !!membership;
+    }
+    if(!isOwner && !isMember) {
+        throw new ForbiddenException('You do not have permission to view members of this project.');
+    }
 
-    // Access control is expected to be handled by the controller, typically by calling
-    // findProjectById(projectId, currentUser) BEFORE calling this method.
-    // If this method were to be called without such prior check, it would need its own comprehensive check.
+    const membersFromDb = await this.knex('project_members')
+      .join('users', 'project_members.user_id', '=', 'users.id')
+      .where('project_members.project_id', projectId)
+      .select(
+        'project_members.role',
+        'users.id as userId',
+        'users.email',
+        'users.name',
+        'users.created_at as user_created_at', // Select for UserRecord
+        'users.updated_at as user_updated_at'  // Select for UserRecord
+      )
+      .orderBy('users.name', 'asc');
 
-    return this.prisma.projectMember.findMany({
-      where: { projectId: projectId },
-      include: {
-        user: {
-          select: { id: true, email: true, name: true },
-        },
-      },
-      orderBy: {
-       user: { name: 'asc' }
-      }
-    });
+    return membersFromDb.map(m => ({
+        role: m.role,
+        user: { // Construct UserRecord
+            id: m.userId,
+            email: m.email,
+            name: m.name,
+            created_at: new Date(m.user_created_at),
+            updated_at: new Date(m.user_updated_at),
+        }
+    }));
   }
 }

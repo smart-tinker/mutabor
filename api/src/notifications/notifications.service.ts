@@ -1,11 +1,14 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable, NotFoundException, ForbiddenException, Inject } from '@nestjs/common';
 import { EventsGateway } from '../events/events.gateway'; // Import EventsGateway
+import { Knex } from 'knex';
+import { KNEX_CONNECTION } from '../knex/knex.constants'; // Assuming this constant is defined for injection
+import * as crypto from 'crypto'; // For UUID generation
+import { NotificationRecord } from '../../types/db-records'; // Import NotificationRecord
 
 @Injectable()
 export class NotificationsService {
   constructor(
-    private prisma: PrismaService,
+    @Inject(KNEX_CONNECTION) private readonly knex: Knex,
     private eventsGateway: EventsGateway, // Inject EventsGateway
   ) {}
 
@@ -14,24 +17,34 @@ export class NotificationsService {
     text: string,
     sourceUrl?: string,
     taskId?: string,
-  ) {
-    // Ensure recipient exists
-    const recipient = await this.prisma.user.findUnique({ where: { id: recipientId }});
+  ): Promise<NotificationRecord | null> {
+    const recipient = await this.knex('users').where({ id: recipientId }).first();
     if (!recipient) {
-      // Log error, but maybe don't throw as it might break originating action (e.g. comment creation)
       console.error(`Recipient user with ID ${recipientId} not found for notification.`);
       return null;
     }
 
-    const newNotification = await this.prisma.notification.create({
-      data: {
-        recipientId,
-        text,
-        sourceUrl,
-        taskId, // Link to task if provided
-        isRead: false,
-      },
-    });
+    const notificationId = crypto.randomUUID();
+    const notificationData = {
+      id: notificationId,
+      recipient_id: recipientId,
+      text,
+      source_url: sourceUrl,
+      task_id: taskId,
+      is_read: false,
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
+
+    const [insertedRow] = await this.knex('notifications')
+      .insert(notificationData)
+      .returning('*');
+
+    const newNotification: NotificationRecord = {
+        ...insertedRow,
+        created_at: new Date(insertedRow.created_at),
+        updated_at: new Date(insertedRow.updated_at),
+    };
 
     if (newNotification) {
       this.eventsGateway.emitNotificationNew(newNotification, recipientId);
@@ -39,35 +52,46 @@ export class NotificationsService {
     return newNotification;
   }
 
-  async getUserNotifications(userId: string) {
-    return this.prisma.notification.findMany({
-      where: { recipientId: userId },
-      orderBy: { createdAt: 'desc' },
-    });
+  async getUserNotifications(userId: string): Promise<NotificationRecord[]> {
+    const notifications = await this.knex('notifications')
+      .where({ recipient_id: userId })
+      .orderBy('created_at', 'desc');
+    return notifications.map(n => ({
+        ...n,
+        created_at: new Date(n.created_at),
+        updated_at: new Date(n.updated_at),
+    }));
   }
 
-  async markNotificationAsRead(notificationId: string, userId: string) {
-    const notification = await this.prisma.notification.findUnique({
-      where: { id: notificationId },
-    });
-    if (!notification) {
+  async markNotificationAsRead(notificationId: string, userId: string): Promise<NotificationRecord> {
+    const notificationFromDb = await this.knex('notifications')
+      .where({ id: notificationId })
+      .first();
+
+    if (!notificationFromDb) {
       throw new NotFoundException(`Notification with ID ${notificationId} not found.`);
     }
-    if (notification.recipientId !== userId) {
+    if (notificationFromDb.recipient_id !== userId) {
       throw new ForbiddenException('You cannot mark this notification as read.');
     }
-    return this.prisma.notification.update({
-      where: { id: notificationId },
-      data: { isRead: true },
-    });
+
+    const [updatedRow] = await this.knex('notifications')
+      .where({ id: notificationId })
+      .update({ is_read: true, updated_at: new Date() })
+      .returning('*');
+
+    return {
+        ...updatedRow,
+        created_at: new Date(updatedRow.created_at),
+        updated_at: new Date(updatedRow.updated_at),
+    };
   }
 
-  async markAllNotificationsAsRead(userId: string) {
-    await this.prisma.notification.updateMany({
-      where: { recipientId: userId, isRead: false },
-      data: { isRead: true },
-    });
-    // updateMany does not return the records, so we return a success message or count
+  async markAllNotificationsAsRead(userId: string): Promise<{ message: string }> {
+    await this.knex('notifications')
+      .where({ recipient_id: userId, is_read: false })
+      .update({ is_read: true, updated_at: new Date() });
+
     return { message: 'All unread notifications marked as read.' };
   }
 }
