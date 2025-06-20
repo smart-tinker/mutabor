@@ -19,9 +19,6 @@ const App: React.FC = () => {
 
   return (
     <Router>
-      <nav>
-        <Link to="/">Home</Link> | <Link to="/dashboard">Dashboard</Link>
-      </nav>
       <Routes>
         {/* Root route: Landing page for unauthenticated, redirect to dashboard for authenticated */}
         <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" /> : <LandingPage />} />
