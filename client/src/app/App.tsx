@@ -1,7 +1,7 @@
 // Example in App.tsx using react-router-dom
 import React from 'react';
 import './styles/global.css';
-import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from '../pages/LoginPage'; // Assuming LoginPage exists
 import RegistrationPage from '../pages/RegistrationPage'; // Assuming RegistrationPage exists
 import DashboardPage from '../pages/DashboardPage';
