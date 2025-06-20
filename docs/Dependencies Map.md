@@ -11,6 +11,8 @@ graph TD
         TaskService -- "2 Получить данные исполнителя/автора" --> UserService
         TaskService -- "3 Отправить запрос на декомпозицию" --> AIService
         TaskService -- "4 Создать уведомление об @упоминании" --> NotificationService
+        TaskService -- "Manages comments" --> CommentsService
+        TaskService -- "Emits real-time events" --> RealtimeGateway # (Note: EventsGateway is the concrete class, RealtimeGateway for concept)
 
         ProjectService -- "Получить данные о владельце/участниках" --> UserService
 
@@ -30,6 +32,8 @@ graph TD
     - Зависит от **UserService** для получения информации о пользователях (кто исполнитель, кто автор комментария).
     - Зависит от **AIService** для делегирования всех AI-операций.
     - Зависит от **NotificationService** для создания записей об уведомлениях, когда пользователя упоминают.
+    - Зависит от **CommentsService** для управления комментариями к задачам.
+    - Зависит от **RealtimeGateway** (EventsGateway) для рассылки событий об изменениях задач.
 
 - **ProjectService (Модуль Проектов):**
     - Зависит от **UserService** для управления списком участников проекта.

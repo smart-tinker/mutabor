@@ -11,8 +11,10 @@ erDiagram
     USER {
         string id PK
         string email UK
-        string name
+        string name nullable
+        string password_hash
         datetime created_at
+        datetime updatedAt
     }
 
     PROJECT {
@@ -22,6 +24,7 @@ erDiagram
         int lastTaskNumber
         string owner_id FK "ON DELETE RESTRICT"
         datetime created_at
+        datetime updatedAt
     }
 
     PROJECT_MEMBER {
@@ -42,10 +45,14 @@ erDiagram
         string humanReadableId UK
         int taskNumber "UK(projectId, taskNumber)"
         string title
+        integer position
         int projectId FK "ON DELETE CASCADE"
         string column_id FK "ON DELETE CASCADE"
         string assignee_id FK "nullable, ON DELETE SET NULL, index"
+        string creatorId FK "FK to User"
         datetime due_date "nullable"
+        datetime createdAt
+        datetime updatedAt
     }
 
     COMMENT {
@@ -79,17 +86,34 @@ erDiagram
 
 | Таблица / Поле             | Тип данных         | Ограничения                                       | Описание                                                                  |
 | -------------------------- | ------------------ | ------------------------------------------------- | ------------------------------------------------------------------------- |
+| **USER**                   |                    |                                                   | Пользователи системы.                                                     |
+| `id`                       | `string` (UUID)    | `PRIMARY KEY`                                     | Уникальный ID пользователя (генерируется Prisma как cuid).                |
+| `email`                    | `string`           | `UNIQUE`, `NOT NULL`                              | Электронная почта пользователя.                                           |
+| `name`                     | `string?`          | `NULLABLE`                                        | Имя пользователя.                                                         |
+| `password_hash`            | `string`           | `NOT NULL`                                        | Хеш пароля пользователя.                                                  |
+| `createdAt`                | `DateTime`         | `DEFAULT now()`                                   | Время создания.                                                          |
+| `updatedAt`                | `DateTime`         | `updatedAt`                                       | Время последнего обновления.                                              |
 | **PROJECT**                |                    |                                                   | Проекты или Kanban-доски.                                                 |
 | `id`                       | `Int`              | `PRIMARY KEY`, `AUTO_INCREMENT`                   | Уникальный числовой ID проекта. Используется в URL.                       |
 | `taskPrefix`               | `string`           | `UNIQUE`, `NOT NULL`                              | Короткий префикс для задач проекта (например, "PHX").                     |
 | `lastTaskNumber`           | `Int`              | `DEFAULT 0`                                       | Счетчик последнего номера задачи в проекте.                               |
 | `owner_id`                 | `string` (UUID)    | `FK to USER(id)`, `ON DELETE RESTRICT`            | Владелец проекта. Удаление пользователя-владельца запрещено.              |
+| `createdAt`                | `DateTime`         | `DEFAULT now()`                                   | Время создания.                                                          |
+| `updatedAt`                | `DateTime`         | `updatedAt`                                       | Время последнего обновления.                                              |
 | **TASK**                   |                    |                                                   | Атомарные задачи.                                                         |
 | `id`                       | `string` (UUID)    | `PRIMARY KEY`                                     | Внутренний, невидимый пользователю ID.                                    |
 | `humanReadableId`          | `string`           | `UNIQUE`                                          | Человеко-понятный ID (например, "PHX-1"). Используется в URL.             |
-| `(projectId, taskNumber)`  | `(Int, Int)`       | `UNIQUE`                                          | Номер задачи уникален в рамках одного проекта.                             |
+| `taskNumber`               | `Int`              | `UNIQUE(projectId, taskNumber)`                   | Номер задачи, уникальный в рамках проекта.                                |
+| `title`                    | `string`           | `NOT NULL`                                        | Заголовок задачи.                                                         |
+| `description`              | `string?`          | `NULLABLE`                                        | Описание задачи.                                                          |
+| `position`                 | `Int`              | `NOT NULL`                                        | Позиция задачи в колонке (для сортировки).                                |
 | `projectId`                | `Int`              | `FK to PROJECT(id)`, `ON DELETE CASCADE`          | Связь с проектом для генерации ID и каскадного удаления.                  |
+| `columnId`                 | `string` (UUID)    | `FK to COLUMN(id)`, `ON DELETE CASCADE`           | Связь с колонкой.                                                         |
 | `assignee_id`              | `string?` (UUID)   | `FK to USER(id)`, `ON DELETE SET NULL`            | Исполнитель. При удалении пользователя становится `NULL`.                 |
+| `creatorId`                | `string` (UUID)    | `FK to USER(id)`, `ON DELETE RESTRICT`            | Создатель задачи.                                                         |
+| `dueDate`                  | `DateTime?`        | `NULLABLE`                                        | Срок выполнения задачи.                                                   |
+| `createdAt`                | `DateTime`         | `DEFAULT now()`                                   | Время создания.                                                          |
+| `updatedAt`                | `DateTime`         | `updatedAt`                                       | Время последнего обновления.                                              |
 | **COMMENT**                |                    |                                                   | Комментарии к задачам.                                                    |
 | `id`                       | `string` (UUID)    | `PRIMARY KEY`                                     | Уникальный ID комментария.                                                |
 | `text`                     | `string`           | `NOT NULL`                                        | Текст комментария.                                                        |

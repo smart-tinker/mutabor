@@ -89,7 +89,7 @@
           - api
         environment:
           - VITE_API_URL=http://localhost:3001
-        volumes:
+        volumes: # Ensure these volumes are present for hot-reloading
           - ./client/src:/app/src
           - ./client/public:/app/public
 
@@ -146,7 +146,6 @@
     ```
     *   **Бэкенд (API)** будет доступен по адресу: `http://localhost:3001`
     *   **Фронтенд (Client)** будет доступен по адресу: `http://localhost:3000`
-    *   Удалите `depends_on: - db` из сервиса `api`.
 
 ### Режим локальной разработки (Manual Local Development Setup)
 

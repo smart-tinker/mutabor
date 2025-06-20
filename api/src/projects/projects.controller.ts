@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Param, UseGuards, Req, ParseIntPipe } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, UseGuards, Req, ParseIntPipe, HttpCode, HttpStatus } from '@nestjs/common'; // Added HttpCode, HttpStatus
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { AddMemberDto } from './dto/add-member.dto';
@@ -13,6 +13,7 @@ export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
   @Post()
+  @HttpCode(HttpStatus.CREATED) // Added HttpCode
   async create(@Body() createProjectDto: CreateProjectDto, @Req() req) {
     // Assuming user object is attached to req by JwtAuthGuard
     const user = req.user as User;
@@ -32,6 +33,7 @@ export class ProjectsController {
   }
 
   @Post(':projectId/members')
+  @HttpCode(HttpStatus.CREATED) // Added HttpCode
   async addMember(
     @Param('projectId', ParseIntPipe) projectId: number,
     @Body() addMemberDto: AddMemberDto,
