@@ -9,6 +9,7 @@ import BoardPage from '../pages/BoardPage';
 import LandingPage from '../pages/LandingPage'; // Import LandingPage
 import NotFoundPage from '../pages/NotFoundPage'; // Import NotFoundPage
 import { useAuth } from './auth/AuthContext'; // Import the real useAuth
+import Header from '../widgets/Header/Header';
 
 const App: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth(); // Use real useAuth, include isLoading
@@ -20,10 +21,7 @@ const App: React.FC = () => {
 
   return (
     <Router>
-      <nav>
-        <Link to="/">Home</Link> | <Link to="/dashboard">Dashboard</Link>
-      </nav>
-
+      <Header />
       <Routes>
         {/* Root route: Landing page for unauthenticated, redirect to dashboard for authenticated */}
         <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" /> : <LandingPage />} />
