@@ -1,3 +1,11 @@
+# Mutabor Client
+
+For initial setup, installation, and running the client application (including environment variable `VITE_API_URL`), please refer to the [main project README.md](../../README.md#режим-локальной-разработки-manual-local-development-setup).
+
+This README provides additional information specific to the client's Vite and ESLint configuration.
+
+---
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.

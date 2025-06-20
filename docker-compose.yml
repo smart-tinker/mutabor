@@ -12,6 +12,9 @@ services:
         condition: service_healthy
     environment:
       - VITE_API_URL=http://localhost:3001 # Changed to VITE_ and confirmed URL for browser access
+    volumes:
+      - ./client/src:/app/src
+      - ./client/public:/app/public
     healthcheck: # Added healthcheck for Client
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
       interval: 30s
