@@ -5,7 +5,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: var(--color-backdrop);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -13,12 +13,12 @@
 }
 
 .modalContent {
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-  min-width: 400px;
-  max-width: 600px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  background-color: var(--color-background-element);
+  padding: calc(var(--spacing-base) * 2.5); /* 20px */
+  border-radius: var(--border-radius-large); /* 8px */
+  min-width: calc(var(--spacing-base) * 50); /* 400px */
+  max-width: calc(var(--spacing-base) * 75); /* 600px */
+  box-shadow: var(--shadow-modal);
 }
 
 .modalContent h2 {
@@ -26,28 +26,39 @@
 }
 
 .formGroup {
-  margin-bottom: 15px;
+  margin-bottom: calc(var(--spacing-base) * 2); /* 16px */
 }
 
 .formGroup label {
   display: block;
-  margin-bottom: 5px;
+  margin-bottom: calc(var(--spacing-base) / 2); /* 4px */
 }
 
 .formGroup input {
   width: calc(100% - 22px); /* Adjust for padding/border */
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  padding: calc(var(--spacing-base) * 1.5); /* 12px */
+  border: 1px solid var(--color-border-neutral);
+  border-radius: var(--border-radius-medium); /* Use variable */
+  background-color: var(--color-background-input);
+  color: var(--color-text-input);
+}
+.formGroup input:focus {
+  border-color: var(--color-border-focus);
+  box-shadow: var(--shadow-focus);
 }
 
 .buttonContainer button {
-  margin-right: 10px;
+  margin-right: calc(var(--spacing-base) * 1.25); /* 10px */
+  /* Other specific visual styles removed in favor of global .primary, .secondary etc. */
+}
+/* Ensure the last button in the container doesn't have a margin if it's not needed */
+.buttonContainer button:last-child {
+  margin-right: 0;
 }
 
 .errorText {
-  color: red;
-  font-size: 0.9em;
+  color: var(--color-text-danger);
+  font-size: 14px; /* Was 0.9em, consistent with caption size */
 }
 
 .memberList {
@@ -58,8 +69,8 @@
 .memberItem {
   display: flex;
   justify-content: space-between;
-  padding: 8px 0;
-  border-bottom: 1px solid #eee;
+  padding: var(--spacing-base) 0; /* 8px 0 */
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 .memberItem:last-child {
   border-bottom: none;

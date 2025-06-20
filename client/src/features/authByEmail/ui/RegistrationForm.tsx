@@ -63,6 +63,7 @@ const RegistrationForm = () => {
             value={name}
             onChange={(e) => setName(e.target.value)}
             disabled={isLoading}
+            className={error ? 'input-error' : ''}
           />
         </div>
 
@@ -74,6 +75,7 @@ const RegistrationForm = () => {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             disabled={isLoading}
+            className={error ? 'input-error' : ''}
           />
         </div>
 
@@ -85,6 +87,7 @@ const RegistrationForm = () => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={isLoading}
+            className={error ? 'input-error' : ''}
           />
         </div>
 

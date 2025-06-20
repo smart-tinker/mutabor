@@ -30,6 +30,10 @@
   --border-radius-small: 4px;
   --border-radius-medium: 6px;
   --border-radius-large: 8px;
+
+  /* Shadows */
+  --shadow-modal: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-card-hover: 0 4px 8px -2px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.06);
 }
 
 /* 2. Basic Body and HTML Styles */
@@ -102,7 +106,19 @@ textarea:focus,
 select:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(var(--color-primary), 0.2); /* Using RGB for alpha, assuming #6D28D9 */
+  box-shadow: 0 0 0 2px rgba(109, 40, 217, 0.2); /* Using #6D28D9 for var(--color-primary) */
+}
+
+input[type="text"]:disabled,
+input[type="email"]:disabled,
+input[type="password"]:disabled,
+textarea:disabled,
+select:disabled {
+  background-color: var(--color-background-page);
+  color: var(--color-text-disabled);
+  border-color: var(--color-border);
+  cursor: not-allowed;
+  opacity: 0.7; /* Visual cue for disabled */
 }
 
 button {
@@ -135,11 +151,57 @@ button.secondary:hover {
   background-color: #f3eefc; /* Lighten(--color-primary, ~90%) - manual for now */
 }
 
+button.danger {
+  background-color: var(--color-error);
+  color: var(--color-background-element); /* White text on red background */
+  border: 1px solid var(--color-error);
+}
+button.danger:hover {
+  background-color: #d73737; /* Darken(--color-error, 10%) - manual for now */
+  border-color: #d73737;
+}
+button.danger:focus {
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3); /* Focus ring for error color */
+}
+
+/* Disabled States */
+button:disabled,
+button.primary:disabled,
+button.secondary:disabled,
+button.danger:disabled {
+  background-color: var(--color-background-page); /* More neutral background */
+  color: var(--color-text-disabled);
+  border-color: var(--color-border); /* Use standard border for disabled state */
+  cursor: not-allowed;
+  opacity: 0.7; /* Visual cue for disabled */
+}
+
+/* Ensure specific border for secondary disabled if needed, or let global override */
+/* The general rule above already sets border-color: var(--color-border), which is fine for secondary. */
+/* If secondary disabled needed a *different* border than other disabled buttons, you'd add it here. */
+/* For now, the above is sufficient. */
+
+/* Input Error State */
+.input-error {
+  border-color: var(--color-error) !important; /* Ensure it overrides default border */
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2); /* Optional: error focus-like ring */
+}
+.input-error:focus { /* This should also apply when an error input is focused */
+  border-color: var(--color-error) !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3); /* Error focus ring */
+}
+
 /* Utility Classes (Optional, but can be useful) */
 .text-center { text-align: center; }
 .mt-1 { margin-top: var(--spacing-base); }
 .mb-1 { margin-bottom: var(--spacing-base); }
 /* ... add more spacing utilities as needed ... */
+
+.text-caption {
+  font-size: 14px; /* 0.875rem */
+  font-weight: 400; /* Normal weight */
+  color: var(--color-text-secondary);
+}
 
 /* Specific styles for RegistrationForm if needed, or keep them in the component's module.css */
 /* For now, the global input/button styles will apply. */

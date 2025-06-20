@@ -2,6 +2,7 @@ import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { TaskDto } from '../../shared/api/projectService'; // Adjust path
+import styles from './TaskCard.module.css'; // Import CSS Modules
 
 interface TaskCardProps {
   task: TaskDto;
@@ -18,22 +19,35 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onTaskClick }) => {
     isDragging,
   } = useSortable({ id: task.id });
 
-  const style = {
+  // DND-Kit styles for transform and transition
+  const dndKitStyles = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
-    border: '1px solid #eee',
-    padding: '8px',
-    margin: '4px 0',
-    backgroundColor: 'white',
-    cursor: 'grab',
-    boxShadow: isDragging ? '0px 5px 15px rgba(0,0,0,0.1)' : 'none',
   };
 
+  const cardClasses = `${styles.taskCard} ${isDragging ? styles.taskCardDragging : ''}`;
+
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners} onClick={() => onTaskClick(task)}>
-      <strong>{task.humanReadableId}</strong>: {task.title}
-      {task.description && <p style={{ fontSize: '0.8em', whiteSpace: 'pre-wrap', margin: '4px 0 0' }}>{task.description?.substring(0,100)}...</p>}
+    <div
+      ref={setNodeRef}
+      style={dndKitStyles} // Apply DND-Kit transform/transition styles
+      className={cardClasses} // Apply styles from CSS module
+      {...attributes}
+      {...listeners}
+      onClick={() => onTaskClick(task)}
+    >
+      <div className={styles.taskTitle}>
+        {task.humanReadableId}: {task.title}
+      </div>
+      {task.description && (
+        <div className={styles.taskDescription}>
+          {task.description}
+        </div>
+      )}
+      {/* Example for task meta, if you add it later */}
+      {/* <div className={styles.taskMeta}>
+        <span>ID: {task.humanReadableId}</span>
+      </div> */}
     </div>
   );
 };

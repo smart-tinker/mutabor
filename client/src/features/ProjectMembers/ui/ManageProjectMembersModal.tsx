@@ -94,6 +94,8 @@ const ManageProjectMembersModal: React.FC<ManageProjectMembersModalProps> = ({ p
               value={newMemberEmail}
               onChange={(e) => setNewMemberEmail(e.target.value)}
               required
+              disabled={isAddingMember}
+              className={addMemberError ? 'input-error' : ''}
             />
           </div>
           <div className={styles.formGroup}>
@@ -105,6 +107,8 @@ const ManageProjectMembersModal: React.FC<ManageProjectMembersModalProps> = ({ p
               onChange={(e) => setNewMemberRole(e.target.value)}
               placeholder="e.g., editor, viewer"
               required
+              disabled={isAddingMember}
+              className={addMemberError ? 'input-error' : ''}
             />
           </div>
           {addMemberError && <p className={styles.errorText}>{addMemberError}</p>}

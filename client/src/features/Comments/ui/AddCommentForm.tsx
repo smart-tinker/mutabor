@@ -43,6 +43,7 @@ const AddCommentForm: React.FC<AddCommentFormProps> = ({ taskId, onCommentAdded 
         placeholder="Add a comment..."
         rows={3}
         disabled={isSubmitting}
+        className={error ? 'input-error' : ''}
       />
       {error && <p className={styles.errorText}>{error}</p>}
       <button type="submit" disabled={isSubmitting}>
