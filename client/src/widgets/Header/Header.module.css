@@ -2,6 +2,7 @@
   background-color: var(--color-background-element);
   padding: 0 calc(var(--spacing-base) * 3); /* 0 24px */
   border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
 }
 
 .headerContainer {
@@ -43,14 +44,14 @@
   color: var(--color-text-main);
   font-weight: 400;
   padding: calc(var(--spacing-base) * 0.5) calc(var(--spacing-base) * 1); /* 4px 8px */
-  border-radius: 6px; /* Replaced var(--border-radius-small) with 6px */
+  border-radius: var(--border-radius-medium); /* Using defined variable */
   transition: color 0.2s ease-in-out, background-color 0.2s ease-in-out;
 }
 
 .navigation a:hover,
 .navigation button:hover {
   color: var(--color-primary);
-  /* background-color: var(--color-primary-background-hover); Removed as variable is undefined */
+  background-color: var(--color-primary-background-hover); /* Reinstated background hover */
 }
 
 /* Style for active link if needed, requires NavLink from react-router-dom */
@@ -74,5 +75,5 @@
 .navigation button.secondary:hover {
     color: var(--color-primary);
     border-color: var(--color-primary);
-    /* background-color: var(--color-primary-background-hover); Removed as variable is undefined */
+    background-color: var(--color-primary-background-hover); /* Reinstated background hover */
 }

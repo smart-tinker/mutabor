@@ -3,21 +3,24 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import Header from './Header';
 import { useAuth } from '../../app/auth/AuthContext';
+import { vi } from 'vitest';
 
 // Mock useAuth
-jest.mock('../../app/auth/AuthContext');
+vi.mock('../../app/auth/AuthContext');
 
 // Mock child components
-jest.mock('../../features/Notifications', () => ({
+vi.mock('../../features/Notifications', () => ({
   NotificationBell: () => <div data-testid="notification-bell">NotificationBell</div>,
 }));
-jest.mock('../../features/authByEmail/ui/LogoutButton', () => () => <button>Logout</button>);
+vi.mock('../../features/authByEmail/ui/LogoutButton', () => ({
+  default: () => <button>Logout</button>,
+}));
 
 describe('Header Component', () => {
-  const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
+  const mockUseAuth = useAuth as vi.MockedFunction<typeof useAuth>;
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('Authenticated User', () => {
