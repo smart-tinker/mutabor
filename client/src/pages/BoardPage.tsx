@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom'; // Add useNavigate
 import {
   DndContext,
   closestCorners,
@@ -35,6 +35,7 @@ interface BoardData extends Omit<FullProjectDto, 'columns' | 'tasks'> {
 
 const BoardPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
+  const navigate = useNavigate(); // Add this
   const [boardData, setBoardData] = useState<BoardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,18 +70,33 @@ const BoardPage: React.FC = () => {
     try {
       setIsLoading(true);
       const projectDetails = await projectService.getProjectById(numericProjectId);
+      // If projectDetails could be null/undefined for a 404 without throwing, that logic would go here.
+      // Assuming projectService.getProjectById throws an error for 404s.
       const transformedColumns = projectDetails.columns?.map(col => ({
         ...col,
         tasksList: col.tasks?.sort((a, b) => a.position - b.position) || [],
       })).sort((a,b) => a.position - b.position) || [];
+
+      if (!projectDetails || Object.keys(projectDetails).length === 0) {
+        // Handle cases where API might return empty object or null for not found, instead of throwing 404.
+        // This is a defensive check. Ideally, the service throws a proper error.
+        navigate('/404');
+        return;
+      }
+
       setBoardData({ ...projectDetails, columns: transformedColumns });
       setError(null);
-    } catch (err) {
-      setError('Failed to fetch board data.'); console.error(err);
+    } catch (err: any) { // Explicitly type err as any to access status, or define a more specific error type
+      if (err && err.status === 404) {
+        navigate('/404');
+      } else {
+        setError('Failed to fetch board data.');
+        console.error(err);
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [numericProjectId]);
+  }, [numericProjectId, navigate]);
 
   useEffect(() => {
     fetchBoardData();

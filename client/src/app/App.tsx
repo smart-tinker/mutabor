@@ -6,6 +6,8 @@ import LoginPage from '../pages/LoginPage'; // Assuming LoginPage exists
 import RegistrationPage from '../pages/RegistrationPage'; // Assuming RegistrationPage exists
 import DashboardPage from '../pages/DashboardPage';
 import BoardPage from '../pages/BoardPage';
+import LandingPage from '../pages/LandingPage'; // Import LandingPage
+import NotFoundPage from '../pages/NotFoundPage'; // Import NotFoundPage
 import { useAuth } from './auth/AuthContext'; // Import the real useAuth
 
 const App: React.FC = () => {
@@ -19,12 +21,17 @@ const App: React.FC = () => {
   return (
     <Router>
       <nav>
-        <Link to="/">Home (Login)</Link> | <Link to="/dashboard">Dashboard</Link>
+        <Link to="/">Home</Link> | <Link to="/dashboard">Dashboard</Link>
       </nav>
       <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegistrationPage />} />
+        {/* Root route: Landing page for unauthenticated, redirect to dashboard for authenticated */}
+        <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" /> : <LandingPage />} />
 
+        {/* Auth routes: Redirect to dashboard if authenticated, otherwise show login/register */}
+        <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" /> : <LoginPage />} />
+        <Route path="/register" element={isAuthenticated ? <Navigate to="/dashboard" /> : <RegistrationPage />} />
+
+        {/* Protected routes: Redirect to login if not authenticated */}
         <Route
           path="/dashboard"
           element={isAuthenticated ? <DashboardPage /> : <Navigate to="/login" />}
@@ -33,10 +40,10 @@ const App: React.FC = () => {
           path="/projects/:projectId"
           element={isAuthenticated ? <BoardPage /> : <Navigate to="/login" />}
         />
-        <Route
-          path="/"
-          element={isAuthenticated ? <Navigate to="/dashboard" /> : <Navigate to="/login" />}
-        />
+
+        {/* 404 Handling */}
+        <Route path="/404" element={<NotFoundPage />} />
+        <Route path="*" element={<Navigate to="/404" replace />} /> {/* Catch-all route */}
       </Routes>
     </Router>
   );
