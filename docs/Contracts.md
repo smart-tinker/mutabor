@@ -27,7 +27,7 @@ export interface IProjectsService {
 ```typescript
 export interface ITasksService {
   create(dto: CreateTaskDto): Promise<Task>;
-  findOneById(id: string): Promise<TaskWithDetails>; // TaskWithDetails - с комментариями и т.д. (Note: Changed from findOneByHumanId to reflect current UUID usage)
+  findOneById(id: string): Promise<Task>; // (Note: Task model, specific details like comments might be separate. Changed from findOneByHumanId and TaskWithDetails)
   move(taskId: string, dto: MoveTaskDto): Promise<void>;
   addComment(taskId: string, dto: CreateCommentDto, author: User): Promise<Comment>;
 }
