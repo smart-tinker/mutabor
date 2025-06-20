@@ -91,12 +91,13 @@ export class CommentsService {
 
     for (const user of usersToNotify) {
       // Check if user is part of the project before notifying
-      const projectMember = await this.prisma.projectMember.findUnique({
+      const isProjectMember = await this.prisma.projectMember.findUnique({
           where: { projectId_userId: { projectId: projectId, userId: user.id } }
       });
-      const projectOwner = await this.prisma.project.findFirst({ where: { id: projectId, ownerId: user.id }});
+      const isProjectOwner = await this.prisma.project.findFirst({ where: { id: projectId, ownerId: user.id }});
 
-      if (projectMember || projectOwner) { // Original check
+      // Notify the mentioned user if they are a member or the owner of the project
+      if (isProjectMember || isProjectOwner) {
            await this.notificationService.createNotification(
               user.id,
               finalNotificationText,

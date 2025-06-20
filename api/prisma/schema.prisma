@@ -8,7 +8,7 @@ generator client {
 }
 
 model User {
-  id            String   @id @default(cuid())
+  id            String   @id @default(cuid2())
   email         String   @unique
   name          String?
   password      String
@@ -19,7 +19,7 @@ model User {
   assignedTasks Task[]    @relation("AssigneeTasks")
   createdTasks  Task[]    @relation("CreatorTasks")
   projectMembers         ProjectMember[]
-  comments               Comment[]
+  comments               Comment[] @relation("CommentAuthor")
   notifications          Notification[] @relation("RecipientNotifications")
 }
 
@@ -40,7 +40,7 @@ model Project {
 }
 
 model Column {
-  id        String   @id @default(uuid())
+  id        String   @id @default(cuid2())
   name      String
   position  Int
   projectId Int
@@ -54,7 +54,7 @@ model Column {
 }
 
 model Task {
-  id              String    @id @default(uuid())
+  id              String    @id @default(cuid2())
   humanReadableId String    @unique
   taskNumber      Int
   title           String
@@ -81,20 +81,20 @@ model Task {
 }
 
 model Comment {
-  id        String   @id @default(cuid())
+  id        String   @id @default(cuid2())
   text      String
   taskId    String
   authorId  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  author    User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  author    User?    @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
 
   @@map("comments")
 }
 
 model Notification {
-  id          String   @id @default(cuid())
+  id          String   @id @default(cuid2())
   text        String
   sourceUrl   String?
   isRead      Boolean  @default(false)
