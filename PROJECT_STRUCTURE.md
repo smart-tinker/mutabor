@@ -1,0 +1,58 @@
+# Project Structure
+
+This document outlines the key directories and files within the Mutabor project,
+designed to provide a clear overview of its architecture.
+
+- `README.md`: Main project documentation, setup, and usage instructions.
+- `docker-compose.yml`: Defines and configures the multi-container Docker application (client, api, db).
+- `PROJECT_STRUCTURE.md`: This file, outlining the project structure.
+- `docs/`: Contains detailed design documents, user flows, API contracts, etc.
+  - `Solution Design.md`: High-level overview of the project's goals and architecture.
+  - `User Flow Diagrams.md`: Visual representation of user interactions.
+  - `Contracts.md`: API contracts and data transfer objects.
+  - `Database Schema.md`: Description of the database structure.
+- `api/`: Backend NestJS application.
+  - `prisma/`: Prisma ORM schema and migration files.
+    - `schema.prisma`: Defines database models and relations.
+  - `src/`: Source code for the API.
+    - `main.ts`: Entry point for the NestJS application.
+    - `app.module.ts`: Root module of the application.
+    - `auth/`: Authentication module (login, registration, JWT).
+    - `projects/`: Module for managing projects (Kanban boards).
+    - `tasks/`: Module for managing tasks within projects.
+    - `comments/`: Module for managing comments on tasks.
+    - `users/`: Module for user management (implicitly, via auth).
+    - `notifications/`: Module for handling notifications.
+    - `events/`: Real-time event handling via WebSockets.
+    - `prisma/`: Prisma client service.
+  - `.env.example`: Example environment variables for the API.
+  - `Dockerfile`: Instructions for building the API Docker image.
+  - `jest.config.js`: Configuration for Jest testing framework.
+  - `package.json`: Lists dependencies and scripts for the API.
+- `client/`: Frontend React application (Vite).
+  - `src/`: Source code for the client application.
+    - `main.tsx`: Entry point for the React application.
+    - `App.tsx`: Main application component with routing setup.
+    - `app/`: Core application setup (routing, auth context, global styles).
+      - `auth/`: Authentication context and utilities.
+      - `styles/`: Global styles and theme configuration.
+    - `pages/`: Top-level page components (e.g., LoginPage, DashboardPage, BoardPage).
+    - `features/`: Self-contained feature modules (e.g., authByEmail, TaskCard, ColumnLane).
+      - `authByEmail/`: Components and logic for email-based authentication.
+      - `TaskCard/`: Component for displaying a single task card.
+      - `TaskDetailModal/`: Modal for viewing and editing task details.
+      - `Comments/`: Components for displaying and adding comments.
+      - `Notifications/`: Components for displaying user notifications.
+    - `widgets/`: Larger UI components composed of features and shared components (e.g., Header, Layout).
+      - `Header/`: Application header component.
+      - `Layout/`: Main application layout structure.
+    - `shared/`: Reusable components, hooks, APIs, and utilities.
+      - `api/`: API client and request functions.
+      - `lib/`: Utility functions and helpers.
+  - `index.html`: Main HTML file for the SPA.
+  - `.env.example`: Example environment variables for the client.
+  - `Dockerfile`: Instructions for building the client Docker image.
+  - `nginx.conf`: Nginx configuration for serving the client application in Docker.
+  - `package.json`: Lists dependencies and scripts for the client.
+  - `vite.config.ts`: Configuration for Vite build tool.
+- `.gitignore`: Specifies intentionally untracked files that Git should ignore.

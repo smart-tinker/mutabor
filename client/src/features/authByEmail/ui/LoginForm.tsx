@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import styles from './RegistrationForm.module.css'; // Assuming similar styling needs
 import { loginUserApi } from '../api';
 import { useAuth } from '../../../app/auth/AuthContext'; // Corrected path
@@ -72,6 +72,9 @@ const LoginForm = () => {
         <button type="submit" className={`primary ${styles.submitButton}`} disabled={isLoading}>
           {isLoading ? 'Logging in...' : 'Login'}
         </button>
+        <p style={{ textAlign: 'center', marginTop: '1rem' }}>
+          Don't have an account? <Link to="/register">Register here.</Link>
+        </p>
       </form>
     </div>
   );
