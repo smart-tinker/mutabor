@@ -6,7 +6,6 @@ WORKDIR /usr/src/app
 
 COPY package*.json ./
 
-RUN npm install -g npm@10
 RUN npm install
 
 COPY . .
@@ -23,7 +22,6 @@ RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 WORKDIR /usr/src/app
 
 COPY package*.json ./
-RUN npm install -g npm@10
 RUN npm install --omit=dev
 
 COPY --from=builder /usr/src/app/dist ./dist
