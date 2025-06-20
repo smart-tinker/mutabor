@@ -3,6 +3,7 @@ import { EventsGateway } from '../events/events.gateway'; // Import EventsGatewa
 import { Knex } from 'knex';
 import { KNEX_CONNECTION } from '../knex/knex.constants'; // Assuming this constant is defined for injection
 import * as crypto from 'crypto'; // For UUID generation
+import { NotificationRecord } from '../../types/db-records'; // Import NotificationRecord
 
 @Injectable()
 export class NotificationsService {
@@ -16,28 +17,34 @@ export class NotificationsService {
     text: string,
     sourceUrl?: string,
     taskId?: string,
-  ) {
+  ): Promise<NotificationRecord | null> {
     const recipient = await this.knex('users').where({ id: recipientId }).first();
     if (!recipient) {
       console.error(`Recipient user with ID ${recipientId} not found for notification.`);
-      return null; // Or throw an error, depending on desired behavior
+      return null;
     }
 
     const notificationId = crypto.randomUUID();
     const notificationData = {
       id: notificationId,
-      recipient_id: recipientId, // Assuming column name is recipient_id
+      recipient_id: recipientId,
       text,
-      source_url: sourceUrl, // Assuming column name is source_url
-      task_id: taskId, // Assuming column name is task_id
-      is_read: false, // Assuming column name is is_read
+      source_url: sourceUrl,
+      task_id: taskId,
+      is_read: false,
       created_at: new Date(),
       updated_at: new Date(),
     };
 
-    const [newNotification] = await this.knex('notifications')
+    const [insertedRow] = await this.knex('notifications')
       .insert(notificationData)
       .returning('*');
+
+    const newNotification: NotificationRecord = {
+        ...insertedRow,
+        created_at: new Date(insertedRow.created_at),
+        updated_at: new Date(insertedRow.updated_at),
+    };
 
     if (newNotification) {
       this.eventsGateway.emitNotificationNew(newNotification, recipientId);
@@ -45,35 +52,44 @@ export class NotificationsService {
     return newNotification;
   }
 
-  async getUserNotifications(userId: string) {
-    return this.knex('notifications')
-      .where({ recipient_id: userId }) // Assuming column name is recipient_id
-      .orderBy('created_at', 'desc'); // Assuming column name is created_at
+  async getUserNotifications(userId: string): Promise<NotificationRecord[]> {
+    const notifications = await this.knex('notifications')
+      .where({ recipient_id: userId })
+      .orderBy('created_at', 'desc');
+    return notifications.map(n => ({
+        ...n,
+        created_at: new Date(n.created_at),
+        updated_at: new Date(n.updated_at),
+    }));
   }
 
-  async markNotificationAsRead(notificationId: string, userId: string) {
-    const notification = await this.knex('notifications')
+  async markNotificationAsRead(notificationId: string, userId: string): Promise<NotificationRecord> {
+    const notificationFromDb = await this.knex('notifications')
       .where({ id: notificationId })
       .first();
 
-    if (!notification) {
+    if (!notificationFromDb) {
       throw new NotFoundException(`Notification with ID ${notificationId} not found.`);
     }
-    if (notification.recipient_id !== userId) { // Assuming column name is recipient_id
+    if (notificationFromDb.recipient_id !== userId) {
       throw new ForbiddenException('You cannot mark this notification as read.');
     }
 
-    const [updatedNotification] = await this.knex('notifications')
+    const [updatedRow] = await this.knex('notifications')
       .where({ id: notificationId })
-      .update({ is_read: true, updated_at: new Date() }) // Assuming column name is is_read
+      .update({ is_read: true, updated_at: new Date() })
       .returning('*');
 
-    return updatedNotification;
+    return {
+        ...updatedRow,
+        created_at: new Date(updatedRow.created_at),
+        updated_at: new Date(updatedRow.updated_at),
+    };
   }
 
-  async markAllNotificationsAsRead(userId: string) {
+  async markAllNotificationsAsRead(userId: string): Promise<{ message: string }> {
     await this.knex('notifications')
-      .where({ recipient_id: userId, is_read: false }) // Assuming column names
+      .where({ recipient_id: userId, is_read: false })
       .update({ is_read: true, updated_at: new Date() });
 
     return { message: 'All unread notifications marked as read.' };

@@ -5,6 +5,7 @@ import { EventsGateway } from '../events/events.gateway'; // Import EventsGatewa
 import { Knex } from 'knex';
 import { KNEX_CONNECTION } from '../knex/knex.constants'; // Assuming this constant is defined for injection
 import * as crypto from 'crypto'; // For UUID generation
+import { CommentRecord, UserRecord } from '../../types/db-records'; // Import new types
 
 @Injectable()
 export class CommentsService {
@@ -14,10 +15,10 @@ export class CommentsService {
     private eventsGateway: EventsGateway, // Inject EventsGateway
   ) {}
 
-  async createComment(taskId: string, dto: CreateCommentDto, authorId: string) {
+  async createComment(taskId: string, dto: CreateCommentDto, authorId: string): Promise<CommentRecord> {
     const taskData = await this.knex('tasks')
       .where({ id: taskId })
-      .select('project_id', 'title') // Assuming columns are project_id and title
+      .select('project_id', 'title')
       .first();
 
     if (!taskData) {
@@ -36,9 +37,21 @@ export class CommentsService {
 
     await this.knex('comments').insert(newComment);
 
-    const author = await this.knex('users').where({ id: authorId }).select('id', 'name', 'email').first();
+    const authorData = await this.knex('users')
+      .where({ id: authorId })
+      .select('id', 'name', 'email', 'created_at', 'updated_at') // Ensure all UserRecord fields
+      .first();
 
-    const fullComment = { ...newComment, author }; // Add author details to comment object
+    const author: UserRecord | undefined = authorData ? {
+        id: authorData.id,
+        name: authorData.name,
+        email: authorData.email,
+        created_at: new Date(authorData.created_at),
+        updated_at: new Date(authorData.updated_at),
+    } : undefined;
+
+
+    const fullComment: CommentRecord = { ...newComment, author };
 
     if (fullComment) {
       this.handleMentions(fullComment, taskData.title, authorId, taskData.project_id);
@@ -48,40 +61,52 @@ export class CommentsService {
     return fullComment;
   }
 
-  async getCommentsForTask(taskId: string) {
+  async getCommentsForTask(taskId: string): Promise<CommentRecord[]> {
     const taskExists = await this.knex('tasks').where({ id: taskId }).first();
     if (!taskExists) {
       throw new NotFoundException(`Task with ID ${taskId} not found.`);
     }
 
-    return this.knex('comments')
+    const commentsFromDb = await this.knex('comments')
       .join('users', 'comments.author_id', '=', 'users.id')
       .where({ 'comments.task_id': taskId })
       .select(
         'comments.id',
         'comments.text',
+        'comments.task_id', // Ensure task_id is selected for CommentRecord
+        'comments.author_id', // Ensure author_id is selected for CommentRecord
         'comments.created_at',
         'comments.updated_at',
-        'users.id as author_id', // Alias to avoid conflict if users.id is also selected directly
-        'users.name as author_name',
-        'users.email as author_email',
+        'users.id as user_id_for_author', // Use a distinct alias for user id from join
+        'users.name as user_name_for_author',
+        'users.email as user_email_for_author',
+        'users.created_at as user_created_at_for_author', // Select user created_at
+        'users.updated_at as user_updated_at_for_author'  // Select user updated_at
       )
-      .orderBy('comments.created_at', 'asc')
-      .then(comments => comments.map(c => ({
+      .orderBy('comments.created_at', 'asc');
+
+    return commentsFromDb.map(c => {
+      const author: UserRecord = {
+        id: c.user_id_for_author,
+        name: c.user_name_for_author,
+        email: c.user_email_for_author,
+        created_at: new Date(c.user_created_at_for_author),
+        updated_at: new Date(c.user_updated_at_for_author),
+      };
+      return {
         id: c.id,
         text: c.text,
-        createdAt: c.created_at,
-        updatedAt: c.updated_at,
-        author: {
-          id: c.author_id,
-          name: c.author_name,
-          email: c.author_email,
-        }
-      })));
+        task_id: c.task_id,
+        author_id: c.author_id,
+        created_at: new Date(c.created_at),
+        updated_at: new Date(c.updated_at),
+        author,
+      };
+    });
   }
 
-  private async handleMentions(comment: any, taskTitle: string, commentAuthorId: string, projectId: number | string) {
-    const regex = /@([a-zA-Z0-9_.-]+)/g;
+  private async handleMentions(comment: CommentRecord, taskTitle: string, commentAuthorId: string, projectId: number) {
+    const regex = /@([a-zA-Z0-9_.-]+)/g; // Assuming mention by name-like identifier
     const mentionedNames = new Set<string>();
     let match;
 

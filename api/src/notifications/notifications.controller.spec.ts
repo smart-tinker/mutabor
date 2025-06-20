@@ -2,15 +2,16 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { User } from '@prisma/client';
+// import { User } from '@prisma/client'; // Prisma type removed
 import { INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
+import * as crypto from 'crypto'; // Import crypto for UUID
 
 describe('NotificationsController (Integration)', () => {
   let app: INestApplication;
   let serviceMock: Partial<NotificationsService>;
 
-  const mockUser: Partial<User> = { id: 'user1', email: 'test@example.com', name: 'Test User' };
+  const mockUser: any = { id: 'user1', email: 'test@example.com', name: 'Test User' }; // Replaced User with any
 
   // Mock implementation of canActivate for JwtAuthGuard
   const mockJwtAuthGuard = {
@@ -68,15 +69,37 @@ describe('NotificationsController (Integration)', () => {
 
   describe('PATCH /notifications/:id/read', () => {
     it('should mark a notification as read', async () => {
-      const notificationId = 'notifTestId';
-      const expectedResponse = { id: notificationId, recipientId: mockUser.id, isRead: true, text: 'Notification ' + notificationId, createdAt: expect.any(String), updatedAt: expect.any(String) };
-      (serviceMock.markNotificationAsRead as jest.Mock).mockResolvedValueOnce(expectedResponse);
+      const notificationId = crypto.randomUUID(); // Use valid UUID
+      // Adjust to expect ISO string format for dates in response
+      const expectedResponseObject = {
+        id: notificationId,
+        recipientId: mockUser.id,
+        isRead: true,
+        text: 'Notification ' + notificationId,
+        // createdAt and updatedAt will be ISO strings from the actual service response
+        // We'll check their presence and type rather than exact value with expect.any(String)
+        // because the mock service returns new Date() which might not match supertest's deserialized string exactly.
+      };
+      const serviceResponse = {
+        ...expectedResponseObject,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      (serviceMock.markNotificationAsRead as jest.Mock).mockResolvedValueOnce(serviceResponse);
 
       return request(app.getHttpServer())
         .patch(`/notifications/${notificationId}/read`)
         .expect(200)
         .expect(res => {
-          expect(res.body).toEqual(expectedResponse);
+          expect(res.body.id).toEqual(notificationId);
+          expect(res.body.recipientId).toEqual(mockUser.id);
+          expect(res.body.isRead).toBe(true);
+          expect(res.body.text).toEqual('Notification ' + notificationId);
+          expect(typeof res.body.createdAt).toBe('string');
+          expect(typeof res.body.updatedAt).toBe('string');
+          // Optional: Check if it's a valid ISO date string
+          expect(new Date(res.body.createdAt).toISOString()).toEqual(res.body.createdAt);
+          expect(new Date(res.body.updatedAt).toISOString()).toEqual(res.body.updatedAt);
           expect(serviceMock.markNotificationAsRead).toHaveBeenCalledWith(notificationId, mockUser.id);
         });
     });
@@ -88,7 +111,7 @@ describe('NotificationsController (Integration)', () => {
 
       return request(app.getHttpServer())
         .post('/notifications/mark-all-read')
-        .expect(201) // POST usually returns 201 on success if creating/updating a resource state globally
+        .expect(200) // Changed from 201 to 200 to match @HttpCode(HttpStatus.OK)
         .expect(res => {
             expect(res.body).toEqual({ message: 'All marked' });
             expect(serviceMock.markAllNotificationsAsRead).toHaveBeenCalledWith(mockUser.id);

@@ -6,6 +6,7 @@ import * as bcrypt from 'bcrypt';
 import { Knex } from 'knex';
 import { KNEX_CONNECTION } from '../knex/knex.constants'; // Assuming this constant is defined for injection
 import * as crypto from 'crypto'; // For UUID generation
+import { UserRecord } from '../../types/db-records'; // Import UserRecord
 
 @Injectable()
 export class AuthService {
@@ -14,21 +15,25 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async validateUser(email: string, pass: string): Promise<Omit<any, 'password'> | null> {
-    const user = await this.knex('users').where({ email }).first();
-    if (user && user.password_hash) { // Assuming password column is password_hash
+  async validateUser(email: string, pass: string): Promise<UserRecord | null> {
+    const user: UserRecord & { password_hash?: string } = await this.knex('users')
+        .select('id', 'email', 'name', 'password_hash', 'created_at', 'updated_at') // Ensure all UserRecord fields are selected
+        .where({ email })
+        .first();
+
+    if (user && user.password_hash) {
       const isMatch = await bcrypt.compare(pass, user.password_hash);
       if (isMatch) {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { password_hash, ...result } = user;
-        return result;
+        return result as UserRecord; // Cast to UserRecord after removing password_hash
       }
     }
     return null;
   }
 
   async login(dto: LoginUserDto) {
-    const user = await this.validateUser(dto.email, dto.password);
+    const user = await this.validateUser(dto.email, dto.password); // user is now UserRecord | null
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -52,19 +57,28 @@ export class AuthService {
     const hashedPassword = await bcrypt.hash(dto.password, 10);
     const userId = crypto.randomUUID();
 
-    const [newUser] = await this.knex('users')
+    const [insertedUser] = await this.knex('users')
       .insert({
         id: userId,
         email: dto.email,
         name: dto.name,
-        password_hash: hashedPassword, // Assuming password column is password_hash
+        password_hash: hashedPassword,
         created_at: new Date(),
         updated_at: new Date(),
       })
-      .returning(['id', 'email', 'name']); // Return the inserted user details
+      // Ensure returning fields match what's needed for UserRecord if we were to build one for payload
+      // For JWT payload, only id, email, name are used, which is fine.
+      .returning(['id', 'email', 'name']);
+
+    // UserRecord for payload construction (even if not all fields of UserRecord are in JWT)
+    const newUserPayload = {
+        id: insertedUser.id,
+        email: insertedUser.email,
+        name: insertedUser.name
+    };
 
     // Generate token for the new user
-    const payload = { email: newUser.email, sub: newUser.id, name: newUser.name };
+    const payload = { email: newUserPayload.email, sub: newUserPayload.id, name: newUserPayload.name };
     return {
       access_token: this.jwtService.sign(payload),
     };

@@ -1,3 +1,5 @@
+// Schema migrations are handled by Liquibase.
+// Knex is used for query building and can be used for data seeding.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 require('dotenv').config({ path: './.env' }); // Adjust path as necessary
 
@@ -14,10 +16,6 @@ module.exports = {
     pool: {
       min: 2,
       max: 10,
-    },
-    migrations: {
-      tableName: 'knex_migrations',
-      directory: './db/migrations', // Knex migrations directory
     },
     seeds: {
       directory: './db/seeds', // Knex seeds directory
@@ -37,9 +35,8 @@ module.exports = {
       min: 2,
       max: 10,
     },
-    migrations: {
-      tableName: 'knex_migrations',
-      directory: './db/migrations',
+    seeds: { // Added seeds block for staging, assuming it might be needed
+      directory: './db/seeds',
     },
   },
 
@@ -51,15 +48,15 @@ module.exports = {
       database: process.env.DB_NAME,
       user: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
-      ssl: { rejectUnauthorized: false }, // Example for production SSL
+      // Ensure proper CA configuration if using self-signed certificates or specific CAs, e.g., { ca: 'path/to/your/ca.pem' }
+      ssl: { rejectUnauthorized: true },
     },
     pool: {
       min: 2,
       max: 10,
     },
-    migrations: {
-      tableName: 'knex_migrations',
-      directory: './db/migrations',
+    seeds: { // Added seeds block for production, assuming it might be needed
+      directory: './db/seeds',
     },
   },
 };
