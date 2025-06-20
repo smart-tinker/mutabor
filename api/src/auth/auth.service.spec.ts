@@ -66,28 +66,31 @@ describe('AuthService', () => {
       name: 'Test User',
       password: 'password123',
     };
-    const userMock: Omit<User, 'password_hash' | 'createdAt' | 'updatedAt'> & { id: string } = { // Adjusted mock type
+    const userMock: Omit<User, 'password' | 'createdAt' | 'updatedAt'> & { id: string } = { // Adjusted mock type, assuming 'password' is the field in DB for hash
       id: 'some-uuid',
       email: registerDto.email,
       name: registerDto.name,
     };
      // Prisma's create method would return the full User object including createdAt and updatedAt
     const createdUserMock: User = {
-      ...userMock,
-      password_hash: 'mockedHashedPassword', // This would be the hashed password
+      ...userMock, // spread { id, email, name }
+      password: 'mockedHashedPassword', // This field name should match actual User model field storing the hash
       createdAt: new Date(),
       updatedAt: new Date(),
     };
 
 
-    it('should successfully register a new user', async () => {
+    it('should register a new user and return an access_token', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(null);
+      // Ensure the mock for user.create returns an object that includes id, email, and name for token payload
       mockPrismaService.user.create.mockResolvedValue(createdUserMock);
-      // bcrypt.hash is already mocked globally to return 'mockedHashedPassword'
+
+      const mockToken = 'mock.jwt.token';
+      mockJwtService.sign.mockReturnValue(mockToken);
+      // bcrypt.hash is already mocked globally
 
       const result = await service.register(registerDto);
 
-      expect(result).toEqual(userMock); // Service returns user without password_hash
       expect(mockPrismaService.user.findUnique).toHaveBeenCalledWith({
         where: { email: registerDto.email },
       });
@@ -96,9 +99,16 @@ describe('AuthService', () => {
         data: {
           email: registerDto.email,
           name: registerDto.name,
-          password_hash: 'mockedHashedPassword',
+          password: 'mockedHashedPassword', // Ensure this matches service logic
         },
       });
+      expect(mockJwtService.sign).toHaveBeenCalledWith({
+        email: createdUserMock.email,
+        sub: createdUserMock.id,
+        name: createdUserMock.name,
+      });
+      expect(result).toHaveProperty('access_token');
+      expect(result.access_token).toEqual(mockToken);
     });
 
     it('should throw ConflictException if email already exists', async () => {
@@ -121,7 +131,7 @@ describe('AuthService', () => {
       id: 'some-uuid',
       email: loginDto.email,
       name: 'Test User',
-      password_hash: 'hashedPasswordFromDb',
+      password: 'hashedPasswordFromDb', // Changed from password_hash
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -143,7 +153,7 @@ describe('AuthService', () => {
       expect(mockPrismaService.user.findUnique).toHaveBeenCalledWith({
         where: { email: loginDto.email },
       });
-      expect(bcrypt.compare).toHaveBeenCalledWith(loginDto.password, userMock.password_hash);
+      expect(bcrypt.compare).toHaveBeenCalledWith(loginDto.password, userMock.password); // Changed from password_hash
       expect(mockJwtService.sign).toHaveBeenCalledWith(expectedUserPayload);
     });
 
@@ -166,7 +176,7 @@ describe('AuthService', () => {
       expect(mockPrismaService.user.findUnique).toHaveBeenCalledWith({
         where: { email: loginDto.email },
       });
-      expect(bcrypt.compare).toHaveBeenCalledWith(loginDto.password, userMock.password_hash);
+      expect(bcrypt.compare).toHaveBeenCalledWith(loginDto.password, userMock.password); // Changed from password_hash
       expect(mockJwtService.sign).not.toHaveBeenCalled();
     });
   });
@@ -178,11 +188,11 @@ describe('AuthService', () => {
       id: 'some-uuid',
       email: email,
       name: 'Test User',
-      password_hash: 'hashedPasswordFromDb',
+      password: 'hashedPasswordFromDb', // Changed from password_hash
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    const expectedUserOutput = { // What validateUser should return (no password_hash)
+    const expectedUserOutput = { // What validateUser should return (no password)
       id: userMock.id,
       email: userMock.email,
       name: userMock.name,
@@ -197,7 +207,7 @@ describe('AuthService', () => {
       const result = await service.validateUser(email, password);
       expect(result).toEqual(expectedUserOutput);
       expect(mockPrismaService.user.findUnique).toHaveBeenCalledWith({ where: { email } });
-      expect(bcrypt.compare).toHaveBeenCalledWith(password, userMock.password_hash);
+      expect(bcrypt.compare).toHaveBeenCalledWith(password, userMock.password); // Changed from password_hash
     });
 
     it('should return null if user not found', async () => {
@@ -216,7 +226,7 @@ describe('AuthService', () => {
       const result = await service.validateUser(email, password);
       expect(result).toBeNull();
       expect(mockPrismaService.user.findUnique).toHaveBeenCalledWith({ where: { email } });
-      expect(bcrypt.compare).toHaveBeenCalledWith(password, userMock.password_hash);
+      expect(bcrypt.compare).toHaveBeenCalledWith(password, userMock.password); // Changed from password_hash
     });
   });
 });

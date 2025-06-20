@@ -1,19 +1,23 @@
 import React, { useState } from 'react';
 import styles from './RegistrationForm.module.css'; // Import CSS Modules
 import { registerUserApi } from '../api'; // Import the API function
+import { useAuth } from '../../../app/auth/AuthContext'; // Import useAuth
+import { useNavigate, Link } from 'react-router-dom'; // Import useNavigate and Link
 
 const RegistrationForm = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  // const [successMessage, setSuccessMessage] = useState(''); // No longer needed for redirect
   const [isLoading, setIsLoading] = useState(false);
+  const { login } = useAuth(); // Get login from AuthContext
+  const navigate = useNavigate(); // Initialize navigate
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError('');
-    setSuccessMessage('');
+    // setSuccessMessage('');
 
     if (!name.trim() || !email.trim() || !password.trim()) {
       setError('All fields are required.');
@@ -31,10 +35,13 @@ const RegistrationForm = () => {
     setIsLoading(true);
     try {
       const response = await registerUserApi({ name, email, password });
-      setSuccessMessage(response.message || 'Registration successful! You can now log in.');
-      setName('');
-      setEmail('');
-      setPassword('');
+      if (response.access_token) {
+        login(response.access_token); // Log the user in
+        navigate('/'); // Redirect to dashboard/home
+      } else {
+        // This case should ideally not happen if backend guarantees token on success
+        setError('Registration successful, but failed to log in automatically.');
+      }
     } catch (apiError: any) {
       setError(apiError.message || 'Registration failed. Please try again.');
     } finally {
@@ -47,7 +54,6 @@ const RegistrationForm = () => {
       <form onSubmit={handleSubmit}>
         <h2>Register</h2>
         {error && <p className={styles.errorMessage}>{error}</p>}
-        {successMessage && <p className={styles.successMessage}>{successMessage}</p>}
 
         <div className={styles.formField}>
           <label htmlFor="name">Name:</label>
@@ -85,6 +91,7 @@ const RegistrationForm = () => {
         <button type="submit" className={`primary ${styles.submitButton}`} disabled={isLoading}>
           {isLoading ? 'Registering...' : 'Register'}
         </button>
+        <p className={styles.loginLinkContainer}>Already have an account? <Link to="/login">Login here.</Link></p>
       </form>
     </div>
   );

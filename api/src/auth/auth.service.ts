@@ -39,7 +39,8 @@ export class AuthService {
     };
   }
 
-  async register(dto: RegisterUserDto) {
+  // async register(dto: RegisterUserDto) { // Old signature
+  async register(dto: RegisterUserDto): Promise<{ access_token: string }> { // New signature
     const existingUser = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -58,7 +59,12 @@ export class AuthService {
       },
     });
 
-    const { password, ...result } = newUser;
-    return result;
+    // Generate token for the new user
+    const payload = { email: newUser.email, sub: newUser.id, name: newUser.name };
+    return {
+      access_token: this.jwtService.sign(payload),
+    };
+    // const { password, ...result } = newUser; // Old return
+    // return result; // Old return
   }
 }

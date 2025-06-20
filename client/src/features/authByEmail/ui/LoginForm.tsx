@@ -28,8 +28,8 @@ const LoginForm = () => {
     setIsLoading(true);
     try {
       const response = await loginUserApi({ email, password });
-      if (response.token) {
-        login(response.token); // Use context login function to store token and update state
+      if (response.access_token) { // Changed from response.token
+        login(response.access_token); // Changed from response.token
         navigate('/'); // Redirect to home/dashboard
       } else {
         setError(response.message || 'Login failed: No token received.');
