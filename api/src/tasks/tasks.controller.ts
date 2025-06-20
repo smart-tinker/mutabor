@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Param, Patch, UseGuards, Req, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, Patch, UseGuards, Req, ParseUUIDPipe, HttpCode, HttpStatus } from '@nestjs/common'; // Added HttpCode, HttpStatus
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
@@ -13,6 +13,7 @@ export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
   @Post()
+  @HttpCode(HttpStatus.CREATED) // Added HttpCode
   async create(@Body() createTaskDto: CreateTaskDto, @Req() req) {
     const user = req.user as User;
     return this.tasksService.createTask(createTaskDto, user);
@@ -25,6 +26,7 @@ export class TasksController {
   }
 
   @Patch(':id')
+  @HttpCode(HttpStatus.OK) // Added HttpCode
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateTaskDto: UpdateTaskDto,
@@ -35,6 +37,7 @@ export class TasksController {
   }
 
   @Patch(':id/move')
+  @HttpCode(HttpStatus.OK) // Added HttpCode
   async move(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() moveTaskDto: MoveTaskDto,
@@ -46,6 +49,7 @@ export class TasksController {
 
   // Comments Endpoints
   @Post(':taskId/comments')
+  @HttpCode(HttpStatus.CREATED) // Added HttpCode
   // @UseGuards(JwtAuthGuard) // Guard is already on controller level
   async createComment(
     @Param('taskId', ParseUUIDPipe) taskId: string,

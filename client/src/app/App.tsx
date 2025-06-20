@@ -23,6 +23,7 @@ const App: React.FC = () => {
       <nav>
         <Link to="/">Home</Link> | <Link to="/dashboard">Dashboard</Link>
       </nav>
+
       <Routes>
         {/* Root route: Landing page for unauthenticated, redirect to dashboard for authenticated */}
         <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" /> : <LandingPage />} />
@@ -44,6 +45,7 @@ const App: React.FC = () => {
         {/* 404 Handling */}
         <Route path="/404" element={<NotFoundPage />} />
         <Route path="*" element={<Navigate to="/404" replace />} /> {/* Catch-all route */}
+
       </Routes>
     </Router>
   );

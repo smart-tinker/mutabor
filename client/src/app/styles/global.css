@@ -36,13 +36,14 @@
 
   /* Derived colors */
   --color-error-dark: #d73737; /* Darken(--color-error, 10%) */
-  --color-primary-background-hover: rgba(var(--color-primary-rgb), 0.05); /* Light primary background for hover */
+  --color-primary-background-hover: rgba(var(--color-primary-rgb), 0.1); /* Updated: Light primary background for hover */
   --color-background-danger-subtle: rgba(239, 68, 68, 0.1); /* Light red background for error messages */
   --color-background-success-subtle: rgba(16, 185, 129, 0.1); /* Light green background for success messages */
   --color-backdrop: rgba(0, 0, 0, 0.5); /* For modal overlays */
 
   /* Shadows */
   --shadow-focus: 0 0 0 2px rgba(var(--color-primary-rgb), 0.2); /* Consistent focus shadow */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* New: Even smaller shadow */
   --shadow-small: 0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px 0 rgba(0,0,0,0.06); /* General small shadow */
   --shadow-medium: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); /* General medium shadow */
   --shadow-modal: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
