@@ -16,7 +16,7 @@ const Header = () => {
         <nav className={styles.navigation}>
           <ul>
             <li>
-              <Link to="/">Home</Link>
+              <Link to="/">{isAuthenticated ? "Dashboard" : "Home"}</Link>
             </li>
             {isLoading ? (
               <li>Loading...</li>
