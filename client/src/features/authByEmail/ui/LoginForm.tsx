@@ -72,7 +72,7 @@ const LoginForm = () => {
         <button type="submit" className={`primary ${styles.submitButton}`} disabled={isLoading}>
           {isLoading ? 'Logging in...' : 'Login'}
         </button>
-        <p style={{ textAlign: 'center', marginTop: '1rem' }}>
+        <p className={styles.registrationLinkContainer}>
           Don't have an account? <Link to="/register">Register here.</Link>
         </p>
       </form>
