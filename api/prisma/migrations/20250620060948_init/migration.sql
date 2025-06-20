@@ -69,14 +69,26 @@ CREATE TABLE "Comment" (
 -- CreateTable
 CREATE TABLE "Notification" (
     "id" TEXT NOT NULL,
-    "message" TEXT NOT NULL,
-    "read" BOOLEAN NOT NULL DEFAULT false,
-    "userId" TEXT NOT NULL,
+    "text" TEXT NOT NULL,
+    "isRead" BOOLEAN NOT NULL DEFAULT false,
+    "recipientId" TEXT NOT NULL,
     "taskId" TEXT,
+    "sourceUrl" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ProjectMember" (
+    "projectId" INTEGER NOT NULL,
+    "userId" TEXT NOT NULL,
+    "role" TEXT NOT NULL,
+    "assignedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ProjectMember_pkey" PRIMARY KEY ("projectId","userId")
 );
 
 -- CreateIndex
@@ -116,10 +128,13 @@ CREATE INDEX "Comment_taskId_idx" ON "Comment"("taskId");
 CREATE INDEX "Comment_authorId_idx" ON "Comment"("authorId");
 
 -- CreateIndex
-CREATE INDEX "Notification_userId_idx" ON "Notification"("userId");
+CREATE INDEX "Notification_recipientId_idx" ON "Notification"("recipientId");
 
 -- CreateIndex
 CREATE INDEX "Notification_taskId_idx" ON "Notification"("taskId");
+
+-- CreateIndex
+CREATE INDEX "ProjectMember_userId_idx" ON "ProjectMember"("userId");
 
 -- AddForeignKey
 ALTER TABLE "Project" ADD CONSTRAINT "Project_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -146,7 +161,13 @@ ALTER TABLE "Comment" ADD CONSTRAINT "Comment_taskId_fkey" FOREIGN KEY ("taskId"
 ALTER TABLE "Comment" ADD CONSTRAINT "Comment_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Notification" ADD CONSTRAINT "Notification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Notification" ADD CONSTRAINT "Notification_recipientId_fkey" FOREIGN KEY ("recipientId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Notification" ADD CONSTRAINT "Notification_taskId_fkey" FOREIGN KEY ("taskId") REFERENCES "Task"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ProjectMember" ADD CONSTRAINT "ProjectMember_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ProjectMember" ADD CONSTRAINT "ProjectMember_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

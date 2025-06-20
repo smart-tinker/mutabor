@@ -38,10 +38,11 @@ services:
       - ./api/src:/app/src
     healthcheck: # Added healthcheck for API
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+#      test: ["CMD-SHELL", "ss -tln | grep -q 3000 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 30s
 
   db: # Сервис базы данных PostgreSQL
     image: postgres:13
