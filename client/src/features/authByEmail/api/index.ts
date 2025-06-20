@@ -10,8 +10,9 @@ interface RegistrationData {
 
 // Define the structure of the successful API response (adjust as per your actual API)
 interface RegistrationResponse {
-  message: string;
-  userId?: string; // Example field
+  message?: string; // Make message optional as token is primary
+  access_token: string; // Add access_token
+  userId?: string; // Optional: Include if your API returns the new user's ID
   // Add other relevant fields from your API response
 }
 
@@ -56,7 +57,7 @@ interface LoginData {
 // Define the structure of the successful login API response
 interface LoginResponse {
   message: string;
-  token: string; // JWT token
+  access_token: string; // Changed from token to access_token
   // Add other relevant fields from your API response, e.g., user details
 }
 
