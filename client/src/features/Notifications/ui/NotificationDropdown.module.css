@@ -7,7 +7,7 @@
   max-height: calc(var(--spacing-base) * 50); /* 400px */
   overflow-y: auto;
   background-color: var(--color-background-default);
-  border: 1px solid var(--color-border-neutral);
+  border: 1px solid var(--color-border); /* Was --color-border-neutral */
   border-radius: var(--border-radius-small); /* 4px */
   box-shadow: var(--shadow-medium);
   z-index: 1100; /* Higher than other elements */
@@ -17,7 +17,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid var(--color-border-subtle);
+  border-bottom: 1px solid var(--color-border); /* Was --color-border-subtle */
 }
 .dropdownHeader h4 { margin: 0; }
 .markAllButton {

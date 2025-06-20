@@ -31,7 +31,20 @@
   --border-radius-medium: 6px;
   --border-radius-large: 8px;
 
+  /* RGB version of primary color for rgba() usage */
+  --color-primary-rgb: 109, 40, 217; /* Corresponds to #6D28D9 */
+
+  /* Derived colors */
+  --color-error-dark: #d73737; /* Darken(--color-error, 10%) */
+  --color-primary-background-hover: rgba(var(--color-primary-rgb), 0.05); /* Light primary background for hover */
+  --color-background-danger-subtle: rgba(239, 68, 68, 0.1); /* Light red background for error messages */
+  --color-background-success-subtle: rgba(16, 185, 129, 0.1); /* Light green background for success messages */
+  --color-backdrop: rgba(0, 0, 0, 0.5); /* For modal overlays */
+
   /* Shadows */
+  --shadow-focus: 0 0 0 2px rgba(var(--color-primary-rgb), 0.2); /* Consistent focus shadow */
+  --shadow-small: 0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px 0 rgba(0,0,0,0.06); /* General small shadow */
+  --shadow-medium: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); /* General medium shadow */
   --shadow-modal: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   --shadow-card-hover: 0 4px 8px -2px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.06);
 }
@@ -106,7 +119,7 @@ textarea:focus,
 select:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(109, 40, 217, 0.2); /* Using #6D28D9 for var(--color-primary) */
+  box-shadow: var(--shadow-focus);
 }
 
 input[type="text"]:disabled,
@@ -157,8 +170,8 @@ button.danger {
   border: 1px solid var(--color-error);
 }
 button.danger:hover {
-  background-color: #d73737; /* Darken(--color-error, 10%) - manual for now */
-  border-color: #d73737;
+  background-color: var(--color-error-dark);
+  border-color: var(--color-error-dark);
 }
 button.danger:focus {
   box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3); /* Focus ring for error color */
@@ -182,13 +195,21 @@ button.danger:disabled {
 /* For now, the above is sufficient. */
 
 /* Input Error State */
-.input-error {
-  border-color: var(--color-error) !important; /* Ensure it overrides default border */
-  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2); /* Optional: error focus-like ring */
+input.input-error,
+textarea.input-error,
+select.input-error {
+  border-color: var(--color-error);
+  /* The box-shadow for error state can use --color-error's RGB components if defined,
+     or a pre-calculated rgba value. For now, keep existing explicit rgba for error shadow.
+     If --color-error-rgb is defined later, this could be var(--shadow-error-focus) */
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
 }
-.input-error:focus { /* This should also apply when an error input is focused */
-  border-color: var(--color-error) !important;
-  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3); /* Error focus ring */
+
+input.input-error:focus,
+textarea.input-error:focus,
+select.input-error:focus {
+  border-color: var(--color-error); /* Ensure error color remains on focus */
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3); /* Slightly more prominent error shadow on focus */
 }
 
 /* Utility Classes (Optional, but can be useful) */
