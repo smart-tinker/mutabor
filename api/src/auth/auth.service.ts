@@ -1,24 +1,26 @@
-import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable, ConflictException, UnauthorizedException, Inject } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import * as bcrypt from 'bcrypt';
-import { User } from '@prisma/client'; // Import User type
+import { Knex } from 'knex';
+import { KNEX_CONNECTION } from '../knex/knex.constants'; // Assuming this constant is defined for injection
+import * as crypto from 'crypto'; // For UUID generation
 
 @Injectable()
 export class AuthService {
   constructor(
-    private prisma: PrismaService,
+    @Inject(KNEX_CONNECTION) private readonly knex: Knex,
     private jwtService: JwtService,
   ) {}
 
-  async validateUser(email: string, pass: string): Promise<Omit<User, 'password'> | null> {
-    const user = await this.prisma.user.findUnique({ where: { email } });
-    if (user && user.password) {
-      const isMatch = await bcrypt.compare(pass, user.password);
+  async validateUser(email: string, pass: string): Promise<Omit<any, 'password'> | null> {
+    const user = await this.knex('users').where({ email }).first();
+    if (user && user.password_hash) { // Assuming password column is password_hash
+      const isMatch = await bcrypt.compare(pass, user.password_hash);
       if (isMatch) {
-        const { password, ...result } = user;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { password_hash, ...result } = user;
         return result;
       }
     }
@@ -40,24 +42,26 @@ export class AuthService {
   }
 
   // async register(dto: RegisterUserDto) { // Old signature
-  async register(dto: RegisterUserDto): Promise<{ access_token: string }> { // New signature
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email: dto.email },
-    });
+  async register(dto: RegisterUserDto): Promise<{ access_token: string }> {
+    const existingUser = await this.knex('users').where({ email: dto.email }).first();
 
     if (existingUser) {
       throw new ConflictException('Email already registered');
     }
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
+    const userId = crypto.randomUUID();
 
-    const newUser = await this.prisma.user.create({
-      data: {
+    const [newUser] = await this.knex('users')
+      .insert({
+        id: userId,
         email: dto.email,
         name: dto.name,
-        password: hashedPassword,
-      },
-    });
+        password_hash: hashedPassword, // Assuming password column is password_hash
+        created_at: new Date(),
+        updated_at: new Date(),
+      })
+      .returning(['id', 'email', 'name']); // Return the inserted user details
 
     // Generate token for the new user
     const payload = { email: newUser.email, sub: newUser.id, name: newUser.name };

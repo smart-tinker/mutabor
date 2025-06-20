@@ -1,5 +1,5 @@
 # ---- 1. Сборщик (Builder) ----
-# Используем Bullseye, который содержит OpenSSL 1.1, ожидаемый Prisma
+# Используем Bullseye, который содержит OpenSSL 1.1
 FROM node:18-bullseye-slim AS builder
 
 WORKDIR /usr/src/app
@@ -9,8 +9,6 @@ COPY package*.json ./
 RUN npm install
 
 COPY . .
-
-RUN npx prisma generate
 
 RUN npm run build
 
@@ -27,9 +25,7 @@ COPY package*.json ./
 RUN npm install --only=production
 
 COPY --from=builder /usr/src/app/dist ./dist
-COPY --from=builder /usr/src/app/prisma ./prisma
-COPY --from=builder /usr/src/app/node_modules/.prisma ./node_modules/.prisma
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "echo 'Attempting to apply migrations...' && npx prisma migrate deploy && echo 'Migrations applied, starting application...' && node dist/main.js"]
+CMD ["sh", "-c", "echo 'Application starting...' && node dist/main.js"]

@@ -3,7 +3,7 @@ import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { AddMemberDto } from './dto/add-member.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'; // Path to your JwtAuthGuard
-import { User } from '@prisma/client'; // Import User from Prisma or your user decorator
+// import { User } from '@prisma/client'; // User type removed
 // If you have a @User decorator to extract user from request:
 // import { User as CurrentUser } from '../auth/decorators/user.decorator';
 
@@ -16,19 +16,19 @@ export class ProjectsController {
   @HttpCode(HttpStatus.CREATED) // Added HttpCode
   async create(@Body() createProjectDto: CreateProjectDto, @Req() req) {
     // Assuming user object is attached to req by JwtAuthGuard
-    const user = req.user as User;
+    const user = req.user as any; // Replaced User with any
     return this.projectsService.createProject(createProjectDto, user);
   }
 
   @Get()
   async findAll(@Req() req) {
-    const user = req.user as User;
+    const user = req.user as any; // Replaced User with any
     return this.projectsService.findAllProjectsForUser(user);
   }
 
   @Get(':id')
   async findOne(@Param('id', ParseIntPipe) id: number, @Req() req) {
-    const user = req.user as User;
+    const user = req.user as any; // Replaced User with any
     return this.projectsService.findProjectById(id, user);
   }
 
@@ -39,7 +39,7 @@ export class ProjectsController {
     @Body() addMemberDto: AddMemberDto,
     @Req() req,
   ) {
-    const user = req.user as User;
+    const user = req.user as any; // Replaced User with any
     return this.projectsService.addMemberToProject(projectId, addMemberDto, user.id);
   }
 
@@ -48,7 +48,7 @@ export class ProjectsController {
     @Param('projectId', ParseIntPipe) projectId: number,
     @Req() req,
   ) {
-    const user = req.user as User;
+    const user = req.user as any; // Replaced User with any
     // Ensure user has access to the project first (findProjectById also checks membership)
     await this.projectsService.findProjectById(projectId, user);
     return this.projectsService.getProjectMembers(projectId, user.id);

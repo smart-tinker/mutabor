@@ -1,13 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigModule } from '@nestjs/config'; // Import ConfigModule
 import { AuthService } from './auth.service';
-import { PrismaService } from '../prisma/prisma.service';
+// import { PrismaService } from '../prisma/prisma.service'; // PrismaService removed
 import { JwtService } from '@nestjs/jwt';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
-import { User } from '@prisma/client';
+// import { User } from '@prisma/client'; // User type removed
 
 // Mock bcrypt functions
 jest.mock('bcrypt', () => ({
@@ -17,11 +17,11 @@ jest.mock('bcrypt', () => ({
 
 describe('AuthService', () => {
   let service: AuthService;
-  // Keep PrismaService and JwtService types for type safety with mocks
-  let prisma: PrismaService;
+  // Keep JwtService type for type safety with mocks
+  // let prisma: PrismaService; // PrismaService removed
   let jwt: JwtService;
 
-  const mockPrismaService = {
+  const mockPrismaService = { // This will be commented out or adapted for Knex later
     user: {
       findUnique: jest.fn(),
       create: jest.fn(),
@@ -37,15 +37,17 @@ describe('AuthService', () => {
       imports: [ConfigModule.forRoot({ isGlobal: true })], // Add ConfigModule import here
       providers: [
         AuthService,
-        { provide: PrismaService, useValue: mockPrismaService },
+        // { provide: PrismaService, useValue: mockPrismaService }, // PrismaService removed
         { provide: JwtService, useValue: mockJwtService },
+        // Temporarily provide a mock for PrismaService if AuthService still depends on it
+        // This will be replaced by Knex.js later
+        { provide: 'PrismaService', useValue: mockPrismaService }
       ],
     }).compile();
 
     service = module.get<AuthService>(AuthService);
     // Store references to the mocked services if needed for direct mock manipulation
-    // though accessing via mockPrismaService.user.findUnique should work.
-    prisma = module.get<PrismaService>(PrismaService);
+    // prisma = module.get<PrismaService>(PrismaService); // PrismaService removed
     jwt = module.get<JwtService>(JwtService);
 
     // Reset mocks before each test
@@ -66,13 +68,15 @@ describe('AuthService', () => {
       name: 'Test User',
       password: 'password123',
     };
-    const userMock: Omit<User, 'password' | 'createdAt' | 'updatedAt'> & { id: string } = { // Adjusted mock type, assuming 'password' is the field in DB for hash
+    // const userMock: Omit<User, 'password' | 'createdAt' | 'updatedAt'> & { id: string } = { // Adjusted mock type, assuming 'password' is the field in DB for hash
+    const userMock: any = { // Replaced User type with any
       id: 'some-uuid',
       email: registerDto.email,
       name: registerDto.name,
     };
      // Prisma's create method would return the full User object including createdAt and updatedAt
-    const createdUserMock: User = {
+    // const createdUserMock: User = { // Replaced User type with any
+    const createdUserMock: any = {
       ...userMock, // spread { id, email, name }
       password: 'mockedHashedPassword', // This field name should match actual User model field storing the hash
       createdAt: new Date(),
@@ -127,7 +131,8 @@ describe('AuthService', () => {
       email: 'test@example.com',
       password: 'password123',
     };
-    const userMock: User = { // Full User object for Prisma findUnique
+    // const userMock: User = { // Full User object for Prisma findUnique // Replaced User type with any
+    const userMock: any = {
       id: 'some-uuid',
       email: loginDto.email,
       name: 'Test User',
@@ -184,7 +189,8 @@ describe('AuthService', () => {
   describe('validateUser', () => {
     const email = 'test@example.com';
     const password = 'password123';
-    const userMock: User = {
+    // const userMock: User = { // Replaced User type with any
+    const userMock: any = {
       id: 'some-uuid',
       email: email,
       name: 'Test User',
