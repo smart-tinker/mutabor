@@ -15,7 +15,14 @@ const CommentItem: React.FC<CommentItemProps> = ({ comment }) => {
       </div>
       <p className={styles.commentText}>{comment.text}</p>
       <div className={styles.commentTimestamp}>
-        {new Date(comment.createdAt).toLocaleString()}
+        {(() => {
+          const date = new Date(comment.createdAt);
+          if (isNaN(date.getTime())) {
+            // console.warn('Invalid createdAt value received:', comment.createdAt); // Optional: uncomment for local debugging
+            return 'Date unavailable';
+          }
+          return date.toLocaleString();
+        })()}
       </div>
     </div>
   );
