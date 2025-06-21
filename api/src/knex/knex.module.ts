@@ -1,7 +1,7 @@
 import { Module, Global, Logger } from '@nestjs/common'; // Added Logger
 import { KNEX_CONNECTION } from './knex.constants';
 import knex from 'knex';
-import knexfile from '../../knexfile'; // Stays at the top
+const knexfile = require('../../knexfile');
 
 // Logger instance
 const logger = new Logger('KnexModule');

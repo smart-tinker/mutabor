@@ -32,8 +32,15 @@ services:
     env_file: # Added env_file directive
       - ./api/.env
     environment:
+      - NODE_ENV=development
       # DATABASE_URL для подключения к сервису 'db' в Docker Compose
       - DATABASE_URL=postgresql://user:password@db:5432/mutabor?schema=public
+      # Переменные для Liquibase
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=user
+      - DB_PASSWORD=password
+      - DB_NAME=mutabor
       # JWT_SECRET is now managed via .env file
     volumes:
       - ./api/src:/app/src

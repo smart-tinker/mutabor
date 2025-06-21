@@ -1,12 +1,20 @@
-// Schema migrations are handled by Liquibase.
-// Knex is used for query building and can be used for data seeding.
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-require('dotenv').config({ path: './.env' }); // Adjust path as necessary
+// api/knexfile.js
 
+// Загружаем переменные из .env файла. Это важно для локальной разработки без Docker.
+// В Docker-окружении переменные будут предоставлены через docker-compose.yml.
+require('dotenv').config({ path: './.env' });
+
+/**
+ * @type { Object.<string, import("knex").Knex.Config> }
+ */
 module.exports = {
+  // --- Конфигурация для разработки ---
   development: {
     client: 'pg',
-    connection: {
+    // Knex автоматически использует `process.env.DATABASE_URL` если он предоставлен.
+    // Если `DATABASE_URL` не найден, он перейдет к детальным настройкам в объекте.
+    // Это делает файл универсальным и для Docker, и для локального запуска.
+    connection: process.env.DATABASE_URL || {
       host: process.env.DB_HOST || 'localhost',
       port: parseInt(process.env.DB_PORT || '5432', 10),
       database: process.env.DB_NAME || 'mutabor_dev',
@@ -18,44 +26,37 @@ module.exports = {
       max: 10,
     },
     seeds: {
-      directory: './db/seeds', // Knex seeds directory
-    },
-  },
-
-  staging: {
-    client: 'pg',
-    connection: {
-      host: process.env.DB_HOST,
-      port: parseInt(process.env.DB_PORT || '5432', 10),
-      database: process.env.DB_NAME,
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-    },
-    pool: {
-      min: 2,
-      max: 10,
-    },
-    seeds: { // Added seeds block for staging, assuming it might be needed
       directory: './db/seeds',
     },
   },
 
+  // --- Конфигурация для Staging ---
+  // Здесь мы предполагаем, что DATABASE_URL будет всегда предоставлен средой.
+  staging: {
+    client: 'pg',
+    connection: process.env.DATABASE_URL,
+    pool: {
+      min: 2,
+      max: 10,
+    },
+    seeds: {
+      directory: './db/seeds',
+    },
+  },
+
+  // --- Конфигурация для Production ---
+  // В production рекомендуется использовать `connectionString` и явно настраивать SSL.
   production: {
     client: 'pg',
     connection: {
-      host: process.env.DB_HOST,
-      port: parseInt(process.env.DB_PORT || '5432', 10),
-      database: process.env.DB_NAME,
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      // Ensure proper CA configuration if using self-signed certificates or specific CAs, e.g., { ca: 'path/to/your/ca.pem' }
-      ssl: { rejectUnauthorized: true },
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: true }, // Настройте в зависимости от вашего хостинга
     },
     pool: {
       min: 2,
       max: 10,
     },
-    seeds: { // Added seeds block for production, assuming it might be needed
+    seeds: {
       directory: './db/seeds',
     },
   },
