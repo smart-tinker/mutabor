@@ -15,6 +15,15 @@ export interface MoveTaskDto {
   // oldColumnId?: string; // Backend might not need this if it re-calculates based on task's current state
 }
 
+// Helper function to transform API comment DTO to client-side DTO
+const transformCommentDto = (apiComment: ApiCommentDto): CommentDto => {
+  return {
+    ...apiComment,
+    createdAt: new Date(apiComment.createdAt),
+    updatedAt: new Date(apiComment.updatedAt),
+  };
+};
+
 export const taskService = {
   createTask: async (data: CreateTaskDto): Promise<TaskDto> => {
     const response = await apiClient.post<TaskDto>('/tasks', data);
@@ -28,13 +37,13 @@ export const taskService = {
   // Add other task-related API calls here if needed (e.g., updateTask, getTaskById)
 
   getTaskComments: async (taskId: string): Promise<CommentDto[]> => {
-    const response = await apiClient.get<CommentDto[]>(`/tasks/${taskId}/comments`);
-    return response.data;
+    const response = await apiClient.get<ApiCommentDto[]>(`/tasks/${taskId}/comments`);
+    return response.data.map(transformCommentDto);
   },
 
   addTaskComment: async (taskId: string, data: CreateCommentPayloadDto): Promise<CommentDto> => {
-    const response = await apiClient.post<CommentDto>(`/tasks/${taskId}/comments`, data);
-    return response.data;
+    const response = await apiClient.post<ApiCommentDto>(`/tasks/${taskId}/comments`, data);
+    return transformCommentDto(response.data);
   },
 };
 
@@ -50,8 +59,19 @@ export interface CommentDto {
   text: string;
   taskId: string;
   authorId: string | null;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: Date;
+  updatedAt: Date;
+  author?: CommentAuthorDto | null;
+}
+
+// DTO for API response before transformation
+export interface ApiCommentDto {
+  id: string;
+  text: string;
+  taskId: string;
+  authorId: string | null;
+  createdAt: string; // Dates are strings from the API
+  updatedAt: string; // Dates are strings from the API
   author?: CommentAuthorDto | null;
 }
 
