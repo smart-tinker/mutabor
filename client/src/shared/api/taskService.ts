@@ -16,7 +16,7 @@ export interface MoveTaskDto {
 }
 
 // Helper function to transform API comment DTO to client-side DTO
-const transformCommentDto = (apiComment: ApiCommentDto): CommentDto => {
+export const transformCommentDto = (apiComment: ApiCommentDto): CommentDto => {
   return {
     ...apiComment,
     createdAt: new Date(apiComment.createdAt),
