@@ -6,7 +6,9 @@ import { KNEX_CONNECTION } from '../knex/knex.constants'; // Assuming this const
 import * as crypto from 'crypto';
 import {
     ProjectRecord, UserRecord, ColumnRecord, TaskRecord, ProjectMemberRecord
-} from '../../types/db-records';
+} from '../types/db-records';
+
+const DEFAULT_COLUMN_NAMES = ['To Do', 'In Progress', 'Done'];
 
 // Helper to convert DB record to ProjectRecord (handles date conversion)
 function toProjectRecord(dbProject: any): ProjectRecord {
@@ -66,16 +68,19 @@ export class ProjectsService {
         })
         .returning('*');
 
-      const defaultColumnsData = [
-        { id: crypto.randomUUID(), name: 'To Do', position: 0, project_id: newProjectFromDb.id, created_at: new Date(), updated_at: new Date() },
-        { id: crypto.randomUUID(), name: 'In Progress', position: 1, project_id: newProjectFromDb.id, created_at: new Date(), updated_at: new Date() },
-        { id: crypto.randomUUID(), name: 'Done', position: 2, project_id: newProjectFromDb.id, created_at: new Date(), updated_at: new Date() },
-      ];
+      const defaultColumnsData = DEFAULT_COLUMN_NAMES.map((name, index) => ({
+        id: crypto.randomUUID(),
+        name,
+        position: index, // Use index for position
+        project_id: newProject.id,
+        created_at: new Date(),
+        updated_at: new Date(),
+      }));
 
       const insertedDbColumns = await trx('columns').insert(defaultColumnsData).returning('*');
       const columns: ColumnRecord[] = insertedDbColumns.map(toColumnRecord);
 
-      return { ...toProjectRecord(newProjectFromDb), columns };
+      return { ...toProjectRecord(newProject), columns };
     });
   }
 

@@ -1,4 +1,4 @@
-import { User } from '@prisma/client'; // Or a UserDto
+import { UserRecord as User } from 'src/types/db-records'; // Or a UserDto
 
 export class NotificationDto {
   id: string;

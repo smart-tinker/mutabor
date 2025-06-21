@@ -8,7 +8,7 @@ import { CreateCommentDto } from './dto/create-comment.dto';
 import { Knex } from 'knex';
 import { KNEX_CONNECTION } from '../knex/knex.constants';
 import * as crypto from 'crypto';
-import { TaskRecord, UserRecord } from '../../types/db-records'; // Import types
+import { TaskRecord, UserRecord } from '../types/db-records'; // Import types
 
 // Helper to convert DB record to TaskRecord
 function toTaskRecord(dbTask: any): TaskRecord {
@@ -87,7 +87,7 @@ export class TasksService {
 
     const project = await this.knex('projects')
         .leftJoin('project_members', 'projects.id', 'project_members.project_id')
-        .where('projects.id', task.project_id)
+        .where('projects.id', taskFromDb.project_id)
         .select('projects.owner_id', 'project_members.user_id as member_id')
         .first(builder => builder.where('projects.owner_id', user.id).orWhere('project_members.user_id', user.id));
 
