@@ -29,12 +29,22 @@ export const taskService = {
 
   getTaskComments: async (taskId: string): Promise<CommentDto[]> => {
     const response = await apiClient.get<CommentDto[]>(`/tasks/${taskId}/comments`);
-    return response.data;
+    // Transform date strings to Date objects
+    return response.data.map(comment => ({
+      ...comment,
+      createdAt: new Date(comment.createdAt),
+      updatedAt: new Date(comment.updatedAt),
+    }));
   },
 
   addTaskComment: async (taskId: string, data: CreateCommentPayloadDto): Promise<CommentDto> => {
     const response = await apiClient.post<CommentDto>(`/tasks/${taskId}/comments`, data);
-    return response.data;
+    // Transform date strings to Date objects
+    return {
+      ...response.data,
+      createdAt: new Date(response.data.createdAt),
+      updatedAt: new Date(response.data.updatedAt),
+    };
   },
 };
 
@@ -50,8 +60,8 @@ export interface CommentDto {
   text: string;
   taskId: string;
   authorId: string | null;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: Date;
+  updatedAt: Date;
   author?: CommentAuthorDto | null;
 }
 
