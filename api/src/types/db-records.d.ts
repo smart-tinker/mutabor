@@ -26,6 +26,7 @@ export interface ColumnRecord {
   position: number;
   created_at: Date;
   updated_at: Date;
+  tasks?: TaskRecord[];
 }
 
 export interface TaskRecord {
