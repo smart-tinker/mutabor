@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-// import { User } from '@prisma/client'; // Prisma type removed
 import { INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
 import * as crypto from 'crypto'; // Import crypto for UUID

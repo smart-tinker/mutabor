@@ -5,8 +5,8 @@ export class NotificationDto {
   text: string;
   isRead: boolean;
   recipientId: string;
-  sourceUrl?: string | null; // Prisma schema has String?
-  taskId?: string | null;    // Prisma schema has String?
+  sourceUrl?: string | null;
+  taskId?: string | null;
   createdAt: Date;
   updatedAt: Date;
   // Optional: include recipient or task details if needed directly in DTO

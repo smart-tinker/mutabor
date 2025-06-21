@@ -1,26 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProjectsService } from './projects.service';
-// import { PrismaService } from '../prisma/prisma.service'; // PrismaService removed
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 // import { User, Project, Column } from '@prisma/client'; // Types removed
-
-// Mock Prisma Client (will be adapted for Knex later)
-const mockPrismaService = {
-  project: {
-    create: jest.fn(),
-    findMany: jest.fn(),
-    findUnique: jest.fn(),
-  },
-  // Need to mock other entities if service uses them e.g. projectMember
-  projectMember: {
-    findUnique: jest.fn(),
-    create: jest.fn(),
-    findMany: jest.fn(),
-  },
-  user: { // If user lookups are done
-    findUnique: jest.fn(),
-  }
-};
 
 const mockUser: any = { id: 'user-1', email: 'test@example.com', name: 'Test User', password: 'hashedpassword', createdAt: new Date(), updatedAt: new Date() };
 const mockProject: any /* Project & { columns?: Column[] } */ = { id: 1, name: 'Test Project', taskPrefix: 'TP', lastTaskNumber: 0, ownerId: 'user-1', createdAt: new Date(), updatedAt: new Date() };

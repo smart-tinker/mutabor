@@ -4,7 +4,6 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { EventsGateway } from '../events/events.gateway';
 import { NotFoundException } from '@nestjs/common';
 import { KNEX_CONNECTION } from '../knex/knex.constants'; // Assuming this constant is defined
-// import { User, Comment as PrismaComment, Task } from '@prisma/client'; // Types removed
 
 // Mock Knex
 const mockKnexChainable = { // Renamed for clarity: this is the object with chainable methods
