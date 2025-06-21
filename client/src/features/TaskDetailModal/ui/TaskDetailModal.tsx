@@ -47,9 +47,14 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, onClose
     const handleCommentCreated = (newComment: CommentDto) => {
       console.log('comment:created event received in TaskDetailModal', newComment);
       if (newComment.taskId === task.id) {
+        const transformedComment = {
+          ...newComment,
+          createdAt: new Date(newComment.createdAt),
+          updatedAt: new Date(newComment.updatedAt),
+        };
         setComments(prevComments => {
-          if (prevComments.find(c => c.id === newComment.id)) return prevComments;
-          return [...prevComments, newComment].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+          if (prevComments.find(c => c.id === transformedComment.id)) return prevComments;
+          return [...prevComments, transformedComment].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
         });
       }
     };
