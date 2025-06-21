@@ -3,7 +3,7 @@ import { EventsGateway } from '../events/events.gateway'; // Import EventsGatewa
 import { Knex } from 'knex';
 import { KNEX_CONNECTION } from '../knex/knex.constants'; // Assuming this constant is defined for injection
 import * as crypto from 'crypto'; // For UUID generation
-import { NotificationRecord } from '../../types/db-records'; // Import NotificationRecord
+import { NotificationRecord } from '../types/db-records'; // Import NotificationRecord
 
 @Injectable()
 export class NotificationsService {

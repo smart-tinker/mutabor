@@ -16,6 +16,7 @@ export interface ProjectRecord {
   last_task_number: number;
   created_at: Date;
   updated_at: Date;
+  columns?: ColumnRecord[];
 }
 
 export interface ColumnRecord {

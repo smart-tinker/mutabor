@@ -3,7 +3,7 @@ import { CommentsService } from './comments.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GetUser as CurrentUser } from '../auth/decorators/get-user.decorator'; // Assuming you have a @User decorator
-import { User } from '@prisma/client';
+import { UserRecord as User } from '../types/db-records';
 
 @UseGuards(JwtAuthGuard)
 @Controller() // No prefix for the controller itself, paths defined in methods

@@ -5,7 +5,7 @@ import { EventsGateway } from '../events/events.gateway'; // Import EventsGatewa
 import { Knex } from 'knex';
 import { KNEX_CONNECTION } from '../knex/knex.constants'; // Assuming this constant is defined for injection
 import * as crypto from 'crypto'; // For UUID generation
-import { CommentRecord, UserRecord } from '../../types/db-records'; // Import new types
+import { CommentRecord, UserRecord } from '../types/db-records'; // Import new types
 
 @Injectable()
 export class CommentsService {

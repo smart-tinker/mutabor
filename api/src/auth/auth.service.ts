@@ -6,7 +6,7 @@ import * as bcrypt from 'bcrypt';
 import { Knex } from 'knex';
 import { KNEX_CONNECTION } from '../knex/knex.constants'; // Assuming this constant is defined for injection
 import * as crypto from 'crypto'; // For UUID generation
-import { UserRecord } from '../../types/db-records'; // Import UserRecord
+import { UserRecord } from '../types/db-records'; // Import UserRecord
 
 @Injectable()
 export class AuthService {

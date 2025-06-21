@@ -1,0 +1,13 @@
+// api/prisma/schema.prisma
+
+datasource db {
+  provider = "postgresql" // Assuming PostgreSQL, can be changed if needed
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Models will be added here later if necessary.
+// For now, the goal is to allow `prisma generate` to run.
