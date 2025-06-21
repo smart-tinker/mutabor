@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { ProjectsController } from './projects.controller';
-// import { PrismaModule } from '../prisma/prisma.module'; // PrismaModule removed
+import { KnexModule } from '../knex/knex.module'; // Import KnexModule
 
 @Module({
-  imports: [], // PrismaModule removed
+  imports: [KnexModule], // Add KnexModule to imports
   controllers: [ProjectsController],
   providers: [ProjectsService],
-  exports: [ProjectsService], // Export if other modules will use it
+  exports: [ProjectsService],
 })
 export class ProjectsModule {}
