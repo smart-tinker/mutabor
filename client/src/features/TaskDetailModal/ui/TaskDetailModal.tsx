@@ -2,7 +2,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 // Use CommentDto from taskService, TaskDto from projectService
 import type { TaskDto } from '../../../shared/api/projectService';
-import type { CommentDto } from '../../../shared/api/taskService';
+import type { CommentDto, ApiCommentDto } from '../../../shared/api/taskService';
+import { transformCommentDto } from '../../../shared/api/taskService';
 import { getTaskComments } from '../../Comments/api';
 import { CommentList, AddCommentForm } from '../../Comments';
 import { socket } from '../../../shared/lib/socket';
@@ -44,17 +45,13 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, onClose
   useEffect(() => {
     if (!isOpen || !task || !projectId) return;
 
-    const handleCommentCreated = (newComment: CommentDto) => {
+    const handleCommentCreated = (newComment: ApiCommentDto) => {
       console.log('comment:created event received in TaskDetailModal', newComment);
       if (newComment.taskId === task.id) {
-        const transformedComment = {
-          ...newComment,
-          createdAt: new Date(newComment.createdAt),
-          updatedAt: new Date(newComment.updatedAt),
-        };
+        const commentToDisplay = transformCommentDto(newComment);
         setComments(prevComments => {
-          if (prevComments.find(c => c.id === transformedComment.id)) return prevComments;
-          return [...prevComments, transformedComment].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+          if (prevComments.find(c => c.id === commentToDisplay.id)) return prevComments;
+          return [...prevComments, commentToDisplay].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
         });
       }
     };
@@ -69,7 +66,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, onClose
   const handleCommentAdded = (newComment: CommentDto) => {
     // Optimistically add and sort, or wait for socket event if preferred
      setComments(prevComments =>
-        [...prevComments, newComment].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+        [...prevComments, newComment].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
      );
   };
 
