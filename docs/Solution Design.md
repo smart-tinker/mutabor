@@ -54,7 +54,7 @@ graph TD
     subgraph "Бэкенд-инфраструктура"
         Backend["Backend API (Node.js/Python)"]
         Realtime[WebSocket Server]
-        DB[("База данных: Supabase (PostgreSQL)")]
+        DB[("База данных: PostgreSQL (managed via Docker)")]
     end
 
     subgraph "Внешние сервисы"
@@ -70,7 +70,7 @@ graph TD
 
 - **Frontend:** React / Vue.js (для создания интерактивного SPA).
 - **Backend:** Node.js (Express/Nest.js) или Python (Django/FastAPI).
-- **База данных:** Supabase (предоставляет управляемый PostgreSQL, удобный для быстрой разработки и масштабирования).
+- **База данных:** PostgreSQL (managed via Docker) – надежная реляционная СУБД с открытым исходным кодом.
 - **Real-time:** Socket.IO или чистые WebSockets.
 
 ## 6. Ключевые сущности данных (Data Model)

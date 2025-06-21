@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ProjectsController } from './projects.controller';
 import { ProjectsService } from './projects.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-// import { User, Project } from '@prisma/client'; // Prisma types removed
 
 const mockUser: any = { id: 'user-1', email: 'test@example.com', name: 'Test User', password: 'pwd', createdAt: new Date(), updatedAt: new Date() };
 const mockProject: any = { id: 1, name: 'Test Project', taskPrefix: 'TP', lastTaskNumber: 0, ownerId: 'user-1', createdAt: new Date(), updatedAt: new Date() };

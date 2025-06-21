@@ -12,8 +12,6 @@ designed to provide a clear overview of its architecture.
   - `Contracts.md`: API contracts and data transfer objects.
   - `Database Schema.md`: Description of the database structure.
 - `api/`: Backend NestJS application.
-  - `prisma/`: Prisma ORM schema and migration files.
-    - `schema.prisma`: Defines database models and relations.
   - `src/`: Source code for the API.
     - `main.ts`: Entry point for the NestJS application.
     - `app.module.ts`: Root module of the application.
@@ -24,7 +22,6 @@ designed to provide a clear overview of its architecture.
     - `users/`: Module for user management (implicitly, via auth).
     - `notifications/`: Module for handling notifications.
     - `events/`: Real-time event handling via WebSockets.
-    - `prisma/`: Prisma client service.
   - `.env.example`: Example environment variables for the API.
   - `Dockerfile`: Instructions for building the API Docker image.
   - `jest.config.js`: Configuration for Jest testing framework.

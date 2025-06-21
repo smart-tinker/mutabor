@@ -1,7 +1,6 @@
 import { Controller, Get, Patch, Param, Req, UseGuards, Post, ParseUUIDPipe, HttpCode, HttpStatus } from '@nestjs/common'; // Added HttpCode, HttpStatus
 import { NotificationsService } from './notifications.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-// import { User } from '@prisma/client'; // Prisma User type removed
 
 @UseGuards(JwtAuthGuard)
 @Controller('notifications')

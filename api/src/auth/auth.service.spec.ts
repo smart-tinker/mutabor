@@ -1,13 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigModule } from '@nestjs/config'; // Import ConfigModule
 import { AuthService } from './auth.service';
-// import { PrismaService } from '../prisma/prisma.service'; // PrismaService removed
 import { JwtService } from '@nestjs/jwt';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
-// import { User } from '@prisma/client'; // User type removed
 
 // Mock bcrypt functions
 jest.mock('bcrypt', () => ({
