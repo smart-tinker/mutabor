@@ -42,20 +42,22 @@ describe('AuthService', () => {
   };
 
   beforeEach(async () => {
-    // Reset all mocks in the chainable object
-    Object.values(mockKnexChain).forEach(mockMethod => {
-      if (jest.isMockFunction(mockMethod)) {
-        mockMethod.mockClear();
-        // Ensure all chainable methods are reset to return `this` if that's their default
-        if (['select', 'where', 'insert', 'returning'].includes(mockMethod.getMockName())) {
-          mockMethod.mockReturnThis();
-        }
-      }
-    });
-    // If any of these return promises, reset their specific mock states if needed
-    mockKnexChain.first.mockReset(); // e.g. mockResolvedValueOnce
-    // returning might also need more specific reset if its behavior changes per test
-    mockKnexChain.returning.mockReset(); // e.g. mockResolvedValueOnce
+    // Specific reset for each method on mockKnex (alias mockKnexChain)
+    mockKnex.select.mockClear().mockReturnThis();
+    mockKnex.where.mockClear().mockReturnThis();
+    mockKnex.first.mockClear(); // Clear first, then reset below
+    mockKnex.insert.mockClear().mockReturnThis();
+    // mockKnex.returning can be chainable or terminal. Clear it, then reset.
+    mockKnex.returning.mockClear();
+
+    // Reset terminal/promise-returning methods fully
+    // This ensures that any mockResolvedValueOnce or specific implementations are cleared
+    mockKnex.first.mockReset();
+    mockKnex.returning.mockReset();
+    // If returning was used as chainable, set it back here if needed,
+    // but typically it's used terminally or its specific chain is tested.
+    // For safety, if a default chainable behavior is expected after reset for returning:
+    // mockKnex.returning.mockReturnThis(); // Uncomment if necessary, but usually not for `returning`
 
 
     const module: TestingModule = await Test.createTestingModule({

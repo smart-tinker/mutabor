@@ -3,7 +3,7 @@ import { ProjectsService } from './projects.service';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 
 const mockUser: any = { id: 'user-1', email: 'test@example.com', name: 'Test User', password: 'hashedpassword', created_at: new Date(), updated_at: new Date() };
-const mockProject: any /* Project & { columns?: Column[] } */ = { id: 1, name: 'Test Project', taskPrefix: 'TP', lastTaskNumber: 0, ownerId: 'user-1', created_at: new Date(), updated_at: new Date() };
+const mockProject: any /* Project & { columns?: Column[] } */ = { id: 1, name: 'Test Project', task_prefix: 'TP', last_task_number: 0, owner_id: 'user-1', created_at: new Date(), updated_at: new Date() };
 const mockColumn: any /* Column */ = { id: 'col-1', name: 'To Do', position: 0, projectId: 1, created_at: new Date(), updated_at: new Date() };
 mockProject.columns = [mockColumn];
 
