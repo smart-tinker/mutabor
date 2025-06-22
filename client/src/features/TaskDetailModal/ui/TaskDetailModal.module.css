@@ -294,4 +294,3 @@ input:disabled, textarea:disabled {
   margin-top: calc(var(--spacing-base) * 2.5);
   align-self: flex-end;
 }
-```
