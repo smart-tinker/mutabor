@@ -3,27 +3,274 @@
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;
   background-color: var(--color-backdrop);
   display: flex; justify-content: center; align-items: center;
-  z-index: 1050; /* Higher than member modal */
+  z-index: 1050;
 }
 .modalContent {
-  background-color: var(--color-background-element); padding: calc(var(--spacing-base) * 3); /* 24px, was 25px */ border-radius: var(--border-radius-large); /* 8px */
-  min-width: calc(var(--spacing-base) * 63); /* 504px, was 500px */ max-width: calc(var(--spacing-base) * 88); /* 704px, was 700px */ max-height: 80vh;
+  background-color: var(--color-background-element);
+  padding: calc(var(--spacing-base) * 3);
+  border-radius: var(--border-radius-large);
+  min-width: calc(var(--spacing-base) * 63); /* 504px */
+  max-width: calc(var(--spacing-base) * 90); /* 720px, increased max-width */
+  max-height: 85vh; /* Increased max-height */
   box-shadow: var(--shadow-modal);
-  display: flex; flex-direction: column;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto; /* Allow modal content itself to scroll if needed */
 }
 .taskDetails {
-  margin-bottom: calc(var(--spacing-base) * 2.5); /* 20px */
+  /* Removed fixed margin-bottom, sections will handle their own */
 }
 .taskDetails h2 { margin-top: 0; }
-.taskDetails p { white-space: pre-wrap; }
+/* .taskDetails p { white-space: pre-wrap; } Defined in .description specific styles */
+
 .commentsSection {
-  border-top: 1px solid var(--color-border); /* Was --color-border-subtle */
-  padding-top: calc(var(--spacing-base) * 2); /* 16px, was 15px */
-  overflow-y: auto; /* Scroll for comments */
+  border-top: 1px solid var(--color-border);
+  padding-top: calc(var(--spacing-base) * 2);
+  margin-top: calc(var(--spacing-base) * 2); /* Added margin-top for separation */
+  overflow-y: auto;
+  flex-shrink: 0; /* Prevent comments section from shrinking excessively */
+}
+
+/* Edit Icon Styling */
+.editIcon {
+  background: none;
+  border: none;
+  color: var(--color-text-link);
+  cursor: pointer;
+  margin-left: var(--spacing-base-small); /* Reduced margin for "Edit" */
+  font-size: 0.85em; /* Slightly smaller */
+  padding: var(--spacing-base-small) 0; /* Add some vertical padding for easier clicking */
+  vertical-align: middle; /* Align with text better */
+  line-height: 1; /* Prevent extra line height issues */
+}
+.editIcon:hover {
+  text-decoration: underline;
+}
+
+/* Shared styles for sections within taskDetails */
+.taskDetailsSection {
+  margin-bottom: calc(var(--spacing-base) * 1.5); /* Consistent bottom margin for sections */
+}
+
+.taskHeader {
+  composes: taskDetailsSection; /* Apply shared margin */
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.taskHeader h2 {
+  margin-right: var(--spacing-base);
+  flex-grow: 1;
+  display: flex; /* To align title text and edit icon */
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1.8em; /* Larger title */
+}
+.taskHeader .inlineEditSection { /* Editing state for title */
+  width: 100%;
+}
+
+.description {
+  composes: taskDetailsSection;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  white-space: pre-wrap; /* Ensure description text wraps */
+  line-height: 1.6;
+}
+.description .editIcon {
+  margin-left: var(--spacing-base);
+  flex-shrink: 0;
+}
+.descriptionText { /* Wrapper for description text if needed for flex alignment */
   flex-grow: 1;
 }
-.closeButton {
-  margin-top: calc(var(--spacing-base) * 2); /* 16px, was 15px */
-  align-self: flex-end;
-  /* Visual styling moved to global .secondary class */
+
+
+.metaGrid {
+  composes: taskDetailsSection;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); /* Min width for items */
+  gap: calc(var(--spacing-base) * 1.5); /* Gap between grid items */
 }
+.metaGridItem { /* Each item in the grid: e.g., Due Date section */
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-base-small);
+}
+.metaGridItemLabel {
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-secondary); /* Subtler color for labels */
+  font-size: 0.9em;
+}
+.metaGridItemValue { /* Container for value + edit icon, or the edit form */
+  display: flex;
+  align-items: center; /* Vertically align value and edit icon */
+  flex-wrap: wrap; /* Allow wrapping if content is too long */
+  gap: var(--spacing-base-small); /* Gap between value and edit icon */
+}
+.metaGridItemValue .inlineEditSectionCompact { /* Ensure compact edit form fits well */
+  width: 100%;
+}
+
+
+.tagsSection {
+  composes: taskDetailsSection;
+}
+.tagsSectionLabel {
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-secondary);
+  font-size: 0.9em;
+  margin-bottom: var(--spacing-base-small);
+  display: block;
+}
+.tagsDisplay {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-base-small); /* Gap between tags and edit icon */
+}
+.tagItem {
+  background-color: var(--color-background-tag);
+  color: var(--color-text-tag);
+  padding: var(--spacing-base-small) var(--spacing-base);
+  border-radius: var(--border-radius-medium);
+  font-size: 0.9em;
+  display: inline-block;
+}
+.tagsSection .inlineEditSection { /* Editing state for tags */
+  margin-top: var(--spacing-base-small);
+}
+
+
+/* Inline Editing Forms */
+.inlineEditSection { /* Used for Title, Description, Tags */
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-base); /* Increased gap for better separation of input and buttons/error */
+  width: 100%; /* Ensure it takes full width of its parent */
+}
+.inlineEditSectionControls { /* Container for Save/Cancel buttons */
+  display: flex;
+  gap: var(--spacing-base-small);
+  align-items: center; /* Align buttons if one is taller */
+}
+
+.inlineEditSectionCompact { /* Used for DueDate, Type, Priority */
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-base-small);
+  width: 100%;
+}
+.inlineEditSectionCompactControls { /* Container for input + Save/Cancel buttons */
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: var(--spacing-base-small);
+}
+.inlineEditSectionCompactControls input { /* Input field within this compact control group */
+  flex-grow: 1;
+  min-width: 80px; /* Smaller min-width, flex-grow will manage expansion */
+  /* Removed max-width here, let flexbox handle it within the grid column space */
+}
+
+
+/* Form Inputs */
+.formInputFull, /* For Title, Description (textarea), Tags */
+.formTextareaFull {
+  width: 100%;
+  padding: var(--spacing-base);
+  border: 1px solid var(--color-border-input); /* Use specific input border color */
+  border-radius: var(--border-radius-medium);
+  box-sizing: border-box;
+  background-color: var(--color-background-input); /* Input background */
+  color: var(--color-text-input); /* Input text color */
+}
+.formTextareaFull {
+  min-height: 100px; /* Increased min-height for description */
+  resize: vertical;
+}
+.formInput { /* For DueDate, Type, Priority */
+  padding: var(--spacing-base-small) var(--spacing-base);
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--border-radius-medium);
+  box-sizing: border-box;
+  background-color: var(--color-background-input);
+  color: var(--color-text-input);
+}
+input::placeholder, textarea::placeholder {
+  color: var(--color-text-placeholder);
+  opacity: 1;
+}
+input:disabled, textarea:disabled {
+  background-color: var(--color-background-disabled);
+  cursor: not-allowed;
+}
+
+
+/* Error Messages */
+.errorTextSmall {
+  color: var(--color-text-error);
+  font-size: 0.85em;
+  /* margin-top is handled by gap in parent flex container */
+  width: 100%;
+}
+
+
+/* Buttons (retained from previous, ensure they are suitable) */
+.button {
+  padding: var(--spacing-base) calc(var(--spacing-base) * 1.5);
+  border: none;
+  border-radius: var(--border-radius-medium);
+  cursor: pointer;
+  font-weight: var(--font-weight-bold);
+  transition: background-color 0.2s ease-in-out, opacity 0.2s ease-in-out;
+  text-align: center; /* Ensure text is centered */
+}
+.buttonPrimary {
+  background-color: var(--color-button-primary-default);
+  color: var(--color-text-button-primary);
+}
+.buttonPrimary:hover:not(:disabled) {
+  background-color: var(--color-button-primary-hover);
+}
+.buttonPrimary:disabled {
+  background-color: var(--color-button-disabled);
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+.buttonSecondary {
+  background-color: var(--color-button-secondary-default);
+  color: var(--color-text-button-secondary);
+  border: 1px solid var(--color-border-button-secondary);
+}
+.buttonSecondary:hover:not(:disabled) {
+  background-color: var(--color-button-secondary-hover);
+}
+.buttonSecondary:disabled {
+  background-color: var(--color-button-disabled);
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+.buttonLink { /* Used for non-icon Edit buttons too if needed, but .editIcon is more specific */
+  background: none;
+  border: none;
+  color: var(--color-text-link);
+  text-decoration: none;
+  padding: 0;
+  font-weight: normal;
+}
+.buttonLink:hover {
+  text-decoration: underline;
+}
+.buttonSmall { /* Modifier for smaller Save/Cancel buttons */
+  padding: var(--spacing-base-small) var(--spacing-base);
+  font-size: 0.9em;
+}
+
+.closeButtonModal {
+  margin-top: calc(var(--spacing-base) * 2.5); /* Increased margin for separation */
+  align-self: flex-end;
+  /* Assuming it uses .button and .buttonSecondary or similar global styles */
+}
+```
