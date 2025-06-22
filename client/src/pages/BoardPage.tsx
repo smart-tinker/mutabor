@@ -427,7 +427,7 @@ const BoardPage: React.FC = () => {
       >
         <div> {/* Main container for BoardPage content */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '10px' }}>
-            <h1>{boardData.name} {boardData.prefix ? `(${boardData.prefix})` : ''}</h1>
+            <h1>{boardData.name}{boardData.prefix ? ` (${boardData.prefix})` : ''}</h1>
             <button
               onClick={() => setIsMembersModalOpen(true)}
               style={{ padding: '8px 15px', cursor: 'pointer' }}
