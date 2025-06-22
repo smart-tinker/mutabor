@@ -53,64 +53,64 @@
 }
 
 .taskHeader {
-  composes: taskDetailsSection; /* Apply shared margin */
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  composes: taskDetailsSection;
 }
 .taskHeader h2 {
-  margin-right: var(--spacing-base);
   flex-grow: 1;
-  display: flex; /* To align title text and edit icon */
+  display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 1.8em; /* Larger title */
+  font-size: 1.8em;
 }
-.taskHeader .inlineEditSection { /* Editing state for title */
-  width: 100%;
+.taskHeader h2 .inlineEditSection { /* Specifically for title's edit mode form */
+  flex-grow: 1; /* Allow the form to take space */
+  margin-left: var(--spacing-base-small); /* Space after "Task ID:" span */
 }
+
 
 .description {
   composes: taskDetailsSection;
+  line-height: 1.6;
+}
+.descriptionView {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  white-space: pre-wrap; /* Ensure description text wraps */
-  line-height: 1.6;
+  width: 100%;
 }
-.description .editIcon {
-  margin-left: var(--spacing-base);
-  flex-shrink: 0;
-}
-.descriptionText { /* Wrapper for description text if needed for flex alignment */
+.descriptionText {
   flex-grow: 1;
+  white-space: pre-wrap;
 }
 
 
 .metaGrid {
   composes: taskDetailsSection;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); /* Min width for items */
-  gap: calc(var(--spacing-base) * 1.5); /* Gap between grid items */
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: calc(var(--spacing-base) * 1.5);
 }
-.metaGridItem { /* Each item in the grid: e.g., Due Date section */
+.metaGridItem { /* Root class for an EditableField in the meta grid (view or edit) */
   display: flex;
   flex-direction: column;
   gap: var(--spacing-base-small);
 }
 .metaGridItemLabel {
   font-weight: var(--font-weight-bold);
-  color: var(--color-text-secondary); /* Subtler color for labels */
+  color: var(--color-text-secondary);
   font-size: 0.9em;
 }
-.metaGridItemValue { /* Container for value + edit icon, or the edit form */
+.metaGridItemValueArea { /* Container for (value + edit button) in view mode for meta items */
   display: flex;
-  align-items: center; /* Vertically align value and edit icon */
-  flex-wrap: wrap; /* Allow wrapping if content is too long */
-  gap: var(--spacing-base-small); /* Gap between value and edit icon */
-}
-.metaGridItemValue .inlineEditSectionCompact { /* Ensure compact edit form fits well */
+  align-items: center;
+  justify-content: space-between; /* Push edit button to the right */
+  flex-wrap: wrap;
+  gap: var(--spacing-base-small);
   width: 100%;
+}
+.metaGridItemValueText { /* Class for the actual text value span itself */
+  flex-grow: 1; /* Allow text to take available space */
+  word-break: break-word; /* Break long words if necessary */
 }
 
 
@@ -124,11 +124,19 @@
   margin-bottom: var(--spacing-base-small);
   display: block;
 }
+.tagsViewArea { /* Container for (tag list + edit button) in view mode for tags */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--spacing-base);
+}
 .tagsDisplay {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--spacing-base-small); /* Gap between tags and edit icon */
+  gap: var(--spacing-base-small);
+  flex-grow: 1; /* Allow tags to take space */
 }
 .tagItem {
   background-color: var(--color-background-tag);
@@ -138,59 +146,74 @@
   font-size: 0.9em;
   display: inline-block;
 }
-.tagsSection .inlineEditSection { /* Editing state for tags */
-  margin-top: var(--spacing-base-small);
+
+/* Default styles for parts of EditableField if not overridden by specific context classes */
+.editableFieldLabel { /* Default for label rendered by EditableField */
+  display: block;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-secondary);
+  font-size: 0.9em;
+  margin-bottom: var(--spacing-base-extra-small);
+}
+.editableFieldValueText { /* Default for value span rendered by EditableField */
+  word-break: break-word;
+}
+.defaultValueArea { /* Default for container of (value + edit button) */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-base-small);
+  width: 100%;
 }
 
 
 /* Inline Editing Forms */
-.inlineEditSection { /* Used for Title, Description, Tags */
+.inlineEditSection {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-base); /* Increased gap for better separation of input and buttons/error */
-  width: 100%; /* Ensure it takes full width of its parent */
+  gap: var(--spacing-base);
+  width: 100%;
 }
-.inlineEditSectionControls { /* Container for Save/Cancel buttons */
+.inlineEditSectionControls {
   display: flex;
   gap: var(--spacing-base-small);
-  align-items: center; /* Align buttons if one is taller */
+  align-items: center;
 }
 
-.inlineEditSectionCompact { /* Used for DueDate, Type, Priority */
+.inlineEditSectionCompact { /* Used as editModeClassName for meta fields */
   display: flex;
   flex-direction: column;
   gap: var(--spacing-base-small);
   width: 100%;
 }
-.inlineEditSectionCompactControls { /* Container for input + Save/Cancel buttons */
+.inlineEditSectionCompactControls {
   display: flex;
   align-items: center;
   width: 100%;
   gap: var(--spacing-base-small);
 }
-.inlineEditSectionCompactControls input { /* Input field within this compact control group */
+.inlineEditSectionCompactControls input {
   flex-grow: 1;
-  min-width: 80px; /* Smaller min-width, flex-grow will manage expansion */
-  /* Removed max-width here, let flexbox handle it within the grid column space */
+  min-width: 80px;
 }
 
 
 /* Form Inputs */
-.formInputFull, /* For Title, Description (textarea), Tags */
+.formInputFull,
 .formTextareaFull {
   width: 100%;
   padding: var(--spacing-base);
-  border: 1px solid var(--color-border-input); /* Use specific input border color */
+  border: 1px solid var(--color-border-input);
   border-radius: var(--border-radius-medium);
   box-sizing: border-box;
-  background-color: var(--color-background-input); /* Input background */
-  color: var(--color-text-input); /* Input text color */
+  background-color: var(--color-background-input);
+  color: var(--color-text-input);
 }
 .formTextareaFull {
-  min-height: 100px; /* Increased min-height for description */
+  min-height: 100px;
   resize: vertical;
 }
-.formInput { /* For DueDate, Type, Priority */
+.formInput {
   padding: var(--spacing-base-small) var(--spacing-base);
   border: 1px solid var(--color-border-input);
   border-radius: var(--border-radius-medium);
@@ -212,12 +235,11 @@ input:disabled, textarea:disabled {
 .errorTextSmall {
   color: var(--color-text-error);
   font-size: 0.85em;
-  /* margin-top is handled by gap in parent flex container */
   width: 100%;
 }
 
 
-/* Buttons (retained from previous, ensure they are suitable) */
+/* Buttons */
 .button {
   padding: var(--spacing-base) calc(var(--spacing-base) * 1.5);
   border: none;
@@ -225,7 +247,7 @@ input:disabled, textarea:disabled {
   cursor: pointer;
   font-weight: var(--font-weight-bold);
   transition: background-color 0.2s ease-in-out, opacity 0.2s ease-in-out;
-  text-align: center; /* Ensure text is centered */
+  text-align: center;
 }
 .buttonPrimary {
   background-color: var(--color-button-primary-default);
@@ -252,7 +274,7 @@ input:disabled, textarea:disabled {
   opacity: 0.7;
   cursor: not-allowed;
 }
-.buttonLink { /* Used for non-icon Edit buttons too if needed, but .editIcon is more specific */
+.buttonLink {
   background: none;
   border: none;
   color: var(--color-text-link);
@@ -263,14 +285,13 @@ input:disabled, textarea:disabled {
 .buttonLink:hover {
   text-decoration: underline;
 }
-.buttonSmall { /* Modifier for smaller Save/Cancel buttons */
+.buttonSmall {
   padding: var(--spacing-base-small) var(--spacing-base);
   font-size: 0.9em;
 }
 
 .closeButtonModal {
-  margin-top: calc(var(--spacing-base) * 2.5); /* Increased margin for separation */
+  margin-top: calc(var(--spacing-base) * 2.5);
   align-self: flex-end;
-  /* Assuming it uses .button and .buttonSecondary or similar global styles */
 }
 ```
