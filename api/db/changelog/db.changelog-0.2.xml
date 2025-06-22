@@ -13,7 +13,7 @@
             <column name="priority" type="VARCHAR(255)"/>
         </addColumn>
         <addColumn tableName="tasks">
-            <column name="tags" type="VARCHAR(255)[]"/> <!-- Changed from TEXT[] -->
+            <column name="tags" type="TEXT[]"/> <!-- Using TEXT[] for variable-length string array, avoids syntax issues with VARCHAR(n)[] in PostgreSQL -->
         </addColumn>
         <!-- due_date is already expected to be in the table, if not, it should have been in an earlier migration.
              If it needs to be added now, uncomment and adjust:
