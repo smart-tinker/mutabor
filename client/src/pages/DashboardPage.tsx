@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom'; // Assuming react-router-dom is used
 import { projectService } from '../shared/api/projectService'; // Adjust path as needed
 import type { ProjectDto, CreateProjectDto } from '../shared/api/projectService';
+import styles from './DashboardPage.module.css';
 
 const DashboardPage: React.FC = () => {
   const [projects, setProjects] = useState<ProjectDto[]>([]);
@@ -99,15 +100,26 @@ const DashboardPage: React.FC = () => {
       {projects.length === 0 ? (
         <p>No projects yet. Create one to get started!</p>
       ) : (
-        <ul>
-          {projects.map((project) => (
-            <li key={project.id}>
-              <Link to={`/projects/${project.id}`}>
-                {project.name} ({project.prefix})
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th scope="col">Project Name</th>
+              <th scope="col">Prefix</th>
+              <th scope="col">Link</th>
+            </tr>
+          </thead>
+          <tbody>
+            {projects.map((project) => (
+              <tr key={project.id}>
+                <td>{project.name}</td>
+                <td>{project.prefix}</td>
+                <td className={styles.link}>
+                  <Link to={`/projects/${project.id}`}>View Board</Link>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   );
