@@ -25,7 +25,10 @@ export interface TaskDto {
   columnId: string;
   assigneeId?: string;
   creatorId: string;
-  dueDate?: Date;
+  dueDate?: string; // Kept as string, client can parse if needed
+  type?: string;
+  priority?: string;
+  tags?: string[];
   createdAt: Date;
   updatedAt: Date;
 }

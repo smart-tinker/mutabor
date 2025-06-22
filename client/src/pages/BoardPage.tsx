@@ -24,6 +24,7 @@ import styles from './BoardPage.module.css'; // Import css modules
 import ColumnLane from '../features/ColumnLane/ColumnLane'; // Import ColumnLane
 import { ManageProjectMembersModal } from '../features/ProjectMembers'; // Import ManageProjectMembersModal
 import { TaskDetailModal } from '../features/TaskDetailModal'; // Import TaskDetailModal
+import { AddTaskModalContext } from '../shared/contexts/AddTaskModalContext'; // Import the context
 
 // interfaces Column, BoardData as before
 interface Column extends ProjectColumnDto {
@@ -50,6 +51,10 @@ const BoardPage: React.FC = () => {
   const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDescription, setNewTaskDescription] = useState('');
+  const [newTaskDueDate, setNewTaskDueDate] = useState('');
+  const [newTaskType, setNewTaskType] = useState('');
+  const [newTaskPriority, setNewTaskPriority] = useState('');
+  const [newTaskTags, setNewTaskTags] = useState(''); // Comma-separated string
   const [isCreatingTask, setIsCreatingTask] = useState(false);
 
 
@@ -185,20 +190,55 @@ const BoardPage: React.FC = () => {
     }
   }, [projectId, fetchBoardData, numericProjectId]);
 
-  const openAddTaskModal = (columnId: string) => {
-    setSelectedColumnId(columnId);
+  const openAddTaskModal = () => {
+    // Initialize selectedColumnId to the first column if available, or null
+    if (boardData && boardData.columns.length > 0) {
+      setSelectedColumnId(boardData.columns[0].id);
+    } else {
+      setSelectedColumnId(null); // Or handle case where no columns exist yet
+    }
     setIsAddTaskModalOpen(true);
   };
+
+  const resetAddTaskForm = () => {
+    setNewTaskTitle('');
+    setNewTaskDescription('');
+    setNewTaskDueDate('');
+    setNewTaskType('');
+    setNewTaskPriority('');
+    setNewTaskTags('');
+    // setSelectedColumnId(null); // Keep selectedColumnId as is, or reset based on UX preference
+    setIsAddTaskModalOpen(false);
+  };
+
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTaskTitle.trim() || !selectedColumnId || numericProjectId === null) return;
+    if (!newTaskTitle.trim() || !selectedColumnId || numericProjectId === null) {
+      alert('Please ensure Title and Column are filled.'); // Basic validation
+      return;
+    }
     setIsCreatingTask(true);
     try {
-      const taskData: CreateTaskDto = { title: newTaskTitle, description: newTaskDescription, columnId: selectedColumnId, projectId: numericProjectId };
+      const tagsArray = newTaskTags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+      const taskData: CreateTaskDto = {
+        title: newTaskTitle,
+        description: newTaskDescription,
+        columnId: selectedColumnId,
+        projectId: numericProjectId,
+        dueDate: newTaskDueDate || undefined, // Send undefined if empty, so backend can ignore or use null
+        type: newTaskType || undefined,
+        priority: newTaskPriority || undefined,
+        tags: tagsArray.length > 0 ? tagsArray : undefined,
+      };
       await taskService.createTask(taskData);
-      setNewTaskTitle(''); setNewTaskDescription(''); setIsAddTaskModalOpen(false); setSelectedColumnId(null);
-    } catch (err) { console.error('Failed to create task:', err); alert('Failed to create task.');
-    } finally { setIsCreatingTask(false); }
+      resetAddTaskForm();
+      // No need to set selectedColumnId to null here if we want it to persist for the next task
+    } catch (err) {
+      console.error('Failed to create task:', err);
+      alert('Failed to create task.');
+    } finally {
+      setIsCreatingTask(false);
+    }
   };
 
   const handleTaskClick = (task: TaskDto) => { // Handler for task click
@@ -345,8 +385,15 @@ const BoardPage: React.FC = () => {
   if (error) return <p style={{ color: 'red' }}>{error}</p>;
   if (!boardData) return <p>No board data found or project ID is invalid.</p>;
 
+  const modalContextValue = {
+    isModalOpen: isAddTaskModalOpen,
+    openModal: openAddTaskModal, // This already handles setting state and pre-selecting column
+    closeModal: resetAddTaskForm, // This already handles closing modal and resetting form
+  };
+
   return (
-    <> {/* Using React Fragment to wrap DndContext and Modal */}
+    <AddTaskModalContext.Provider value={modalContextValue}>
+      {/* Using React Fragment to wrap DndContext and Modal */}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -367,19 +414,12 @@ const BoardPage: React.FC = () => {
           {selectedColumnId && ( // Keep selectedColumnId check if it ensures boardData.columns.find is safe
             <Modal
               isOpen={isAddTaskModalOpen}
-              onClose={() => {
-                setIsAddTaskModalOpen(false);
-                // Optionally reset form fields here if not done elsewhere
-                // setNewTaskTitle('');
-                // setNewTaskDescription('');
-                // setSelectedColumnId(null); // This might be needed if modal can open before selectedColumnId is ready
-              }}
-              title={`Add New Task to ${boardData?.columns.find(c => c.id === selectedColumnId)?.name || 'Column'}`}
+              onClose={resetAddTaskForm} // Use the reset function on close
+              title="Add New Task" // Generic title
             >
-              <form onSubmit={handleCreateTask}>
-                {/* The h2 title is removed as it's now a prop of Modal */}
+              <form onSubmit={handleCreateTask} className={styles.form}>
                 <div>
-                  <label htmlFor="taskTitle">Task Title:</label>
+                  <label htmlFor="taskTitle" className={styles.formLabel}>Task Title:</label>
                   <input
                     id="taskTitle"
                     type="text"
@@ -395,31 +435,90 @@ const BoardPage: React.FC = () => {
                     id="taskDescription"
                     value={newTaskDescription}
                     onChange={(e) => setNewTaskDescription(e.target.value)}
-              className={styles.formTextarea}
+                    className={styles.formTextarea}
                   />
                 </div>
-          <div className={styles.formActions}>
+                <div>
+                  <label htmlFor="columnSelect" className={styles.formLabel}>Status/Column:</label>
+                  <select
+                    id="columnSelect"
+                    value={selectedColumnId || ''}
+                    onChange={(e) => setSelectedColumnId(e.target.value)}
+                    required
+                    className={styles.formSelect}
+                  >
+                    <option value="" disabled>Select a column</option>
+                    {boardData?.columns.map(column => (
+                      <option key={column.id} value={column.id}>{column.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="taskDueDate" className={styles.formLabel}>Deadline:</label>
+                  <input
+                    id="taskDueDate"
+                    type="date"
+                    value={newTaskDueDate}
+                    onChange={(e) => setNewTaskDueDate(e.target.value)}
+                    className={styles.formInput}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="taskType" className={styles.formLabel}>Type:</label>
+                  <input
+                    id="taskType"
+                    type="text"
+                    value={newTaskType}
+                    onChange={(e) => setNewTaskType(e.target.value)}
+                    className={styles.formInput}
+                    placeholder="e.g., Bug, Feature, Chore"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="taskPriority" className={styles.formLabel}>Priority:</label>
+                  <input
+                    id="taskPriority"
+                    type="text"
+                    value={newTaskPriority}
+                    onChange={(e) => setNewTaskPriority(e.target.value)}
+                    className={styles.formInput}
+                    placeholder="e.g., High, Medium, Low"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="taskTags" className={styles.formLabel}>Tags (comma-separated):</label>
+                  <input
+                    id="taskTags"
+                    type="text"
+                    value={newTaskTags}
+                    onChange={(e) => setNewTaskTags(e.target.value)}
+                    className={styles.formInput}
+                    placeholder="e.g., UI, Backend, Urgent"
+                  />
+                </div>
+                <div className={styles.formActions}>
                   <button
                     type="button"
-                    onClick={() => setIsAddTaskModalOpen(false)}
-              className={`${styles.button} ${styles.buttonSecondary}`}
+                    onClick={resetAddTaskForm} // Use reset function
+                    className={`${styles.button} ${styles.buttonSecondary}`}
                   >
                     Cancel
                   </button>
-            <button
-              type="submit"
-              disabled={isCreatingTask}
-              className={`${styles.button} ${styles.buttonPrimary}`}
-            >
+                  <button
+                    type="submit"
+                    disabled={isCreatingTask || !selectedColumnId} // Also disable if no column selected
+                    className={`${styles.button} ${styles.buttonPrimary}`}
+                  >
                     {isCreatingTask ? 'Creating...' : 'Create Task'}
                   </button>
                 </div>
               </form>
             </Modal>
           )}
+          {/* Removed global Add New Task button from here */}
           <div style={{ display: 'flex', gap: '16px', overflowX: 'auto', padding: '10px', minHeight: 'calc(100vh - 100px)' }}>
             {boardData.columns.map((column) => (
-              <ColumnLane key={column.id} column={column} onAddTask={openAddTaskModal} onTaskClick={handleTaskClick} />
+              <ColumnLane key={column.id} column={column} onTaskClick={handleTaskClick} />
           ))}
         </div>
       </div>
@@ -440,7 +539,7 @@ const BoardPage: React.FC = () => {
       />
     )}
     <DragOverlay>{activeDragId ? <div style={{ border: '1px solid gray', padding: '10px', backgroundColor: 'lightyellow' }}>Dragging: {activeDragId}</div> : null}</DragOverlay>
-    </>
+    </AddTaskModalContext.Provider>
   );
 };
 export default BoardPage;

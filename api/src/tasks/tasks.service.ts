@@ -32,7 +32,7 @@ export class TasksService {
   ) {}
 
   async createTask(createTaskDto: CreateTaskDto, user: UserRecord): Promise<TaskRecord> {
-    const { projectId, columnId, title, description, assigneeId } = createTaskDto;
+    const { projectId, columnId, title, description, assigneeId, dueDate, type, priority, tags } = createTaskDto;
 
     // --- ИСПРАВЛЕНИЕ #1 ---
     const project = await this.knex('projects')
@@ -77,6 +77,10 @@ export class TasksService {
       column_id: columnId,
       creator_id: user.id,
       assignee_id: assigneeId || null,
+      due_date: dueDate ? new Date(dueDate) : null,
+      type: type || null,
+      priority: priority || null,
+      tags: tags || null,
       created_at: new Date(),
       updated_at: new Date(),
     };
@@ -116,11 +120,32 @@ export class TasksService {
     if (updateTaskDto.columnId && updateTaskDto.columnId !== task.column_id) {
       throw new BadRequestException('To move a task, please use the dedicated move endpoint.');
     }
-    const { columnId, ...updatableDto } = updateTaskDto;
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { columnId, ...dtoToUpdate } = updateTaskDto; // Exclude columnId
+
+    const updatePayload: Partial<TaskRecord> = { ...dtoToUpdate };
+
+    if (dtoToUpdate.dueDate !== undefined) {
+      updatePayload.due_date = dtoToUpdate.dueDate ? new Date(dtoToUpdate.dueDate) : null;
+    }
+    // Remove the string version if it exists from the DTO after conversion
+    delete updatePayload.dueDate;
+
+
+    if (Object.keys(updatePayload).length === 0) {
+      // No actual fields to update besides potentially updated_at
+      // However, we should still update `updated_at`
+      const [updatedDbTaskUnchanged] = await this.knex('tasks')
+        .where({ id: taskId })
+        .update({ updated_at: new Date() })
+        .returning('*');
+      return toTaskRecord(updatedDbTaskUnchanged);
+    }
 
     const [updatedDbTask] = await this.knex('tasks')
       .where({ id: taskId })
-      .update({ ...updatableDto, updated_at: new Date() })
+      .update({ ...updatePayload, updated_at: new Date() })
       .returning('*');
 
     const updatedTask = toTaskRecord(updatedDbTask);

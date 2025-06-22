@@ -41,6 +41,9 @@ export interface TaskRecord {
   assignee_id: string | null; // Foreign key to UserRecord.id
   creator_id: string; // Foreign key to UserRecord.id
   due_date: Date | null;
+  type: string | null;
+  priority: string | null;
+  tags: string[] | null;
   created_at: Date;
   updated_at: Date;
 }

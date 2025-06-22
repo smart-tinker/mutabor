@@ -44,10 +44,28 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onTaskClick }) => {
           {task.description}
         </div>
       )}
-      {/* Example for task meta, if you add it later */}
-      {/* <div className={styles.taskMeta}>
-        <span>ID: {task.humanReadableId}</span>
-      </div> */}
+      <div className={styles.taskMeta}>
+        {task.priority && (
+          <span className={`${styles.metaItem} ${styles.priority} ${styles['priority' + task.priority.charAt(0).toUpperCase() + task.priority.slice(1)]}`}>
+            Priority: {task.priority}
+          </span>
+        )}
+        {task.dueDate && (
+          <span className={styles.metaItem}>
+            Due: {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}
+          </span>
+        )}
+      </div>
+      {task.tags && task.tags.length > 0 && (
+        <div className={styles.tagsContainer}>
+          {task.tags.slice(0, 3).map(tag => ( // Show up to 3 tags
+            <span key={tag} className={styles.tag}>{tag}</span>
+          ))}
+          {task.tags.length > 3 && (
+            <span className={styles.tagMore}>+{task.tags.length - 3} more</span>
+          )}
+        </div>
+      )}
     </div>
   );
 };

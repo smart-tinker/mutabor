@@ -11,11 +11,11 @@ interface Column extends ProjectColumnDto {
 
 interface ColumnLaneProps {
   column: Column;
-  onAddTask: (columnId: string) => void; // Function to open add task modal
+  // onAddTask: (columnId: string) => void; // Function to open add task modal - REMOVED
   onTaskClick: (task: TaskDto) => void; // New prop for task click
 }
 
-const ColumnLane: React.FC<ColumnLaneProps> = ({ column, onAddTask, onTaskClick }) => {
+const ColumnLane: React.FC<ColumnLaneProps> = ({ column, onTaskClick }) => {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
 
   const style = {
@@ -47,11 +47,7 @@ const ColumnLane: React.FC<ColumnLaneProps> = ({ column, onAddTask, onTaskClick 
           )}
         </SortableContext>
       </div>
-      <button
-        className={`${styles.addTaskButton} secondary`}
-        onClick={() => onAddTask(column.id)}>
-        + Add Task
-      </button>
+      {/* Removed Add Task Button from here */}
     </div>
   );
 };
