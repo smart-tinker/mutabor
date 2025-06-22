@@ -18,9 +18,13 @@ export interface MoveTaskDto {
 // Helper function to transform API comment DTO to client-side DTO
 export const transformCommentDto = (apiComment: ApiCommentDto): CommentDto => {
   return {
-    ...apiComment,
-    createdAt: new Date(apiComment.createdAt),
-    updatedAt: new Date(apiComment.updatedAt),
+    id: apiComment.id,
+    text: apiComment.text,
+    taskId: apiComment.task_id,
+    authorId: apiComment.author_id,
+    createdAt: new Date(apiComment.created_at),
+    updatedAt: new Date(apiComment.updated_at),
+    author: apiComment.author,
   };
 };
 
@@ -68,11 +72,11 @@ export interface CommentDto {
 export interface ApiCommentDto {
   id: string;
   text: string;
-  taskId: string;
-  authorId: string | null;
-  createdAt: string; // Dates are strings from the API
-  updatedAt: string; // Dates are strings from the API
-  author?: CommentAuthorDto | null;
+  task_id: string;
+  author_id: string | null;
+  created_at: string; // Dates are strings from the API
+  updated_at: string; // Dates are strings from the API
+  author?: CommentAuthorDto | null; // Assuming CommentAuthorDto is already correct or will be handled separately
 }
 
 export interface CreateCommentPayloadDto {
