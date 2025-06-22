@@ -234,6 +234,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, onClose
                   <>
                     <span>{task.humanReadableId}: </span> {/* Non-editable part */}
                     <EditableField
+                      value={task.title} // Add this line
                       editableValue={editableTitle}
                       isEditing={true}
                       isUpdating={isUpdatingTitle}
