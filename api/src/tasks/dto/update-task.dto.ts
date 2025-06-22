@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsUUID, MaxLength, IsInt, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsUUID, MaxLength, IsInt, IsArray, IsDateString } from 'class-validator';
 
 export class UpdateTaskDto {
   @IsString()
@@ -24,7 +24,7 @@ export class UpdateTaskDto {
   position?: number;
 
   @IsOptional()
-  @IsString()
+  @IsDateString() // Changed from IsString
   dueDate?: string;
 
   @IsOptional()

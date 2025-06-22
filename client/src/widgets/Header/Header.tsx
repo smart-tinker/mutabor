@@ -12,16 +12,10 @@ import { useAddTaskModal } from '../../shared/contexts/AddTaskModalContext'; // 
 
 const Header: React.FC = () => { // Remove props
   const { isAuthenticated, isLoading, user } = useAuth(); // Add user from useAuth
-  let openModalFromContext: (() => void) | null = null;
-  try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const { openModal } = useAddTaskModal(); // Get openModal from context
-    openModalFromContext = openModal;
-  } catch (error) {
-    // Context not available, means this Header instance is not rendered under a BoardPage
-    // or similar page that provides AddTaskModalContext. Button will not be shown.
-    // console.warn("AddTaskModalContext not found, 'Add Task' button will not be available in this Header instance.");
-  }
+  // Directly use the context. If the provider is missing, the useAddTaskModal hook will throw an error.
+  // This is generally desired in development to catch setup issues.
+  // App.tsx now guarantees the provider is present for Header.
+  const { openModal } = useAddTaskModal();
 
 
   return (
@@ -39,9 +33,9 @@ const Header: React.FC = () => { // Remove props
               <li>Loading...</li>
             ) : isAuthenticated && user ? ( // Check for user object as well
               <>
-                {openModalFromContext && ( // Conditionally render based on context availability
+                {openModal && ( // Conditionally render based on openModal from context
                   <li>
-                    <button onClick={openModalFromContext} className={styles.addTaskButtonHeader}>
+                    <button onClick={openModal} className={styles.addTaskButtonHeader}>
                       + Add Task
                     </button>
                   </li>

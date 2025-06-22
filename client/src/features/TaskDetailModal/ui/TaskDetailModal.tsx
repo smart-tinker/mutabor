@@ -119,16 +119,21 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, onClose
     setIsUpdatingTask(true);
     setUpdateError(null);
 
-    const tagsArray = editableTags.split(',').map(tag => tag.trim()).filter(tag => tag);
+    const tagsArray = editableTags.trim() ? editableTags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
 
     const updateData: UpdateTaskDto = {
-      title: editableTitle,
-      description: editableDescription || undefined, // Send undefined if empty
-      dueDate: editableDueDate || undefined,
-      type: editableType || undefined,
-      priority: editablePriority || undefined,
-      tags: tagsArray.length > 0 ? tagsArray : undefined,
+      title: editableTitle, // Assuming title cannot be cleared to empty, or if so, '' is acceptable
+      description: editableDescription, // Send '' if cleared, backend DTO allows string | null
+      dueDate: editableDueDate ? editableDueDate : null, // Send null if date input is cleared (empty string)
+      type: editableType, // Send '' if cleared
+      priority: editablePriority, // Send '' if cleared
+      tags: tagsArray, // Send [] if cleared
     };
+
+    // Note: The backend UpdateTaskDto allows null for these fields.
+    // If an empty string ('') should explicitly be stored as null by the backend,
+    // the backend service (tasks.service.ts updateTask method) would need to handle that conversion.
+    // For now, the client sends '' for cleared text fields, null for cleared date, and [] for cleared tags.
 
     try {
       await taskService.updateTask(task.id, updateData);

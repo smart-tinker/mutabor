@@ -32,9 +32,10 @@ export class TasksService {
   ) {}
 
   async createTask(createTaskDto: CreateTaskDto, user: UserRecord): Promise<TaskRecord> {
-    const { projectId, columnId, title, description, assigneeId, dueDate, type, priority, tags } = createTaskDto;
+    const { title, description, columnId, projectId, assigneeId, dueDate, type, priority, tags } = createTaskDto;
 
     // --- ИСПРАВЛЕНИЕ #1 ---
+    // Project and Column validation (existing logic is fine)
     const project = await this.knex('projects')
       .leftJoin('project_members', 'projects.id', 'project_members.project_id')
       .where('projects.id', projectId)
@@ -64,28 +65,32 @@ export class TasksService {
 
     const tasksInColumn = await this.knex('tasks').where({ column_id: columnId }).count({ count: '*' }).first();
     const position = parseInt(tasksInColumn.count as string, 10);
-
     const taskId = crypto.randomUUID();
-    const newTaskData = {
-      id: taskId,
-      title,
-      description,
-      human_readable_id: humanReadableId,
-      task_number: taskNumber,
-      position,
-      project_id: project.project_id_val,
-      column_id: columnId,
-      creator_id: user.id,
-      assignee_id: assigneeId || null,
-      due_date: dueDate ? new Date(dueDate) : null,
+
+    // Explicit mapping from DTO to database record
+    const newTaskDataForDb = {
+      // Fields from DTO
+      title: title,
+      description: description || null,
+      column_id: columnId, // DTO `columnId` maps to `column_id`
+      project_id: project.project_id_val, // `projectId` from DTO used to fetch `project.project_id_val`
+      assignee_id: assigneeId || null, // DTO `assigneeId` maps to `assignee_id`
+      due_date: dueDate ? new Date(dueDate) : null, // DTO `dueDate` maps to `due_date`
       type: type || null,
       priority: priority || null,
-      tags: tags || null,
+      tags: tags || null, // Assuming DB driver handles array to TEXT[] or JSON
+
+      // System-generated fields
+      id: taskId,
+      human_readable_id: humanReadableId,
+      task_number: taskNumber,
+      position: position,
+      creator_id: user.id,
       created_at: new Date(),
       updated_at: new Date(),
     };
 
-    const [insertedTask] = await this.knex('tasks').insert(newTaskData).returning('*');
+    const [insertedTask] = await this.knex('tasks').insert(newTaskDataForDb).returning('*');
     const newTask = toTaskRecord(insertedTask);
 
     this.eventsGateway.emitTaskCreated(newTask);
@@ -122,30 +127,64 @@ export class TasksService {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { columnId, ...dtoToUpdate } = updateTaskDto; // Exclude columnId
+    // const { columnId, ...dtoToUpdate } = updateTaskDto; // Exclude columnId - old approach
 
-    const updatePayload: Partial<TaskRecord> = { ...dtoToUpdate };
+    const updatePayloadForDb: Partial<Omit<TaskRecord, 'id' | 'created_at' | 'human_readable_id' | 'task_number' | 'project_id' | 'creator_id'>> = {};
 
-    if (dtoToUpdate.dueDate !== undefined) {
-      updatePayload.due_date = dtoToUpdate.dueDate ? new Date(dtoToUpdate.dueDate) : null;
+    // Explicitly map fields from DTO to the database payload
+    // Note: updateTaskDto.columnId is intentionally not handled here as per original logic (use /move endpoint)
+    // However, if general column update was allowed, it would be:
+    // if (updateTaskDto.columnId !== undefined) updatePayloadForDb.column_id = updateTaskDto.columnId;
+
+    if (updateTaskDto.title !== undefined) updatePayloadForDb.title = updateTaskDto.title;
+
+    if (updateTaskDto.description !== undefined) {
+      updatePayloadForDb.description = updateTaskDto.description; // This can be string or null from DTO
     }
-    // Remove the string version if it exists from the DTO after conversion
-    delete updatePayload.dueDate;
 
+    if (updateTaskDto.assigneeId !== undefined) {
+      updatePayloadForDb.assignee_id = updateTaskDto.assigneeId; // This can be string (UUID) or null
+    }
 
-    if (Object.keys(updatePayload).length === 0) {
-      // No actual fields to update besides potentially updated_at
-      // However, we should still update `updated_at`
-      const [updatedDbTaskUnchanged] = await this.knex('tasks')
+    if (updateTaskDto.position !== undefined) updatePayloadForDb.position = updateTaskDto.position;
+
+    if (updateTaskDto.dueDate !== undefined) {
+      updatePayloadForDb.due_date = updateTaskDto.dueDate ? new Date(updateTaskDto.dueDate) : null;
+    }
+
+    if (updateTaskDto.type !== undefined) {
+      updatePayloadForDb.type = updateTaskDto.type; // string or null
+    }
+
+    if (updateTaskDto.priority !== undefined) {
+      updatePayloadForDb.priority = updateTaskDto.priority; // string or null
+    }
+
+    if (updateTaskDto.tags !== undefined) {
+      updatePayloadForDb.tags = updateTaskDto.tags; // string[] or null
+    }
+
+    // Check if any fields are actually being updated
+    if (Object.keys(updatePayloadForDb).length === 0) {
+      // If only updated_at needs to be touched, or no actual changes.
+      // To ensure `updated_at` is modified even if no other field changes (e.g. if an empty DTO is sent),
+      // we can proceed with an update call that only sets updated_at.
+      // However, if the intent is "no change if payload is empty", then return task.
+      // For now, let's assume an empty DTO means "no change to task fields", but we will still return the task.
+      // If an explicit "touch" is needed, this logic might change.
+      // The original code updated `updated_at` regardless. Let's stick to that.
+       const [touchedDbTask] = await this.knex('tasks')
         .where({ id: taskId })
         .update({ updated_at: new Date() })
         .returning('*');
-      return toTaskRecord(updatedDbTaskUnchanged);
+      return toTaskRecord(touchedDbTask);
     }
+
+    updatePayloadForDb.updated_at = new Date(); // Add updated_at timestamp
 
     const [updatedDbTask] = await this.knex('tasks')
       .where({ id: taskId })
-      .update({ ...updatePayload, updated_at: new Date() })
+      .update(updatePayloadForDb)
       .returning('*');
 
     const updatedTask = toTaskRecord(updatedDbTask);

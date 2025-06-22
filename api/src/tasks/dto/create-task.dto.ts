@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsUUID, MaxLength, IsInt, IsArray } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsUUID, MaxLength, IsInt, IsArray, IsDateString } from 'class-validator';
 
 export class CreateTaskDto {
   @IsString()
@@ -26,7 +26,7 @@ export class CreateTaskDto {
   // position will be handled by the service, typically added at the end of the column
 
   @IsOptional()
-  @IsString()
+  @IsDateString() // Changed from IsString
   dueDate?: string; // ISO date string
 
   @IsOptional()

@@ -10,9 +10,21 @@ import LandingPage from '../pages/LandingPage'; // Import LandingPage
 import NotFoundPage from '../pages/NotFoundPage'; // Import NotFoundPage
 import { useAuth } from './auth/AuthContext'; // Import the real useAuth
 import Header from '../widgets/Header/Header';
+import { AddTaskModalContext } from '../shared/contexts/AddTaskModalContext'; // Import the context
+import { useState } from 'react'; // Import useState
 
 const App: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth(); // Use real useAuth, include isLoading
+  const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
+
+  const openAddTaskModal = () => setIsAddTaskModalOpen(true);
+  const closeAddTaskModal = () => setIsAddTaskModalOpen(false);
+
+  const addTaskModalContextValue = {
+    isModalOpen: isAddTaskModalOpen,
+    openModal: openAddTaskModal,
+    closeModal: closeAddTaskModal,
+  };
 
   // Optional: Show a global loading spinner while AuthContext is initializing
   if (isLoading) {
@@ -20,11 +32,12 @@ const App: React.FC = () => {
   }
 
   return (
-    <Router>
-      <Header />
-      <Routes>
-        {/* Root route: Landing page for unauthenticated, redirect to dashboard for authenticated */}
-        <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" /> : <LandingPage />} />
+    <AddTaskModalContext.Provider value={addTaskModalContextValue}>
+      <Router>
+        <Header />
+        <Routes>
+          {/* Root route: Landing page for unauthenticated, redirect to dashboard for authenticated */}
+          <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" /> : <LandingPage />} />
 
         {/* Auth routes: Redirect to dashboard if authenticated, otherwise show login/register */}
         <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" /> : <LoginPage />} />
@@ -44,8 +57,9 @@ const App: React.FC = () => {
         <Route path="/404" element={<NotFoundPage />} />
         <Route path="*" element={<Navigate to="/404" replace />} /> {/* Catch-all route */}
 
-      </Routes>
-    </Router>
+        </Routes>
+      </Router>
+    </AddTaskModalContext.Provider>
   );
 };
 
