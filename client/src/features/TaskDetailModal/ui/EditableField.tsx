@@ -124,4 +124,3 @@ const EditableField: React.FC<EditableFieldProps> = ({
 };
 
 export default EditableField;
-```
