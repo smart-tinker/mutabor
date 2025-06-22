@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext } from 'react';
 
 interface AddTaskModalContextType {
   isModalOpen: boolean;
@@ -6,7 +6,7 @@ interface AddTaskModalContextType {
   closeModal: () => void;
 }
 
-const AddTaskModalContext = createContext<AddTaskModalContextType | undefined>(undefined);
+export const AddTaskModalContext = createContext<AddTaskModalContextType | undefined>(undefined);
 
 export const useAddTaskModal = () => {
   const context = useContext(AddTaskModalContext);
