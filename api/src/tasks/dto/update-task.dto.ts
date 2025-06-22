@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsUUID, MaxLength, IsInt } from 'class-validator';
+import { IsString, IsOptional, IsUUID, MaxLength, IsInt, IsArray, IsDateString } from 'class-validator';
 
 export class UpdateTaskDto {
   @IsString()
@@ -22,4 +22,23 @@ export class UpdateTaskDto {
   @IsInt()
   @IsOptional()
   position?: number;
+
+  @IsOptional()
+  @IsDateString() // Changed from IsString
+  dueDate?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  type?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  priority?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
 }

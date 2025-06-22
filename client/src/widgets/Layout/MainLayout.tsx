@@ -4,12 +4,13 @@ import styles from './MainLayout.module.css';
 
 interface MainLayoutProps {
   children: ReactNode;
+  // onOpenAddTaskModal?: () => void; // REMOVED - No longer needed
 }
 
-const MainLayout = ({ children }: MainLayoutProps) => {
+const MainLayout = ({ children }: MainLayoutProps) => { // Removed onOpenAddTaskModal from props
   return (
     <div className={styles.layoutContainer}>
-      <Header /> {/* Add Header component */}
+      <Header /> {/* REMOVED onOpenAddTaskModal prop */}
       <main className={styles.mainContent}>
         {children}
       </main>

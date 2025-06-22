@@ -7,6 +7,24 @@ export interface CreateTaskDto {
   columnId: string;
   projectId: number; // Ensure this is passed from BoardPage
   assigneeId?: string;
+  // Fields from previous CreateTaskDto in backend, to be aligned with TaskRecord
+  dueDate?: string;
+  type?: string;
+  priority?: string;
+  tags?: string[];
+}
+
+// For updating tasks, all fields are optional
+export interface UpdateTaskDto {
+  title?: string;
+  description?: string;
+  columnId?: string; // Usually handled by move, but can be here for general updates
+  assigneeId?: string | null; // Allow setting to null
+  dueDate?: string | null; // Allow setting to null
+  type?: string | null; // Allow setting to null
+  priority?: string | null; // Allow setting to null
+  tags?: string[] | null; // Allow setting to null
+  position?: number; // If position is also updatable directly
 }
 
 export interface MoveTaskDto {
@@ -38,7 +56,11 @@ export const taskService = {
     const response = await apiClient.patch<TaskDto>(`/tasks/${taskId}/move`, data);
     return response.data;
   },
-  // Add other task-related API calls here if needed (e.g., updateTask, getTaskById)
+
+  updateTask: async (taskId: string, data: UpdateTaskDto): Promise<TaskDto> => {
+    const response = await apiClient.patch<TaskDto>(`/tasks/${taskId}`, data);
+    return response.data;
+  },
 
   getTaskComments: async (taskId: string): Promise<CommentDto[]> => {
     const response = await apiClient.get<ApiCommentDto[]>(`/tasks/${taskId}/comments`);

@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsUUID, MaxLength, IsInt } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsUUID, MaxLength, IsInt, IsArray, IsDateString } from 'class-validator';
 
 export class CreateTaskDto {
   @IsString()
@@ -24,4 +24,23 @@ export class CreateTaskDto {
   assigneeId?: string;
 
   // position will be handled by the service, typically added at the end of the column
+
+  @IsOptional()
+  @IsDateString() // Changed from IsString
+  dueDate?: string; // ISO date string
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  type?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  priority?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
 }
