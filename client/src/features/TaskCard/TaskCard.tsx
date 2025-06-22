@@ -37,7 +37,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onTaskClick }) => {
       onClick={() => onTaskClick(task)}
     >
       <div className={styles.taskTitle}>
-        {task.humanReadableId}: {task.title}
+        {task.humanReadableId ? `${task.humanReadableId}: ` : ''}{task.title}
       </div>
       {task.description && (
         <div className={styles.taskDescription}>
