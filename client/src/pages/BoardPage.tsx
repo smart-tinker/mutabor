@@ -20,6 +20,7 @@ import { taskService } from '../shared/api/taskService';
 import type { CreateTaskDto } from '../shared/api/taskService';
 import { socket, joinProjectRoom, leaveProjectRoom } from '../shared/lib/socket';
 import { Modal } from '../shared/ui/Modal'; // Import the new Modal
+import styles from './BoardPage.module.css'; // Import css modules
 import ColumnLane from '../features/ColumnLane/ColumnLane'; // Import ColumnLane
 import { ManageProjectMembersModal } from '../features/ProjectMembers'; // Import ManageProjectMembersModal
 import { TaskDetailModal } from '../features/TaskDetailModal'; // Import TaskDetailModal
@@ -385,7 +386,7 @@ const BoardPage: React.FC = () => {
                     value={newTaskTitle}
                     onChange={(e) => setNewTaskTitle(e.target.value)}
                     required
-                    style={{ width: '100%', padding: '8px', boxSizing: 'border-box', marginBottom: '10px' }}
+              className={styles.formInput}
                   />
                 </div>
                 <div>
@@ -394,18 +395,22 @@ const BoardPage: React.FC = () => {
                     id="taskDescription"
                     value={newTaskDescription}
                     onChange={(e) => setNewTaskDescription(e.target.value)}
-                    style={{ width: '100%', padding: '8px', boxSizing: 'border-box', marginBottom: '10px', minHeight: '80px' }}
+              className={styles.formTextarea}
                   />
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+          <div className={styles.formActions}>
                   <button
                     type="button"
                     onClick={() => setIsAddTaskModalOpen(false)}
-                    style={{ padding: '8px 15px' }}
+              className={`${styles.button} ${styles.buttonSecondary}`}
                   >
                     Cancel
                   </button>
-                  <button type="submit" disabled={isCreatingTask} style={{ padding: '8px 15px' }}>
+            <button
+              type="submit"
+              disabled={isCreatingTask}
+              className={`${styles.button} ${styles.buttonPrimary}`}
+            >
                     {isCreatingTask ? 'Creating...' : 'Create Task'}
                   </button>
                 </div>

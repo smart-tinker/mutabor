@@ -80,7 +80,7 @@ const DashboardPage: React.FC = () => {
               value={newProjectName}
               onChange={(e) => setNewProjectName(e.target.value)}
               required
-              style={{ width: '100%', padding: '8px', boxSizing: 'border-box', marginBottom: '10px' }}
+              className={styles.formInput}
             />
           </div>
           <div>
@@ -92,14 +92,22 @@ const DashboardPage: React.FC = () => {
               onChange={(e) => setNewProjectPrefix(e.target.value)}
               maxLength={10}
               required
-              style={{ width: '100%', padding: '8px', boxSizing: 'border-box', marginBottom: '10px' }}
+              className={styles.formInput}
             />
           </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
-            <button type="button" onClick={() => setIsModalOpen(false)} style={{ padding: '8px 15px' }}>
+          <div className={styles.formActions}>
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(false)}
+              className={`${styles.button} ${styles.buttonSecondary}`}
+            >
               Cancel
             </button>
-            <button type="submit" disabled={isCreating} style={{ padding: '8px 15px' }}>
+            <button
+              type="submit"
+              disabled={isCreating}
+              className={`${styles.button} ${styles.buttonPrimary}`}
+            >
               {isCreating ? 'Creating...' : 'Create Project'}
             </button>
           </div>
