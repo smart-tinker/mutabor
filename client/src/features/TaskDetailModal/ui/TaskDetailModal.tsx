@@ -47,7 +47,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, onClose
 
     const handleCommentCreated = (newComment: ApiCommentDto) => {
       console.log('comment:created event received in TaskDetailModal', newComment);
-      if (newComment.taskId === task.id) {
+      if (newComment.task_id === task.id) {
         const commentToDisplay = transformCommentDto(newComment);
         setComments(prevComments => {
           if (prevComments.find(c => c.id === commentToDisplay.id)) return prevComments;
