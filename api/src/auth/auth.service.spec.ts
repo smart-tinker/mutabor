@@ -17,6 +17,7 @@ import { KNEX_CONNECTION } from '../knex/knex.constants'; // Assuming this const
 
 // Mock Knex
 const mockKnex = {
+  select: jest.fn().mockReturnThis(), // Added select
   where: jest.fn().mockReturnThis(),
   first: jest.fn(),
   insert: jest.fn().mockReturnThis(),
@@ -45,10 +46,15 @@ describe('AuthService', () => {
     Object.values(mockKnexChain).forEach(mockMethod => {
       if (jest.isMockFunction(mockMethod)) {
         mockMethod.mockClear();
+        // Ensure all chainable methods are reset to return `this` if that's their default
+        if (['select', 'where', 'insert', 'returning'].includes(mockMethod.getMockName())) {
+          mockMethod.mockReturnThis();
+        }
       }
     });
     // If any of these return promises, reset their specific mock states if needed
     mockKnexChain.first.mockReset(); // e.g. mockResolvedValueOnce
+    // returning might also need more specific reset if its behavior changes per test
     mockKnexChain.returning.mockReset(); // e.g. mockResolvedValueOnce
 
 

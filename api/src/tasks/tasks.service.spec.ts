@@ -27,6 +27,7 @@ const mockTrxQueryBuilder = {
 // Mock for the actual query builder chain for non-transactional queries
 const mockQueryBuilder = {
   where: jest.fn().mockReturnThis(),
+  andWhere: jest.fn().mockReturnThis(), // Added andWhere
   leftJoin: jest.fn().mockReturnThis(),
   select: jest.fn().mockReturnThis(),
   first: jest.fn(),
@@ -42,7 +43,9 @@ interface MockKnexClient extends jest.Mock<any, any> {
   transaction: jest.Mock<any, any>;
 }
 const mockKnexClient = jest.fn((tableName) => mockQueryBuilder) as MockKnexClient;
-mockKnexClient.transaction = jest.fn(async (callback) => callback(jest.fn((trxTableName) => mockTrxQueryBuilder)));
+// Define trxMock here to be referenced in beforeEach
+const trxMock = jest.fn((trxTableName) => mockTrxQueryBuilder);
+mockKnexClient.transaction = jest.fn(async (callback) => callback(trxMock));
 
 
 const knexProvider = {
@@ -79,10 +82,12 @@ describe('TasksService', () => {
     // --- Re-establish default mock implementations AFTER jest.clearAllMocks() ---
     // Main Knex client
     mockKnexClient.mockImplementation((tableName) => mockQueryBuilder);
-    mockKnexClient.transaction.mockImplementation(async (callback) => callback(jest.fn((trxTableName) => mockTrxQueryBuilder)));
+    trxMock.mockClear().mockImplementation((trxTableName) => mockTrxQueryBuilder); // Reset trxMock
+    mockKnexClient.transaction.mockImplementation(async (callback) => callback(trxMock)); // Re-assign with reset trxMock
 
     // Query Builder (non-transactional)
     mockQueryBuilder.where = jest.fn().mockReturnThis();
+    mockQueryBuilder.andWhere = jest.fn().mockReturnThis(); // Added andWhere
     mockQueryBuilder.leftJoin = jest.fn().mockReturnThis();
     mockQueryBuilder.select = jest.fn().mockReturnThis();
     mockQueryBuilder.first = jest.fn(); // To be defined in tests with mockResolvedValueOnce
@@ -180,18 +185,18 @@ describe('TasksService', () => {
     const mockColumn2: any = { id: 'col-2', name: 'In Progress', position: 1, project_id: 1 };
 
     it('should move a task within a transaction and emit event', async () => {
-      mockTrxQueryBuilder.first.mockResolvedValueOnce(mockTask); // taskToMove in trx
-      mockTrxQueryBuilder.first.mockResolvedValueOnce(mockProject); // project permission check in trx
-      mockTrxQueryBuilder.first.mockResolvedValueOnce(mockColumn2); // targetColumn in trx
+      mockTrxQueryBuilder.first.mockImplementationOnce(() => Promise.resolve(mockTask)); // taskToMove in trx
+      mockTrxQueryBuilder.first.mockImplementationOnce(() => Promise.resolve(mockProject)); // project permission check in trx
+      mockTrxQueryBuilder.first.mockImplementationOnce(() => Promise.resolve(mockColumn2)); // targetColumn in trx
       // mockTrxQueryBuilder.returning for the final task update is already set up
 
       const result = await service.moveTask(mockTask.id, moveTaskDto, mockUser);
 
       expect(mockKnexClient.transaction).toHaveBeenCalled();
-      const trxCallback = mockKnexClient.transaction.mock.calls[0][0];
-      const trxFn = await trxCallback(jest.fn().mockReturnValue(mockTrxQueryBuilder)); // Execute callback to get trx instance factory
+      // const trxCallback = mockKnexClient.transaction.mock.calls[0][0];
+      // const trxFn = await trxCallback(trxMock); // trxMock is passed directly
 
-      expect(trxFn).toHaveBeenCalledWith('tasks');
+      expect(trxMock).toHaveBeenCalledWith('tasks'); // Now assert on trxMock directly
       expect(mockTrxQueryBuilder.decrement).toHaveBeenCalled();
       expect(mockTrxQueryBuilder.increment).toHaveBeenCalled();
       expect(mockTrxQueryBuilder.update).toHaveBeenCalledWith(expect.objectContaining({ column_id: 'col-2', position: 0 }));

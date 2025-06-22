@@ -1,11 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProjectsService } from './projects.service';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
-// import { User, Project, Column } from '@prisma/client'; // Types removed
 
-const mockUser: any = { id: 'user-1', email: 'test@example.com', name: 'Test User', password: 'hashedpassword', createdAt: new Date(), updatedAt: new Date() };
-const mockProject: any /* Project & { columns?: Column[] } */ = { id: 1, name: 'Test Project', taskPrefix: 'TP', lastTaskNumber: 0, ownerId: 'user-1', createdAt: new Date(), updatedAt: new Date() };
-const mockColumn: any /* Column */ = { id: 'col-1', name: 'To Do', position: 0, projectId: 1, createdAt: new Date(), updatedAt: new Date() };
+const mockUser: any = { id: 'user-1', email: 'test@example.com', name: 'Test User', password: 'hashedpassword', created_at: new Date(), updated_at: new Date() };
+const mockProject: any /* Project & { columns?: Column[] } */ = { id: 1, name: 'Test Project', taskPrefix: 'TP', lastTaskNumber: 0, ownerId: 'user-1', created_at: new Date(), updated_at: new Date() };
+const mockColumn: any /* Column */ = { id: 'col-1', name: 'To Do', position: 0, projectId: 1, created_at: new Date(), updated_at: new Date() };
 mockProject.columns = [mockColumn];
 
 
@@ -102,9 +101,9 @@ describe('ProjectsService', () => {
       const createDto = { name: 'New Project', prefix: 'NP' };
       const mockNewProjectDbResult = [{ id: 1, name: createDto.name, task_prefix: createDto.prefix, owner_id: mockUser.id, last_task_number: 0, created_at: new Date(), updated_at: new Date() }];
       const mockInsertedColumnsDbResult = [
-        { id: 'uuid1', name: 'To Do', position: 0, project_id: 1, created_at: new Date(), updatedAt: new Date() },
-        { id: 'uuid2', name: 'In Progress', position: 1, project_id: 1, created_at: new Date(), updatedAt: new Date() },
-        { id: 'uuid3', name: 'Done', position: 2, project_id: 1, created_at: new Date(), updatedAt: new Date() },
+        { id: 'uuid1', name: 'To Do', position: 0, project_id: 1, created_at: new Date(), updated_at: new Date() },
+        { id: 'uuid2', name: 'In Progress', position: 1, project_id: 1, created_at: new Date(), updated_at: new Date() },
+        { id: 'uuid3', name: 'Done', position: 2, project_id: 1, created_at: new Date(), updated_at: new Date() },
       ];
 
       mockTrxQueryBuilder.returning.mockResolvedValueOnce(mockNewProjectDbResult); // For project insert
