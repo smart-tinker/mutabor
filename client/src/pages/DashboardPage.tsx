@@ -103,9 +103,9 @@ const DashboardPage: React.FC = () => {
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>Project Name</th>
-              <th>Prefix</th>
-              <th>Link</th>
+              <th scope="col">Project Name</th>
+              <th scope="col">Prefix</th>
+              <th scope="col">Link</th>
             </tr>
           </thead>
           <tbody>

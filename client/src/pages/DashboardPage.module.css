@@ -2,26 +2,29 @@
   width: 100%;
   border-collapse: collapse;
   margin-top: 20px;
+  background-color: var(--color-background-page); /* Added */
 }
 
 .table th,
 .table td {
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border); /* Changed from #ddd */
   padding: 8px;
   text-align: left;
 }
 
 .table th {
-  background-color: #f2f2f2;
+  /* Changed from #f2f2f2, using a variable that's very light grey */
+  /* Consider var(--color-border) or a light primary tint if a more distinct header is desired */
+  background-color: var(--color-background-page);
   font-weight: bold;
 }
 
 .table tbody tr:hover {
-  background-color: #f5f5f5;
+  background-color: var(--color-primary-background-hover); /* Changed from #f5f5f5 */
 }
 
 .link a {
-  color: #007bff;
+  color: var(--color-primary); /* Changed from #007bff */
   text-decoration: none;
 }
 
