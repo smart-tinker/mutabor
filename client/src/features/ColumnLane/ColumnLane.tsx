@@ -1,5 +1,4 @@
 import React from 'react';
-import styles from './ColumnLane.module.css'; // Import the CSS module
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
 import TaskCard from '../TaskCard/TaskCard'; // Adjust path
