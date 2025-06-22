@@ -6,10 +6,19 @@ import { taskService } from '../../../shared/api/taskService'; // Import taskSer
 import type { UpdateTaskDto, CommentDto, ApiCommentDto } from '../../../shared/api/taskService'; // Import UpdateTaskDto
 import { transformCommentDto } from '../../../shared/api/taskService';
 
+// client/src/features/TaskDetailModal/ui/TaskDetailModal.tsx
+import React, { useEffect, useState, useCallback } from 'react';
+// Use CommentDto from taskService, TaskDto from projectService
+import type { TaskDto } from '../../../shared/api/projectService';
+import { taskService } from '../../../shared/api/taskService'; // Import taskService
+import type { UpdateTaskDto, CommentDto, ApiCommentDto } from '../../../shared/api/taskService'; // Import UpdateTaskDto
+import { transformCommentDto } from '../../../shared/api/taskService';
+
 import { getTaskComments } from '../../Comments/api';
 import { CommentList, AddCommentForm } from '../../Comments';
 import { socket } from '../../../shared/lib/socket';
 import styles from './TaskDetailModal.module.css';
+import EditableField from './EditableField';
 
 interface TaskDetailModalProps {
   task: TaskDto | null;
@@ -23,29 +32,60 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, onClose
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [errorComments, setErrorComments] = useState<string | null>(null);
 
-  // Editing state
-  const [isEditing, setIsEditing] = useState(false);
+  // Editable fields states
   const [editableTitle, setEditableTitle] = useState('');
   const [editableDescription, setEditableDescription] = useState('');
   const [editableDueDate, setEditableDueDate] = useState('');
   const [editableType, setEditableType] = useState('');
   const [editablePriority, setEditablePriority] = useState('');
   const [editableTags, setEditableTags] = useState(''); // Comma-separated string for input
-  const [isUpdatingTask, setIsUpdatingTask] = useState(false);
-  const [updateError, setUpdateError] = useState<string | null>(null);
+
+  // Field-specific editing states
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [isEditingDueDate, setIsEditingDueDate] = useState(false);
+  const [isEditingType, setIsEditingType] = useState(false);
+  const [isEditingPriority, setIsEditingPriority] = useState(false);
+  const [isEditingTags, setIsEditingTags] = useState(false);
+
+  // Field-specific update and error states
+  const [isUpdatingTitle, setIsUpdatingTitle] = useState(false);
+  const [titleUpdateError, setTitleUpdateError] = useState<string | null>(null);
+  const [isUpdatingDescription, setIsUpdatingDescription] = useState(false);
+  const [descriptionUpdateError, setDescriptionUpdateError] = useState<string | null>(null);
+  const [isUpdatingDueDate, setIsUpdatingDueDate] = useState(false);
+  const [dueDateUpdateError, setDueDateUpdateError] = useState<string | null>(null);
+  const [isUpdatingType, setIsUpdatingType] = useState(false);
+  const [typeUpdateError, setTypeUpdateError] = useState<string | null>(null);
+  const [isUpdatingPriority, setIsUpdatingPriority] = useState(false);
+  const [priorityUpdateError, setPriorityUpdateError] = useState<string | null>(null);
+  const [isUpdatingTags, setIsUpdatingTags] = useState(false);
+  const [tagsUpdateError, setTagsUpdateError] = useState<string | null>(null);
 
 
   // Initialize editable fields when task changes or modal opens
   useEffect(() => {
     if (task) {
-      setEditableTitle(task.title);
-      setEditableDescription(task.description || '');
-      setEditableDueDate(task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '');
-      setEditableType(task.type || '');
-      setEditablePriority(task.priority || '');
-      setEditableTags(task.tags ? task.tags.join(', ') : '');
+      if (!isEditingTitle) {
+        setEditableTitle(task.title);
+      }
+      if (!isEditingDescription) {
+        setEditableDescription(task.description || '');
+      }
+      if (!isEditingDueDate) {
+        setEditableDueDate(task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '');
+      }
+      if (!isEditingType) {
+        setEditableType(task.type || '');
+      }
+      if (!isEditingPriority) {
+        setEditablePriority(task.priority || '');
+      }
+      if (!isEditingTags) {
+        setEditableTags(task.tags ? task.tags.join(', ') : '');
+      }
     }
-  }, [task, isOpen]); // Re-run if isOpen changes to ensure reset if modal is reopened with same task
+  }, [task, isOpen, isEditingTitle, isEditingDescription, isEditingDueDate, isEditingType, isEditingPriority, isEditingTags]); // Re-run if isOpen changes or task changes. Also include isEditing states.
 
   const fetchComments = useCallback(async () => {
     if (!task) return;
@@ -98,53 +138,90 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, onClose
 
   if (!isOpen || !task) return null;
 
-  const handleEditToggle = () => {
-    if (isEditing) {
-      // Reset fields if canceling edit
-      if (task) {
-        setEditableTitle(task.title);
-        setEditableDescription(task.description || '');
-        setEditableDueDate(task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '');
-        setEditableType(task.type || '');
-        setEditablePriority(task.priority || '');
-        setEditableTags(task.tags ? task.tags.join(', ') : '');
-      }
-    }
-    setIsEditing(!isEditing);
-    setUpdateError(null); // Clear any previous update errors
-  };
-
-  const handleSaveChanges = async () => {
+  // Generic save handler for a single field
+  const handleSaveField = async (
+    fieldName: string, // For error messages, could be extended for more
+    updateDtoPartial: Partial<UpdateTaskDto>,
+    setIsUpdating: React.Dispatch<React.SetStateAction<boolean>>,
+    setUpdateError: React.Dispatch<React.SetStateAction<string | null>>,
+    setIsEditing: React.Dispatch<React.SetStateAction<boolean>>
+  ) => {
     if (!task) return;
-    setIsUpdatingTask(true);
+
+    setIsUpdating(true);
     setUpdateError(null);
 
-    const tagsArray = editableTags.trim() ? editableTags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
-
-    const updateData: UpdateTaskDto = {
-      title: editableTitle, // Assuming title cannot be cleared to empty, or if so, '' is acceptable
-      description: editableDescription, // Send '' if cleared, backend DTO allows string | null
-      dueDate: editableDueDate ? editableDueDate : null, // Send null if date input is cleared (empty string)
-      type: editableType, // Send '' if cleared
-      priority: editablePriority, // Send '' if cleared
-      tags: tagsArray, // Send [] if cleared
-    };
-
-    // Note: The backend UpdateTaskDto allows null for these fields.
-    // If an empty string ('') should explicitly be stored as null by the backend,
-    // the backend service (tasks.service.ts updateTask method) would need to handle that conversion.
-    // For now, the client sends '' for cleared text fields, null for cleared date, and [] for cleared tags.
-
     try {
-      await taskService.updateTask(task.id, updateData);
+      await taskService.updateTask(task.id, updateDtoPartial);
       setIsEditing(false);
-      // Relies on WebSocket event (task:updated) to update BoardPage and thus this modal's task prop
+      // Task data will be updated via WebSocket event `task:updated`
     } catch (error: any) {
-      console.error('Failed to update task:', error);
-      setUpdateError(error.message || 'Failed to update task. Please try again.');
+      // Consider more specific error messages if fieldName is used
+      setUpdateError(error.message || `Failed to update ${fieldName}.`);
     } finally {
-      setIsUpdatingTask(false);
+      setIsUpdating(false);
     }
+  };
+
+  const handleSaveTitle = async () => {
+    await handleSaveField(
+      'title',
+      { title: editableTitle },
+      setIsUpdatingTitle,
+      setTitleUpdateError,
+      setIsEditingTitle
+    );
+  };
+
+  const handleSaveDescription = async () => {
+    await handleSaveField(
+      'description',
+      { description: editableDescription },
+      setIsUpdatingDescription,
+      setDescriptionUpdateError,
+      setIsEditingDescription
+    );
+  };
+
+  const handleSaveDueDate = async () => {
+    await handleSaveField(
+      'dueDate',
+      { dueDate: editableDueDate ? editableDueDate : null },
+      setIsUpdatingDueDate,
+      setDueDateUpdateError,
+      setIsEditingDueDate
+    );
+  };
+
+  const handleSaveType = async () => {
+    await handleSaveField(
+      'type',
+      { type: editableType },
+      setIsUpdatingType,
+      setTypeUpdateError,
+      setIsEditingType
+    );
+  };
+
+  const handleSavePriority = async () => {
+    await handleSaveField(
+      'priority',
+      { priority: editablePriority },
+      setIsUpdatingPriority,
+      setPriorityUpdateError,
+      setIsEditingPriority
+    );
+  };
+
+  const handleSaveTags = async () => {
+    const tagsArray = editableTags.trim() ? editableTags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+    await handleSaveField(
+      'tags',
+      { tags: tagsArray },
+      setIsUpdatingTags,
+      setTagsUpdateError,
+      setIsEditingTags
+    );
   };
 
   // Basic date formatter for display
@@ -156,63 +233,178 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, onClose
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-        {isEditing ? (
-          // EDIT MODE
-          <div className={styles.taskEditForm}>
-            <h3>Edit Task</h3>
-            <div>
-              <label htmlFor="editTaskTitle">Title:</label>
-              <input id="editTaskTitle" type="text" value={editableTitle} onChange={e => setEditableTitle(e.target.value)} className={styles.formInputFull} />
+        {/* Global edit mode removed, content is always "view" with inline edit options */}
+        <>
+          <div className={styles.taskDetails}>
+          <div className={styles.taskDetails}>
+            <div className={styles.taskHeader}>
+              <h2>
+                {isEditingTitle ? (
+                  <>
+                    <span>{task.humanReadableId}: </span> {/* Non-editable part */}
+                    <EditableField
+                      editableValue={editableTitle}
+                      isEditing={true}
+                      isUpdating={isUpdatingTitle}
+                      error={titleUpdateError}
+                      onEdit={() => {}} // Not used when isEditing is true
+                      onCancel={() => {
+                        setIsEditingTitle(false);
+                        setEditableTitle(task.title);
+                        setTitleUpdateError(null);
+                      }}
+                      onSave={handleSaveTitle}
+                      onChange={(e) => setEditableTitle(e.target.value)}
+                      inputType="text"
+                      // No label, value, children, viewModeClassName for this usage
+                      editModeClassName={styles.inlineEditSection}
+                      inputSpecificClassName={styles.formInputFull}
+                      controlsClassName={styles.inlineEditSectionControls}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <span>{task.humanReadableId}: {task.title}</span>
+                    <button onClick={() => { setIsEditingTitle(true); setTitleUpdateError(null); }} className={`${styles.button} ${styles.buttonLink} ${styles.editIcon}`}>Edit</button>
+                  </>
+                )}
+              </h2>
             </div>
-            <div>
-              <label htmlFor="editTaskDesc">Description:</label>
-              <textarea id="editTaskDesc" value={editableDescription} onChange={e => setEditableDescription(e.target.value)} className={styles.formTextareaFull} />
+
+            <div className={styles.description}>
+              <EditableField
+                value={task.description}
+                editableValue={editableDescription}
+                isEditing={isEditingDescription}
+                isUpdating={isUpdatingDescription}
+                error={descriptionUpdateError}
+                onEdit={() => { setIsEditingDescription(true); setDescriptionUpdateError(null); }}
+                onCancel={() => {
+                  setIsEditingDescription(false);
+                  setEditableDescription(task.description || '');
+                  setDescriptionUpdateError(null);
+                }}
+                onSave={handleSaveDescription}
+                onChange={(e) => setEditableDescription(e.target.value)}
+                inputType="textarea"
+                viewModeClassName={styles.descriptionView}
+                valueTextClassName={styles.descriptionText}
+                valueAreaClassName={styles.defaultValueArea} // Using default here, descriptionView handles layout
+                editModeClassName={styles.inlineEditSection}
+                inputSpecificClassName={styles.formTextareaFull}
+                controlsClassName={styles.inlineEditSectionControls}
+              />
             </div>
-            <div>
-              <label htmlFor="editTaskDueDate">Due Date:</label>
-              <input id="editTaskDueDate" type="date" value={editableDueDate} onChange={e => setEditableDueDate(e.target.value)} className={styles.formInput} />
+
+            <div className={styles.metaGrid}>
+              <EditableField
+                label="Due Date:"
+                value={task.dueDate}
+                editableValue={editableDueDate}
+                isEditing={isEditingDueDate}
+                isUpdating={isUpdatingDueDate}
+                error={dueDateUpdateError}
+                onEdit={() => { setIsEditingDueDate(true); setDueDateUpdateError(null); }}
+                onCancel={() => {
+                  setIsEditingDueDate(false);
+                  setEditableDueDate(task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '');
+                  setDueDateUpdateError(null);
+                }}
+                onSave={handleSaveDueDate}
+                onChange={(e) => setEditableDueDate(e.target.value)}
+                inputType="date"
+                valueDisplayFormatter={(val) => formatDate(val as string | undefined)}
+                viewModeClassName={styles.metaGridItem}
+                labelClassName={styles.metaGridItemLabel}
+                valueAreaClassName={styles.metaGridItemValueArea}
+                valueTextClassName={styles.metaGridItemValueText}
+                editModeClassName={styles.inlineEditSectionCompact} // Changed from metaGridItem
+                inputSpecificClassName={styles.formInput}
+                controlsClassName={styles.inlineEditSectionCompactControls} // Added
+              />
+              <EditableField
+                label="Type:"
+                value={task.type}
+                editableValue={editableType}
+                isEditing={isEditingType}
+                isUpdating={isUpdatingType}
+                error={typeUpdateError}
+                onEdit={() => { setIsEditingType(true); setTypeUpdateError(null); }}
+                onCancel={() => {
+                  setIsEditingType(false);
+                  setEditableType(task.type || '');
+                  setTypeUpdateError(null);
+                }}
+                onSave={handleSaveType}
+                onChange={(e) => setEditableType(e.target.value)}
+                inputPlaceholder="e.g., Bug, Feature"
+                viewModeClassName={styles.metaGridItem}
+                labelClassName={styles.metaGridItemLabel} // Corrected typo
+                valueAreaClassName={styles.metaGridItemValueArea}
+                valueTextClassName={styles.metaGridItemValueText}
+                editModeClassName={styles.inlineEditSectionCompact} // Changed from metaGridItem
+                inputSpecificClassName={styles.formInput}
+                controlsClassName={styles.inlineEditSectionCompactControls} // Added
+              />
+              <EditableField
+                label="Priority:"
+                value={task.priority}
+                editableValue={editablePriority}
+                isEditing={isEditingPriority}
+                isUpdating={isUpdatingPriority}
+                error={priorityUpdateError}
+                onEdit={() => { setIsEditingPriority(true); setPriorityUpdateError(null); }}
+                onCancel={() => {
+                  setIsEditingPriority(false);
+                  setEditablePriority(task.priority || '');
+                  setPriorityUpdateError(null);
+                }}
+                onSave={handleSavePriority}
+                onChange={(e) => setEditablePriority(e.target.value)}
+                inputPlaceholder="e.g., High, Medium, Low"
+                viewModeClassName={styles.metaGridItem}
+                labelClassName={styles.metaGridItemLabel}
+                valueAreaClassName={styles.metaGridItemValueArea}
+                valueTextClassName={styles.metaGridItemValueText}
+                editModeClassName={styles.inlineEditSectionCompact} // Changed from metaGridItem
+                inputSpecificClassName={styles.formInput}
+                controlsClassName={styles.inlineEditSectionCompactControls} // Added
+              />
             </div>
-            <div>
-              <label htmlFor="editTaskType">Type:</label>
-              <input id="editTaskType" type="text" value={editableType} onChange={e => setEditableType(e.target.value)} className={styles.formInput} placeholder="e.g., Bug, Feature"/>
-            </div>
-            <div>
-              <label htmlFor="editTaskPriority">Priority:</label>
-              <input id="editTaskPriority" type="text" value={editablePriority} onChange={e => setEditablePriority(e.target.value)} className={styles.formInput} placeholder="e.g., High, Medium, Low"/>
-            </div>
-            <div>
-              <label htmlFor="editTaskTags">Tags (comma-separated):</label>
-              <input id="editTaskTags" type="text" value={editableTags} onChange={e => setEditableTags(e.target.value)} className={styles.formInputFull} placeholder="e.g., UI, Backend"/>
-            </div>
-            {updateError && <p className={styles.errorText}>{updateError}</p>}
-            <div className={styles.editActions}>
-              <button onClick={handleEditToggle} disabled={isUpdatingTask} className={`${styles.button} ${styles.buttonSecondary}`}>Cancel</button>
-              <button onClick={handleSaveChanges} disabled={isUpdatingTask} className={`${styles.button} ${styles.buttonPrimary}`}>
-                {isUpdatingTask ? 'Saving...' : 'Save Changes'}
-              </button>
+
+            <div className={styles.tagsSection}>
+              <EditableField
+                label="Tags:"
+                value={task.tags}
+                editableValue={editableTags}
+                isEditing={isEditingTags}
+                isUpdating={isUpdatingTags}
+                error={tagsUpdateError}
+                onEdit={() => { setIsEditingTags(true); setTagsUpdateError(null); }}
+                onCancel={() => {
+                  setIsEditingTags(false);
+                  setEditableTags(task.tags ? task.tags.join(', ') : '');
+                  setTagsUpdateError(null);
+                }}
+                onSave={handleSaveTags}
+                onChange={(e) => setEditableTags(e.target.value)}
+                inputPlaceholder="e.g., UI, Backend"
+                // viewModeClassName will be the root div, label is inside
+                labelClassName={styles.tagsSectionLabel}
+                valueAreaClassName={styles.tagsViewArea} // Contains children + edit button
+                editModeClassName={styles.inlineEditSection}
+                inputSpecificClassName={styles.formInputFull}
+                controlsClassName={styles.inlineEditSectionControls}
+              >
+                {/* Custom rendering for tags in view mode */}
+                <div className={styles.tagsDisplay}>
+                  {task.tags && task.tags.length > 0
+                    ? task.tags.map(tag => <span key={tag} className={styles.tagItem}>{tag}</span>)
+                    : <span>No tags.</span>}
+                </div>
+              </EditableField>
             </div>
           </div>
-        ) : (
-          // VIEW MODE
-          <>
-            <div className={styles.taskDetails}>
-              <div className={styles.taskHeader}>
-                <h2>{task.humanReadableId}: {task.title}</h2>
-                <button onClick={handleEditToggle} className={`${styles.button} ${styles.buttonLink}`}>Edit</button>
-              </div>
-              <p className={styles.description}>{task.description || 'No description.'}</p>
-              <div className={styles.metaGrid}>
-                <div><strong>Due Date:</strong> {formatDate(task.dueDate)}</div>
-                <div><strong>Type:</strong> {task.type || 'Not set'}</div>
-                <div><strong>Priority:</strong> {task.priority || 'Not set'}</div>
-              </div>
-              {task.tags && task.tags.length > 0 && (
-                <div className={styles.tagsDisplay}>
-                  <strong>Tags:</strong>
-                  {task.tags.map(tag => <span key={tag} className={styles.tagItem}>{tag}</span>)}
-                </div>
-              )}
-            </div>
             <div className={styles.commentsSection}>
               <h3>Comments</h3>
               {isLoadingComments && <p>Loading comments...</p>}
@@ -221,7 +413,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, onClose
               <AddCommentForm taskId={task.id} onCommentAdded={handleCommentAdded} />
             </div>
           </>
-        )}
+        {/* The main close button for the modal */}
         <button onClick={onClose} className={styles.closeButtonModal}>Close</button>
       </div>
     </div>

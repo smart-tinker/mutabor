@@ -3,27 +3,295 @@
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;
   background-color: var(--color-backdrop);
   display: flex; justify-content: center; align-items: center;
-  z-index: 1050; /* Higher than member modal */
+  z-index: 1050;
 }
 .modalContent {
-  background-color: var(--color-background-element); padding: calc(var(--spacing-base) * 3); /* 24px, was 25px */ border-radius: var(--border-radius-large); /* 8px */
-  min-width: calc(var(--spacing-base) * 63); /* 504px, was 500px */ max-width: calc(var(--spacing-base) * 88); /* 704px, was 700px */ max-height: 80vh;
+  background-color: var(--color-background-element);
+  padding: calc(var(--spacing-base) * 3);
+  border-radius: var(--border-radius-large);
+  min-width: calc(var(--spacing-base) * 63); /* 504px */
+  max-width: calc(var(--spacing-base) * 90); /* 720px, increased max-width */
+  max-height: 85vh; /* Increased max-height */
   box-shadow: var(--shadow-modal);
-  display: flex; flex-direction: column;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto; /* Allow modal content itself to scroll if needed */
 }
 .taskDetails {
-  margin-bottom: calc(var(--spacing-base) * 2.5); /* 20px */
+  /* Removed fixed margin-bottom, sections will handle their own */
 }
 .taskDetails h2 { margin-top: 0; }
-.taskDetails p { white-space: pre-wrap; }
+/* .taskDetails p { white-space: pre-wrap; } Defined in .description specific styles */
+
 .commentsSection {
-  border-top: 1px solid var(--color-border); /* Was --color-border-subtle */
-  padding-top: calc(var(--spacing-base) * 2); /* 16px, was 15px */
-  overflow-y: auto; /* Scroll for comments */
+  border-top: 1px solid var(--color-border);
+  padding-top: calc(var(--spacing-base) * 2);
+  margin-top: calc(var(--spacing-base) * 2); /* Added margin-top for separation */
+  overflow-y: auto;
+  flex-shrink: 0; /* Prevent comments section from shrinking excessively */
+}
+
+/* Edit Icon Styling */
+.editIcon {
+  background: none;
+  border: none;
+  color: var(--color-text-link);
+  cursor: pointer;
+  margin-left: var(--spacing-base-small); /* Reduced margin for "Edit" */
+  font-size: 0.85em; /* Slightly smaller */
+  padding: var(--spacing-base-small) 0; /* Add some vertical padding for easier clicking */
+  vertical-align: middle; /* Align with text better */
+  line-height: 1; /* Prevent extra line height issues */
+}
+.editIcon:hover {
+  text-decoration: underline;
+}
+
+/* Shared styles for sections within taskDetails */
+.taskDetailsSection {
+  margin-bottom: calc(var(--spacing-base) * 1.5); /* Consistent bottom margin for sections */
+}
+
+.taskHeader {
+  composes: taskDetailsSection;
+}
+.taskHeader h2 {
   flex-grow: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1.8em;
 }
-.closeButton {
-  margin-top: calc(var(--spacing-base) * 2); /* 16px, was 15px */
+.taskHeader h2 .inlineEditSection { /* Specifically for title's edit mode form */
+  flex-grow: 1; /* Allow the form to take space */
+  margin-left: var(--spacing-base-small); /* Space after "Task ID:" span */
+}
+
+
+.description {
+  composes: taskDetailsSection;
+  line-height: 1.6;
+}
+.descriptionView {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+}
+.descriptionText {
+  flex-grow: 1;
+  white-space: pre-wrap;
+}
+
+
+.metaGrid {
+  composes: taskDetailsSection;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: calc(var(--spacing-base) * 1.5);
+}
+.metaGridItem { /* Root class for an EditableField in the meta grid (view or edit) */
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-base-small);
+}
+.metaGridItemLabel {
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-secondary);
+  font-size: 0.9em;
+}
+.metaGridItemValueArea { /* Container for (value + edit button) in view mode for meta items */
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Push edit button to the right */
+  flex-wrap: wrap;
+  gap: var(--spacing-base-small);
+  width: 100%;
+}
+.metaGridItemValueText { /* Class for the actual text value span itself */
+  flex-grow: 1; /* Allow text to take available space */
+  word-break: break-word; /* Break long words if necessary */
+}
+
+
+.tagsSection {
+  composes: taskDetailsSection;
+}
+.tagsSectionLabel {
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-secondary);
+  font-size: 0.9em;
+  margin-bottom: var(--spacing-base-small);
+  display: block;
+}
+.tagsViewArea { /* Container for (tag list + edit button) in view mode for tags */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--spacing-base);
+}
+.tagsDisplay {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-base-small);
+  flex-grow: 1; /* Allow tags to take space */
+}
+.tagItem {
+  background-color: var(--color-background-tag);
+  color: var(--color-text-tag);
+  padding: var(--spacing-base-small) var(--spacing-base);
+  border-radius: var(--border-radius-medium);
+  font-size: 0.9em;
+  display: inline-block;
+}
+
+/* Default styles for parts of EditableField if not overridden by specific context classes */
+.editableFieldLabel { /* Default for label rendered by EditableField */
+  display: block;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-secondary);
+  font-size: 0.9em;
+  margin-bottom: var(--spacing-base-extra-small);
+}
+.editableFieldValueText { /* Default for value span rendered by EditableField */
+  word-break: break-word;
+}
+.defaultValueArea { /* Default for container of (value + edit button) */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-base-small);
+  width: 100%;
+}
+
+
+/* Inline Editing Forms */
+.inlineEditSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-base);
+  width: 100%;
+}
+.inlineEditSectionControls {
+  display: flex;
+  gap: var(--spacing-base-small);
+  align-items: center;
+}
+
+.inlineEditSectionCompact { /* Used as editModeClassName for meta fields */
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-base-small);
+  width: 100%;
+}
+.inlineEditSectionCompactControls {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: var(--spacing-base-small);
+}
+.inlineEditSectionCompactControls input {
+  flex-grow: 1;
+  min-width: 80px;
+}
+
+
+/* Form Inputs */
+.formInputFull,
+.formTextareaFull {
+  width: 100%;
+  padding: var(--spacing-base);
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--border-radius-medium);
+  box-sizing: border-box;
+  background-color: var(--color-background-input);
+  color: var(--color-text-input);
+}
+.formTextareaFull {
+  min-height: 100px;
+  resize: vertical;
+}
+.formInput {
+  padding: var(--spacing-base-small) var(--spacing-base);
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--border-radius-medium);
+  box-sizing: border-box;
+  background-color: var(--color-background-input);
+  color: var(--color-text-input);
+}
+input::placeholder, textarea::placeholder {
+  color: var(--color-text-placeholder);
+  opacity: 1;
+}
+input:disabled, textarea:disabled {
+  background-color: var(--color-background-disabled);
+  cursor: not-allowed;
+}
+
+
+/* Error Messages */
+.errorTextSmall {
+  color: var(--color-text-error);
+  font-size: 0.85em;
+  width: 100%;
+}
+
+
+/* Buttons */
+.button {
+  padding: var(--spacing-base) calc(var(--spacing-base) * 1.5);
+  border: none;
+  border-radius: var(--border-radius-medium);
+  cursor: pointer;
+  font-weight: var(--font-weight-bold);
+  transition: background-color 0.2s ease-in-out, opacity 0.2s ease-in-out;
+  text-align: center;
+}
+.buttonPrimary {
+  background-color: var(--color-button-primary-default);
+  color: var(--color-text-button-primary);
+}
+.buttonPrimary:hover:not(:disabled) {
+  background-color: var(--color-button-primary-hover);
+}
+.buttonPrimary:disabled {
+  background-color: var(--color-button-disabled);
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+.buttonSecondary {
+  background-color: var(--color-button-secondary-default);
+  color: var(--color-text-button-secondary);
+  border: 1px solid var(--color-border-button-secondary);
+}
+.buttonSecondary:hover:not(:disabled) {
+  background-color: var(--color-button-secondary-hover);
+}
+.buttonSecondary:disabled {
+  background-color: var(--color-button-disabled);
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+.buttonLink {
+  background: none;
+  border: none;
+  color: var(--color-text-link);
+  text-decoration: none;
+  padding: 0;
+  font-weight: normal;
+}
+.buttonLink:hover {
+  text-decoration: underline;
+}
+.buttonSmall {
+  padding: var(--spacing-base-small) var(--spacing-base);
+  font-size: 0.9em;
+}
+
+.closeButtonModal {
+  margin-top: calc(var(--spacing-base) * 2.5);
   align-self: flex-end;
-  /* Visual styling moved to global .secondary class */
 }
+```
