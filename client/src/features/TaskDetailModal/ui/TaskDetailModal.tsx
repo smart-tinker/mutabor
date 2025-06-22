@@ -6,14 +6,6 @@ import { taskService } from '../../../shared/api/taskService'; // Import taskSer
 import type { UpdateTaskDto, CommentDto, ApiCommentDto } from '../../../shared/api/taskService'; // Import UpdateTaskDto
 import { transformCommentDto } from '../../../shared/api/taskService';
 
-// client/src/features/TaskDetailModal/ui/TaskDetailModal.tsx
-import React, { useEffect, useState, useCallback } from 'react';
-// Use CommentDto from taskService, TaskDto from projectService
-import type { TaskDto } from '../../../shared/api/projectService';
-import { taskService } from '../../../shared/api/taskService'; // Import taskService
-import type { UpdateTaskDto, CommentDto, ApiCommentDto } from '../../../shared/api/taskService'; // Import UpdateTaskDto
-import { transformCommentDto } from '../../../shared/api/taskService';
-
 import { getTaskComments } from '../../Comments/api';
 import { CommentList, AddCommentForm } from '../../Comments';
 import { socket } from '../../../shared/lib/socket';
@@ -235,7 +227,6 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, onClose
       <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
         {/* Global edit mode removed, content is always "view" with inline edit options */}
         <>
-          <div className={styles.taskDetails}>
           <div className={styles.taskDetails}>
             <div className={styles.taskHeader}>
               <h2>
