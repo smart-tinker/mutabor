@@ -154,13 +154,24 @@ describe('CommentsService', () => {
   });
 
   describe('getCommentsForTask', () => {
-    const commentsFromDb = [{ // This should reflect raw DB column names
-        id: 'comment1', text: 'Comment 1', created_at: new Date(), updated_at: new Date(), // Use updated_at
-        author_id: 'user1', author_name: 'User One', author_email: 'user1@example.com'
+    const commentsFromDb = [{ // This should reflect raw DB column names from the join
+        id: 'comment1', text: 'Comment 1', created_at: new Date(), updated_at: new Date(),
+        author_id: 'user1', // comments.author_id
+        // Properties from the joined 'users' table, aliased as per service code
+        user_id_for_author: 'user1',
+        user_name_for_author: 'User One',
+        user_email_for_author: 'user1@example.com',
+        user_created_at_for_author: new Date(), // Added
+        user_updated_at_for_author: new Date()  // Added
     }];
     const expectedComments = [{ // This reflects the mapped structure returned by the service
-        id: 'comment1', text: 'Comment 1', createdAt: commentsFromDb[0].created_at, updatedAt: commentsFromDb[0].updated_at,
-        author: { id: 'user1', name: 'User One', email: 'user1@example.com' }
+        id: 'comment1', text: 'Comment 1', task_id: undefined, author_id: 'user1', // task_id and author_id are part of CommentRecord
+        created_at: commentsFromDb[0].created_at, updated_at: commentsFromDb[0].updated_at,
+        author: {
+            id: 'user1', name: 'User One', email: 'user1@example.com',
+            created_at: commentsFromDb[0].user_created_at_for_author, // Added
+            updated_at: commentsFromDb[0].user_updated_at_for_author  // Added
+        }
     }];
 
     it('should return comments for a task', async () => {

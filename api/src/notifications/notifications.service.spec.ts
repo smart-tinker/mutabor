@@ -3,7 +3,6 @@ import { NotificationsService } from './notifications.service';
 import { EventsGateway } from '../events/events.gateway';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { KNEX_CONNECTION } from '../knex/knex.constants'; // Assuming this constant is defined
-// import { User, Notification } from '@prisma/client'; // Types removed
 
 // Mock Knex
 const mockKnexInstance = {

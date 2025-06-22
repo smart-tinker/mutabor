@@ -1,5 +1,5 @@
 # ---- 1. Сборщик (Builder) ----
-    FROM node:18-bullseye-slim AS builder
+    FROM node:20-bullseye-slim AS builder
 
     WORKDIR /usr/src/app
     
@@ -9,7 +9,7 @@
     RUN npm run build
     
     # ---- 2. Финальный образ (Production) ----
-    FROM node:18-bullseye-slim
+    FROM node:20-bullseye-slim
     
     # ШАГ 1: УСТАНАВЛИВАЕМ JAVA, UNZIP И ДРУГИЕ УТИЛИТЫ
     RUN apt-get update && apt-get install -y \

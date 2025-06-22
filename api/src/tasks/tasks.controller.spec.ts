@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TasksController } from './tasks.controller';
 import { TasksService } from './tasks.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-// import { User, Task } from '@prisma/client'; // Types removed
 
 const mockUser: any /* User */ = { id: 'user-1', email: 'test@example.com', name: 'Test User', password: 'pwd', createdAt: new Date(), updatedAt: new Date() };
 const mockTask: any /* Task */ = { id: 'task-1', humanReadableId: 'TP-1', taskNumber: 1, title: 'Test Task', description: null, position: 0, projectId: 1, columnId: 'col-1', assigneeId: null, creatorId: 'user-1', dueDate: null, createdAt: new Date(), updatedAt: new Date() };

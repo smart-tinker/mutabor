@@ -3,7 +3,6 @@ import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { AddMemberDto } from './dto/add-member.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'; // Path to your JwtAuthGuard
-// import { User } from '@prisma/client'; // User type removed
 // If you have a @User decorator to extract user from request:
 // import { User as CurrentUser } from '../auth/decorators/user.decorator';
 
