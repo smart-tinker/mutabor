@@ -31,3 +31,45 @@
 .link a:hover {
   text-decoration: underline;
 }
+
+/* Styles for the modal form elements */
+.formInput {
+  width: 100%;
+  padding: 8px;
+  box-sizing: border-box;
+  margin-bottom: 10px;
+  border: 1px solid #ccc; /* Added some default border */
+  border-radius: 4px; /* Added some default border-radius */
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.button {
+  padding: 8px 15px;
+  border-radius: 4px; /* Added default border-radius */
+  border: 1px solid transparent; /* Base for button */
+  cursor: pointer;
+}
+
+.buttonPrimary {
+  background-color: #007bff; /* Example primary color */
+  color: white;
+  border-color: #007bff;
+}
+
+.buttonPrimary:disabled {
+  background-color: #007bff;
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.buttonSecondary {
+  background-color: #6c757d; /* Example secondary/cancel color */
+  color: white;
+  border-color: #6c757d;
+}

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom'; // Assuming react-router-dom is used
 import { projectService } from '../shared/api/projectService'; // Adjust path as needed
 import type { ProjectDto, CreateProjectDto } from '../shared/api/projectService';
+import { Modal } from '../shared/ui/Modal';
 import styles from './DashboardPage.module.css';
 
 const DashboardPage: React.FC = () => {
@@ -64,38 +65,54 @@ const DashboardPage: React.FC = () => {
       <h1>My Projects</h1>
       <button onClick={() => setIsModalOpen(true)}>+ Create New Project</button>
 
-      {isModalOpen && (
-        <div className="modal"> {/* Basic modal styling needed */}
-          <form onSubmit={handleCreateProject}>
-            <h2>Create New Project</h2>
-            <div>
-              <label htmlFor="projectName">Project Name:</label>
-              <input
-                id="projectName"
-                type="text"
-                value={newProjectName}
-                onChange={(e) => setNewProjectName(e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <label htmlFor="projectPrefix">Project Prefix (e.g., PROJ):</label>
-              <input
-                id="projectPrefix"
-                type="text"
-                value={newProjectPrefix}
-                onChange={(e) => setNewProjectPrefix(e.target.value)}
-                maxLength={10}
-                required
-              />
-            </div>
-            <button type="submit" disabled={isCreating}>
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Create New Project"
+      >
+        <form onSubmit={handleCreateProject}>
+          {/* Remove the h2 title from here as it's now a prop of Modal */}
+          <div>
+            <label htmlFor="projectName">Project Name:</label>
+            <input
+              id="projectName"
+              type="text"
+              value={newProjectName}
+              onChange={(e) => setNewProjectName(e.target.value)}
+              required
+              className={styles.formInput}
+            />
+          </div>
+          <div>
+            <label htmlFor="projectPrefix">Project Prefix (e.g., PROJ):</label>
+            <input
+              id="projectPrefix"
+              type="text"
+              value={newProjectPrefix}
+              onChange={(e) => setNewProjectPrefix(e.target.value)}
+              maxLength={10}
+              required
+              className={styles.formInput}
+            />
+          </div>
+          <div className={styles.formActions}>
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(false)}
+              className={`${styles.button} ${styles.buttonSecondary}`}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isCreating}
+              className={`${styles.button} ${styles.buttonPrimary}`}
+            >
               {isCreating ? 'Creating...' : 'Create Project'}
             </button>
-            <button type="button" onClick={() => setIsModalOpen(false)}>Cancel</button>
-          </form>
-        </div>
-      )}
+          </div>
+        </form>
+      </Modal>
 
       {projects.length === 0 ? (
         <p>No projects yet. Create one to get started!</p>

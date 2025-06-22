@@ -19,6 +19,8 @@ import type { ProjectDto as FullProjectDto, ColumnDto as ProjectColumnDto, TaskD
 import { taskService } from '../shared/api/taskService';
 import type { CreateTaskDto } from '../shared/api/taskService';
 import { socket, joinProjectRoom, leaveProjectRoom } from '../shared/lib/socket';
+import { Modal } from '../shared/ui/Modal'; // Import the new Modal
+import styles from './BoardPage.module.css'; // Import css modules
 import ColumnLane from '../features/ColumnLane/ColumnLane'; // Import ColumnLane
 import { ManageProjectMembersModal } from '../features/ProjectMembers'; // Import ManageProjectMembersModal
 import { TaskDetailModal } from '../features/TaskDetailModal'; // Import TaskDetailModal
@@ -362,28 +364,62 @@ const BoardPage: React.FC = () => {
               Manage Members
             </button>
           </div>
-          {isAddTaskModalOpen && selectedColumnId && (
-            <div className="modal"> {/* Basic modal styling needed */}
+          {selectedColumnId && ( // Keep selectedColumnId check if it ensures boardData.columns.find is safe
+            <Modal
+              isOpen={isAddTaskModalOpen}
+              onClose={() => {
+                setIsAddTaskModalOpen(false);
+                // Optionally reset form fields here if not done elsewhere
+                // setNewTaskTitle('');
+                // setNewTaskDescription('');
+                // setSelectedColumnId(null); // This might be needed if modal can open before selectedColumnId is ready
+              }}
+              title={`Add New Task to ${boardData?.columns.find(c => c.id === selectedColumnId)?.name || 'Column'}`}
+            >
               <form onSubmit={handleCreateTask}>
-              <h2>Add New Task to {boardData.columns.find(c => c.id === selectedColumnId)?.name}</h2>
-              <div>
-                <label htmlFor="taskTitle">Task Title:</label>
-                <input id="taskTitle" type="text" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} required />
-              </div>
-              <div>
-                <label htmlFor="taskDescription">Description (Optional):</label>
-                <textarea id="taskDescription" value={newTaskDescription} onChange={(e) => setNewTaskDescription(e.target.value)} />
-              </div>
-              <button type="submit" disabled={isCreatingTask}>
-                {isCreatingTask ? 'Creating...' : 'Create Task'}
-              </button>
-              <button type="button" onClick={() => setIsAddTaskModalOpen(false)}>Cancel</button>
-            </form>
-          </div>
-        )}
-        <div style={{ display: 'flex', gap: '16px', overflowX: 'auto', padding: '10px', minHeight: 'calc(100vh - 100px)' }}>
-          {boardData.columns.map((column) => (
-            <ColumnLane key={column.id} column={column} onAddTask={openAddTaskModal} onTaskClick={handleTaskClick} />
+                {/* The h2 title is removed as it's now a prop of Modal */}
+                <div>
+                  <label htmlFor="taskTitle">Task Title:</label>
+                  <input
+                    id="taskTitle"
+                    type="text"
+                    value={newTaskTitle}
+                    onChange={(e) => setNewTaskTitle(e.target.value)}
+                    required
+              className={styles.formInput}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="taskDescription">Description (Optional):</label>
+                  <textarea
+                    id="taskDescription"
+                    value={newTaskDescription}
+                    onChange={(e) => setNewTaskDescription(e.target.value)}
+              className={styles.formTextarea}
+                  />
+                </div>
+          <div className={styles.formActions}>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddTaskModalOpen(false)}
+              className={`${styles.button} ${styles.buttonSecondary}`}
+                  >
+                    Cancel
+                  </button>
+            <button
+              type="submit"
+              disabled={isCreatingTask}
+              className={`${styles.button} ${styles.buttonPrimary}`}
+            >
+                    {isCreatingTask ? 'Creating...' : 'Create Task'}
+                  </button>
+                </div>
+              </form>
+            </Modal>
+          )}
+          <div style={{ display: 'flex', gap: '16px', overflowX: 'auto', padding: '10px', minHeight: 'calc(100vh - 100px)' }}>
+            {boardData.columns.map((column) => (
+              <ColumnLane key={column.id} column={column} onAddTask={openAddTaskModal} onTaskClick={handleTaskClick} />
           ))}
         </div>
       </div>
