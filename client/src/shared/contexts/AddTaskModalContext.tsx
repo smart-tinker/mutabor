@@ -15,7 +15,3 @@ export const useAddTaskModal = () => {
   }
   return context;
 };
-
-// Note: The actual AddTaskModalProvider component will be implemented by integrating its logic
-// into BoardPage.tsx where the state and modal control functions (open/close) already exist.
-// This file primarily defines the context type and the consumer hook.

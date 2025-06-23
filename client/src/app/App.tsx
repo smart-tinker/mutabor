@@ -1,20 +1,19 @@
 // Example in App.tsx using react-router-dom
-import React from 'react';
+import React, { useState } from 'react'; // Import useState
 import './styles/global.css';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import LoginPage from '../pages/LoginPage'; // Assuming LoginPage exists
-import RegistrationPage from '../pages/RegistrationPage'; // Assuming RegistrationPage exists
+import LoginPage from '../pages/LoginPage';
+import RegistrationPage from '../pages/RegistrationPage';
 import DashboardPage from '../pages/DashboardPage';
 import BoardPage from '../pages/BoardPage';
-import LandingPage from '../pages/LandingPage'; // Import LandingPage
-import NotFoundPage from '../pages/NotFoundPage'; // Import NotFoundPage
-import { useAuth } from './auth/AuthContext'; // Import the real useAuth
+import LandingPage from '../pages/LandingPage';
+import NotFoundPage from '../pages/NotFoundPage';
+import { useAuth } from './auth/AuthContext';
 import Header from '../widgets/Header/Header';
 import { AddTaskModalContext } from '../shared/contexts/AddTaskModalContext'; // Import the context
-import { useState } from 'react'; // Import useState
 
 const App: React.FC = () => {
-  const { isAuthenticated, isLoading } = useAuth(); // Use real useAuth, include isLoading
+  const { isAuthenticated, isLoading } = useAuth();
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
 
   const openAddTaskModal = () => setIsAddTaskModalOpen(true);
@@ -26,9 +25,8 @@ const App: React.FC = () => {
     closeModal: closeAddTaskModal,
   };
 
-  // Optional: Show a global loading spinner while AuthContext is initializing
   if (isLoading) {
-    return <div>Loading application...</div>; // Or a proper spinner component
+    return <div>Loading application...</div>;
   }
 
   return (
@@ -36,27 +34,19 @@ const App: React.FC = () => {
       <Router>
         <Header />
         <Routes>
-          {/* Root route: Landing page for unauthenticated, redirect to dashboard for authenticated */}
           <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" /> : <LandingPage />} />
-
-        {/* Auth routes: Redirect to dashboard if authenticated, otherwise show login/register */}
-        <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" /> : <LoginPage />} />
-        <Route path="/register" element={isAuthenticated ? <Navigate to="/dashboard" /> : <RegistrationPage />} />
-
-        {/* Protected routes: Redirect to login if not authenticated */}
-        <Route
-          path="/dashboard"
-          element={isAuthenticated ? <DashboardPage /> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/projects/:projectId"
-          element={isAuthenticated ? <BoardPage /> : <Navigate to="/login" />}
-        />
-
-        {/* 404 Handling */}
-        <Route path="/404" element={<NotFoundPage />} />
-        <Route path="*" element={<Navigate to="/404" replace />} /> {/* Catch-all route */}
-
+          <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" /> : <LoginPage />} />
+          <Route path="/register" element={isAuthenticated ? <Navigate to="/dashboard" /> : <RegistrationPage />} />
+          <Route
+            path="/dashboard"
+            element={isAuthenticated ? <DashboardPage /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/projects/:projectId"
+            element={isAuthenticated ? <BoardPage /> : <Navigate to="/login" />}
+          />
+          <Route path="/404" element={<NotFoundPage />} />
+          <Route path="*" element={<Navigate to="/404" replace />} />
         </Routes>
       </Router>
     </AddTaskModalContext.Provider>

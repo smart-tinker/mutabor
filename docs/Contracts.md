@@ -4,56 +4,21 @@
 
 ## 1. API Contract (OpenAPI / Swagger)
 
-**Назначение:** Формальный договор между Frontend и Backend.
--   **Расположение:** Генерируется автоматически и доступен по адресу `/api-docs`.
+-   **Назначение:** Формальный договор между Frontend и Backend.
+-   **Расположение:** Генерируется автоматически и доступен по адресу `/api-docs` после запуска бэкенда.
 
 ---
 
-## 2. Internal Service Contracts (TypeScript Interfaces)
-
-**Назначение:** Обеспечивают слабую связанность между модулями бэкенда.
-
-### `IProjectsService.ts`
-```typescript
-export interface IProjectsService {
-  create(dto: CreateProjectDto, ownerId: string): Promise<Project>;
-  findAllForUser(ownerId: string): Promise<Project[]>;
-  findOneById(id: number): Promise<ProjectWithBoard>; // ProjectWithBoard - кастомный тип с доской
-  addMember(projectId: number, dto: AddMemberDto, currentUserId: string): Promise<ProjectMember>;
-}
-```
-
-### `ITasksService.ts`
-```typescript
-export interface ITasksService {
-  create(dto: CreateTaskDto): Promise<Task>;
-  findOneById(id: string): Promise<Task>; // (Note: Task model, specific details like comments might be separate. Changed from findOneByHumanId and TaskWithDetails)
-  move(taskId: string, dto: MoveTaskDto): Promise<void>;
-  addComment(taskId: string, dto: CreateCommentDto, author: User): Promise<Comment>;
-}
-```
-
----
-
-## 3. Data Contracts (Data Transfer Objects - DTO)
+## 2. Data Contracts (Data Transfer Objects - DTO)
 
 **Назначение:** Гарантируют, что данные, пересекающие границы слоев, имеют строгую и предсказуемую структуру.
-
-### Generic DTOs
--   `PaginatedResponseDTO<T>`
--   `ErrorResponseDTO`
-
-### User DTOs
--   `UserSummaryDTO`
--   `UserProfileDTO`
--   `UpdateUserDTO`
 
 ### Project DTOs
 ```typescript
 // DTO для создания проекта
 export class CreateProjectDto {
   name: string;
-  prefix: string; // Уникальный префикс для задач
+  prefix: string; // Уникальный префикс для задач (uppercase, alphanumeric)
 }
 
 // DTO для добавления участника в проект
@@ -70,19 +35,62 @@ export class CreateTaskDto {
   title: string;
   description?: string;
   columnId: string;
-  projectId: number; // Added projectId
+  projectId: number;
   assigneeId?: string;
+  dueDate?: string; // ISO Date String
+  type?: string;
+  priority?: string;
+  tags?: string[];
+}
+
+// DTO для обновления задачи
+export class UpdateTaskDto {
+  title?: string;
+  description?: string | null;
+  assigneeId?: string | null;
+  dueDate?: string | null;
+  type?: string | null;
+  priority?: string | null;
+  tags?: string[] | null;
 }
 
 // DTO для перемещения задачи
 export class MoveTaskDto {
   newColumnId: string;
   newPosition: number;
-  oldColumnId?: string; // Added oldColumnId
 }
 
 // DTO для создания комментария
 export class CreateCommentDto {
   text: string;
+}
+```
+
+### User DTOs
+```typescript
+// DTO для регистрации
+export class RegisterUserDto {
+  name: string;
+  email: string;
+  password: string; // min 8 characters
+}
+
+// DTO для логина
+export class LoginUserDto {
+  email: string;
+  password: string;
+}
+```
+
+### Notification DTO
+```typescript
+// DTO для уведомления, возвращаемый клиенту
+export class NotificationDto {
+  id: string;
+  text: string;
+  isRead: boolean;
+  sourceUrl?: string | null;
+  taskId?: string | null;
+  createdAt: Date;
 }
 ```

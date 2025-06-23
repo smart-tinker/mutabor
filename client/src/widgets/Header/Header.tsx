@@ -1,22 +1,17 @@
-import { Link } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../app/auth/AuthContext';
 import LogoutButton from '../../features/authByEmail/ui/LogoutButton';
-import { NotificationBell } from '../../features/Notifications'; // Import NotificationBell
+import { NotificationBell } from '../../features/Notifications';
 import styles from './Header.module.css';
-import { useAddTaskModal } from '../../shared/contexts/AddTaskModalContext'; // Import the hook
+import { useAddTaskModal } from '../../shared/contexts/AddTaskModalContext';
 
-// No longer need HeaderProps for onOpenAddTaskModal
-// interface HeaderProps {
-//   onOpenAddTaskModal?: () => void;
-// }
-
-const Header: React.FC = () => { // Remove props
-  const { isAuthenticated, isLoading, user } = useAuth(); // Add user from useAuth
-  // Directly use the context. If the provider is missing, the useAddTaskModal hook will throw an error.
-  // This is generally desired in development to catch setup issues.
-  // App.tsx now guarantees the provider is present for Header.
+const Header: React.FC = () => {
+  const { isAuthenticated, isLoading, user } = useAuth();
   const { openModal } = useAddTaskModal();
+  const location = useLocation();
 
+  // Show "+ Add Task" button only on the board page
+  const showAddTaskButton = isAuthenticated && location.pathname.startsWith('/projects/');
 
   return (
     <header className={styles.header}>
@@ -26,21 +21,21 @@ const Header: React.FC = () => { // Remove props
         </Link>
         <nav className={styles.navigation}>
           <ul>
-            <li>
-              <Link to="/">{isAuthenticated ? "Dashboard" : "Home"}</Link>
-            </li>
             {isLoading ? (
               <li>Loading...</li>
-            ) : isAuthenticated && user ? ( // Check for user object as well
+            ) : isAuthenticated && user ? (
               <>
-                {openModal && ( // Conditionally render based on openModal from context
+                <li>
+                  <NavLink to="/dashboard" className={({ isActive }) => isActive ? styles.active : ''}>Dashboard</NavLink>
+                </li>
+                {showAddTaskButton && (
                   <li>
                     <button onClick={openModal} className={styles.addTaskButtonHeader}>
                       + Add Task
                     </button>
                   </li>
                 )}
-                <li className={styles.welcomeMessage}> {/* Optional: Add styling for welcome message */}
+                <li className={styles.welcomeMessage}>
                   <span>Welcome, {user.name || user.email}</span>
                 </li>
                 <li>
@@ -53,10 +48,13 @@ const Header: React.FC = () => { // Remove props
             ) : (
               <>
                 <li>
-                  <Link to="/register">Register</Link>
+                  <NavLink to="/" className={({ isActive }) => isActive ? styles.active : ''}>Home</NavLink>
                 </li>
                 <li>
-                  <Link to="/login">Login</Link>
+                  <NavLink to="/register" className={({ isActive }) => isActive ? styles.active : ''}>Register</NavLink>
+                </li>
+                <li>
+                  <NavLink to="/login" className={({ isActive }) => isActive ? styles.active : ''}>Login</NavLink>
                 </li>
               </>
             )}
