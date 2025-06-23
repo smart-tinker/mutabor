@@ -8,6 +8,7 @@ import RegistrationPage from '../pages/RegistrationPage';
 import DashboardPage from '../pages/DashboardPage';
 import BoardPage from '../pages/BoardPage';
 import TaskPage from '../pages/TaskPage'; // Импорт новой страницы
+import UserSettingsPage from '../pages/UserSettingsPage'; // Import UserSettingsPage
 import LandingPage from '../pages/LandingPage';
 import NotFoundPage from '../pages/NotFoundPage';
 import { useAuth } from './auth/AuthContext';
@@ -79,6 +80,10 @@ const AppContent: React.FC<AppContentProps> = ({ isAuthenticated, addTaskModalCo
           <Route
             path="/task/:taskId" // Новый маршрут для страницы задачи
             element={isAuthenticated ? <TaskPage /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/settings"
+            element={isAuthenticated ? <UserSettingsPage /> : <Navigate to="/login" />}
           />
           <Route path="/404" element={<NotFoundPage />} />
           <Route path="*" element={<Navigate to="/404" replace />} />
