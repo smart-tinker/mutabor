@@ -91,7 +91,7 @@ export const taskService = {
   },
 
   getTaskById: async (taskId: string): Promise<TaskDto> => {
-    // TODO: Verify this taskId is string or number based on API
+    // taskId is expected to be a string (human-readable ID, e.g., "PROJ-123")
     const response = await apiClient.get<TaskDto>(`/tasks/${taskId}`);
     return response.data;
   },

@@ -35,15 +35,25 @@ const App: React.FC = () => {
     <ThemeProvider>
       <AppContent
         isAuthenticated={isAuthenticated}
-        isLoading={isLoading}
+        // isLoading={isLoading} // Removed, as it's not a prop of AppContent
         addTaskModalContextValue={addTaskModalContextValue}
       />
     </ThemeProvider>
   );
 };
 
+interface AppContentProps {
+  isAuthenticated: boolean;
+  // isLoading: boolean; // This was removed as unused previously
+  addTaskModalContextValue: {
+    isModalOpen: boolean;
+    openModal: () => void;
+    closeModal: () => void;
+  };
+}
+
 // Create a new component to use the theme context
-const AppContent: React.FC<any> = ({ isAuthenticated, addTaskModalContextValue }) => {
+const AppContent: React.FC<AppContentProps> = ({ isAuthenticated, addTaskModalContextValue }) => {
   // const { theme } = useTheme(); // No longer needed here, as ThemeProvider handles it
 
   // useEffect(() => { // This logic is now in ThemeProvider via useThemeSetup
