@@ -1,6 +1,6 @@
 // api/src/tasks/tasks.service.ts
 
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Inject } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Inject, Logger } from '@nestjs/common';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { MoveTaskDto } from './dto/move-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
@@ -26,11 +26,13 @@ function toTaskRecord(dbTask: any): TaskRecord {
 
 @Injectable()
 export class TasksService {
+  private readonly logger = new Logger(TasksService.name);
+
   constructor(
     @Inject(KNEX_CONNECTION) private readonly knex: Knex,
     @Inject(EventsGateway) private eventsGateway: EventsGateway,
     private commentsService: CommentsService,
-    private projectsService: ProjectsService, // --- ИСПРАВЛЕНИЕ #5 ---
+    private projectsService: ProjectsService,
   ) {}
 
   async createTask(createTaskDto: CreateTaskDto, user: UserRecord): Promise<TaskRecord> {
@@ -187,5 +189,54 @@ export class TasksService {
   async getCommentsForTask(taskId: string, user: UserRecord) {
     await this.findTaskById(taskId, user); // This already performs access check
     return this.commentsService.getCommentsForTask(taskId);
+  }
+
+  async updateTaskPrefixesForProject(
+    projectId: number,
+    oldPrefix: string,
+    newPrefix: string,
+    trx?: Knex.Transaction, // Allow using an existing transaction
+  ): Promise<number> {
+    const db = trx || this.knex; // Use provided transaction or a new connection
+
+    const tasksToUpdate = await db('tasks')
+      .where({ project_id: projectId })
+      .andWhere('human_readable_id', 'like', `${oldPrefix}-%`);
+
+    if (tasksToUpdate.length === 0) {
+      return 0; // No tasks found with the old prefix for this project
+    }
+
+    // We need to update each task's human_readable_id
+    // Knex does not directly support string replacement in updates across all DBs in a simple way.
+    // The most straightforward way for PostgreSQL is to use REPLACE function.
+    // For broader compatibility, fetching and updating one by one or in batches is safer,
+    // but can be less performant for a large number of tasks.
+    // Given the stack (PostgreSQL likely due to Knex/NestJS typical usage), we can lean on DB functions.
+
+    // Using a single UPDATE query with REPLACE for PostgreSQL for efficiency.
+    const oldPrefixPattern = `${oldPrefix}-`;
+    const newPrefixPattern = `${newPrefix}-`;
+
+    const result = await db.raw(
+      `UPDATE tasks
+       SET
+         human_readable_id = REPLACE(human_readable_id, ?, ?),
+         updated_at = ?
+       WHERE project_id = ? AND human_readable_id LIKE ?`,
+      [oldPrefixPattern, newPrefixPattern, new Date(), projectId, `${oldPrefixPattern}%`]
+    );
+
+    const updatedCount = result.rowCount || 0; // rowCount is specific to PostgreSQL with knex.
+                                           // For other DBs, this might differ.
+
+    if (updatedCount > 0) {
+        this.logger.log(`Updated prefix for ${updatedCount} tasks in project ${projectId} from ${oldPrefix} to ${newPrefixPattern.slice(0, -1)}.`);
+        // Optionally, emit events for each updated task if real-time updates are needed for this change.
+        // This might be too noisy, so consider if it's necessary.
+        // For now, we assume this is a background-like operation not requiring individual task update events.
+    }
+
+    return updatedCount;
   }
 }

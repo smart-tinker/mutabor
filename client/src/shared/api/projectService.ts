@@ -1,5 +1,6 @@
 // Assuming an axios instance is configured, e.g., client/src/shared/api/axiosInstance.ts
 import apiClient from './axiosInstance'; // Using axiosInstance.ts as seen from ls
+import { ProjectSettingsResponse, UpdateProjectSettingsPayload } from './types';
 
 // Define interfaces for DTOs based on backend DTOs
 // These should ideally be in a shared types folder or generated from backend schema
@@ -42,6 +43,9 @@ export interface ProjectDto {
   updatedAt: Date;
   columns?: ColumnDto[];
   tasks?: TaskDto[]; // Or all tasks for the board if not nested under columns in this DTO
+  // Added from backend ProjectDto for settings
+  settings_statuses?: string[];
+  settings_types?: string[];
 }
 
 export interface CreateProjectDto {
@@ -92,6 +96,17 @@ export const projectService = {
 
   getProjectMembers: async (projectId: number): Promise<ProjectMemberDto[]> => {
     const response = await apiClient.get<ProjectMemberDto[]>(`/projects/${projectId}/members`);
+    return response.data;
+  },
+
+  // Project Settings API calls
+  getProjectSettings: async (projectId: number): Promise<ProjectSettingsResponse> => {
+    const response = await apiClient.get<ProjectSettingsResponse>(`/projects/${projectId}/settings`);
+    return response.data;
+  },
+
+  updateProjectSettings: async (projectId: number, data: UpdateProjectSettingsPayload): Promise<ProjectSettingsResponse> => {
+    const response = await apiClient.put<ProjectSettingsResponse>(`/projects/${projectId}/settings`, data);
     return response.data;
   },
 };

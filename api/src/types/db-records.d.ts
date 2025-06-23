@@ -12,11 +12,16 @@ export interface ProjectRecord {
   id: number; // SERIAL
   name: string;
   owner_id: string; // Foreign key to UserRecord.id
-  task_prefix: string;
+  task_prefix: string; // Unique prefix for tasks, e.g., "PROJ"
   last_task_number: number;
+  settings_statuses: string | null; // JSON string from DB
+  settings_types: string | null;    // JSON string from DB
   created_at: Date;
   updated_at: Date;
   columns?: ColumnRecord[];
+  // For application layer, these might be parsed:
+  // parsed_settings_statuses?: string[];
+  // parsed_settings_types?: string[];
 }
 
 export interface ColumnRecord {
