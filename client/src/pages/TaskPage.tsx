@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { taskService, TaskDto, CommentDto as ApiCommentDto } from '../shared/api/taskService'; // Предполагается, что TaskDto и CommentDto экспортируются отсюда
+import { taskService } from '../shared/api/taskService';
+import type { TaskDto, CommentDto as ApiCommentDto } from '../shared/api/taskService'; // Используем type import
 import { transformCommentDto } from '../shared/api/taskService'; // Для трансформации комментариев
 import { CommentList, AddCommentForm } from '../features/Comments'; // Компоненты для комментариев
 import styles from './TaskPage.module.css'; // Стили для страницы
@@ -40,7 +41,7 @@ const TaskPage: React.FC = () => {
         setTask(taskData);
 
         // Загрузка комментариев к задаче
-        const commentsData = await taskService.getCommentsByTaskId(numericTaskId);
+        const commentsData = await taskService.getTaskComments(numericTaskId); // Исправлено
         // Трансформация комментариев, если это необходимо (например, формат даты, структура автора)
         const transformedComments = commentsData.map(transformCommentDto);
         setComments(transformedComments);
@@ -56,10 +57,11 @@ const TaskPage: React.FC = () => {
     fetchTaskDetails();
   }, [taskId]);
 
-  const handleCommentAdded = (newComment: DisplayCommentDto) => {
-    // Это callback для AddCommentForm, он должен принимать DisplayCommentDto
+  const handleCommentAdded = (apiComment: ApiCommentDto) => {
+    // Трансформируем комментарий из API в формат для отображения
+    const displayComment = transformCommentDto(apiComment);
     setComments(prevComments =>
-      [...prevComments, newComment].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+      [...prevComments, displayComment].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
     );
   };
 
@@ -124,9 +126,7 @@ const TaskPage: React.FC = () => {
       <div className={styles.commentsSection}>
         <h2>Comments</h2>
         <CommentList comments={comments} />
-        <AddCommentForm taskId={task.id} onCommentAdded={handleCommentAdded as any} />
-        {/* Используем 'as any' временно, т.к. onCommentAdded ожидает DisplayCommentDto, а AddCommentForm может возвращать ApiCommentDto */}
-        {/* В идеале, AddCommentForm должен быть адаптирован или должна быть обертка для трансформации */}
+        <AddCommentForm taskId={task.id} onCommentAdded={handleCommentAdded} />
       </div>
     </div>
   );
