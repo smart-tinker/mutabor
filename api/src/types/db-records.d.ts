@@ -24,6 +24,11 @@ export interface ProjectRecord {
   // parsed_settings_types?: string[];
 }
 
+export interface ParsedProjectRecord extends Omit<ProjectRecord, 'settings_statuses' | 'settings_types'> {
+  settings_statuses: string[];
+  settings_types: string[];
+}
+
 export interface ColumnRecord {
   id: string; // UUID
   name: string;
