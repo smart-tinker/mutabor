@@ -10,6 +10,14 @@ mockProject.columns = [mockColumn];
 
 import { KNEX_CONNECTION } from '../knex/knex.constants';
 
+import { TasksService } from '../tasks/tasks.service'; // Import TasksService
+import { ConflictException } from '@nestjs/common'; // Import ConflictException
+
+// Mock TasksService
+const mockTasksService = {
+  updateTaskPrefixesForProject: jest.fn(),
+};
+
 // Mock Knex
 // Mock for the actual query builder chain for transaction objects
 const mockTrxQueryBuilder = {
@@ -82,10 +90,18 @@ describe('ProjectsService', () => {
     mockKnexClient.transaction.mockImplementation(async (callback) => callback(jest.fn((trxTableName) => mockTrxQueryBuilder)));
 
 
+    // Reset mockTasksService calls
+    mockTasksService.updateTaskPrefixesForProject.mockReset();
+
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProjectsService,
         knexProvider,
+        {
+          provide: TasksService,
+          useValue: mockTasksService,
+        },
       ],
     }).compile();
 
@@ -97,17 +113,28 @@ describe('ProjectsService', () => {
   });
 
   describe('createProject', () => {
-    it('should create a project with default columns within a transaction', async () => {
+    it('should create a project with default statuses as columns and settings within a transaction', async () => {
       const createDto = { name: 'New Project', prefix: 'NP' };
-      const mockNewProjectDbResult = [{ id: 1, name: createDto.name, task_prefix: createDto.prefix, owner_id: mockUser.id, last_task_number: 0, created_at: new Date(), updated_at: new Date() }];
-      const mockInsertedColumnsDbResult = [
-        { id: 'uuid1', name: 'To Do', position: 0, project_id: 1, created_at: new Date(), updated_at: new Date() },
-        { id: 'uuid2', name: 'In Progress', position: 1, project_id: 1, created_at: new Date(), updated_at: new Date() },
-        { id: 'uuid3', name: 'Done', position: 2, project_id: 1, created_at: new Date(), updated_at: new Date() },
-      ];
+      const defaultStatuses = ['To Do', 'In Progress', 'Done'];
+      const defaultTypes = ['Task', 'Bug', 'Feature'];
+      const mockNewProjectDbResult = [{
+        id: 1,
+        name: createDto.name,
+        task_prefix: createDto.prefix.toUpperCase(), // prefix is uppercased
+        owner_id: mockUser.id,
+        last_task_number: 0,
+        settings_statuses: JSON.stringify(defaultStatuses),
+        settings_types: JSON.stringify(defaultTypes),
+        created_at: new Date(),
+        updated_at: new Date()
+      }];
+      const mockInsertedColumnsDbResult = defaultStatuses.map((name, index) => ({
+        id: `uuid${index+1}`, name, position: index, project_id: 1, created_at: new Date(), updated_at: new Date()
+      }));
 
-      mockTrxQueryBuilder.returning.mockResolvedValueOnce(mockNewProjectDbResult); // For project insert
-      mockTrxQueryBuilder.returning.mockResolvedValueOnce(mockInsertedColumnsDbResult); // For columns insert
+      mockTrxQueryBuilder.returning
+        .mockResolvedValueOnce(mockNewProjectDbResult) // For project insert
+        .mockResolvedValueOnce(mockInsertedColumnsDbResult); // For columns insert
 
       const result = await service.createProject(createDto, mockUser);
 
@@ -125,28 +152,43 @@ describe('ProjectsService', () => {
       // Assertions on what happened INSIDE the transaction (i.e., on mockTrxQueryBuilder)
       expect(mockTrxQueryBuilder.insert).toHaveBeenCalledWith(expect.objectContaining({
         name: createDto.name,
-        task_prefix: createDto.prefix,
+        task_prefix: createDto.prefix.toUpperCase(),
         owner_id: mockUser.id,
+        settings_statuses: JSON.stringify(defaultStatuses),
+        settings_types: JSON.stringify(defaultTypes),
       }));
       // This will be the second call to insert on mockTrxQueryBuilder
-      expect(mockTrxQueryBuilder.insert).toHaveBeenCalledWith(expect.arrayContaining([
-        expect.objectContaining({ name: 'To Do', project_id: 1 }),
-        expect.objectContaining({ name: 'In Progress', project_id: 1 }),
-        expect.objectContaining({ name: 'Done', project_id: 1 }),
-      ]));
-      expect(result).toEqual({ ...mockNewProjectDbResult[0], columns: mockInsertedColumnsDbResult });
+      expect(mockTrxQueryBuilder.insert).toHaveBeenCalledWith(expect.arrayContaining(
+        defaultStatuses.map(statusName => expect.objectContaining({ name: statusName, project_id: 1 }))
+      ));
+
+      const expectedResultProject = {
+        ...mockNewProjectDbResult[0],
+        // these are parsed by parseProjectSettings
+        settings_statuses: defaultStatuses,
+        settings_types: defaultTypes,
+        // Ensure dates are Date objects
+        created_at: expect.any(Date),
+        updated_at: expect.any(Date),
+      };
+      const expectedResultColumns = mockInsertedColumnsDbResult.map(col => ({
+        ...col,
+        created_at: expect.any(Date),
+        updated_at: expect.any(Date),
+      }));
+
+      expect(result).toEqual({ ...expectedResultProject, columns: expectedResultColumns });
     });
   });
 
   describe('findAllProjectsForUser', () => {
-    it('should return projects owned by or member of for a user', async () => {
-      const ownedProjects = [{ ...mockProject, id:1, owner_id: mockUser.id }];
-      const memberProjects = [{ ...mockProject, id:2, name: "Member Project" }];
+    it('should return projects owned by or member of for a user, with parsed settings', async () => {
+      const ownedProjectRaw = { ...mockProject, id:1, owner_id: mockUser.id, settings_statuses: JSON.stringify(['s1']), settings_types: JSON.stringify(['t1']) };
+      const memberProjectRaw = { ...mockProject, id:2, name: "Member Project", settings_statuses: null, settings_types: null }; // Test null settings
 
-      // Mock for owner
-      mockQueryBuilder.orderBy.mockResolvedValueOnce(ownedProjects);
-      // Mock for member: knex('projects').join(...).where(...).select(...).orderBy(...)
-      const memberOrderByMock = jest.fn().mockResolvedValueOnce(memberProjects);
+      mockQueryBuilder.orderBy.mockResolvedValueOnce([ownedProjectRaw]); // owned
+
+      const memberOrderByMock = jest.fn().mockResolvedValueOnce([memberProjectRaw]); // member
       const memberSelectMock = { orderBy: memberOrderByMock };
       const memberWhereMock = { select: jest.fn().mockReturnValue(memberSelectMock) };
       mockQueryBuilder.join.mockReturnValueOnce({ where: jest.fn().mockReturnValue(memberWhereMock) });
@@ -156,32 +198,33 @@ describe('ProjectsService', () => {
 
       expect(mockKnexClient).toHaveBeenCalledWith('projects');
       expect(mockQueryBuilder.where).toHaveBeenCalledWith({ owner_id: mockUser.id });
-      // For the member part
       expect(mockKnexClient).toHaveBeenCalledWith('projects');
       expect(mockQueryBuilder.join).toHaveBeenCalledWith('project_members', 'projects.id', '=', 'project_members.project_id');
-      // More specific assertions can be added for the join's where clause
 
-      expect(result).toEqual(expect.arrayContaining([...ownedProjects, ...memberProjects]));
+      expect(result.length).toBe(2);
+      expect(result).toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: 1, settings_statuses: ['s1'], settings_types: ['t1'] }),
+        expect.objectContaining({ id: 2, settings_statuses: ['To Do', 'In Progress', 'Done'], settings_types: ['Task', 'Bug', 'Feature'] }), // Defaults
+      ]));
     });
   });
 
   describe('findProjectById', () => {
     const projectId = 1;
-    const projectData = { ...mockProject, id: projectId, owner_id: mockUser.id };
+    const projectDataRaw = { ...mockProject, id: projectId, owner_id: mockUser.id, settings_statuses: JSON.stringify(['s1']), settings_types: JSON.stringify(['t1']) };
     const columnsData = [ mockColumn ];
-    const tasksData = [{ id: 'task-uuid-1', column_id: mockColumn.id, title: 'Task 1' }];
+    const tasksData = [{ id: 'task-uuid-1', column_id: mockColumn.id, title: 'Task 1', created_at: new Date(), updated_at: new Date(), due_date: null }];
 
-    it('should return a project with columns and tasks if user is owner', async () => {
-      mockQueryBuilder.first.mockResolvedValueOnce(projectData); // Project fetch
+    it('should return a project with columns, tasks and parsed settings if user is owner', async () => {
+      mockQueryBuilder.first.mockResolvedValueOnce(projectDataRaw); // Project fetch for ensureUserHasAccess
       mockQueryBuilder.orderBy.mockResolvedValueOnce(columnsData); // Columns fetch
       mockQueryBuilder.orderBy.mockResolvedValueOnce(tasksData); // Tasks fetch
-
 
       const result = await service.findProjectById(projectId, mockUser);
 
       expect(mockKnexClient).toHaveBeenCalledWith('projects');
       expect(mockQueryBuilder.where).toHaveBeenCalledWith({ id: projectId });
-      expect(mockQueryBuilder.first).toHaveBeenCalledTimes(1); // For project
+      expect(mockQueryBuilder.first).toHaveBeenCalledTimes(1);
 
       expect(mockKnexClient).toHaveBeenCalledWith('columns');
       expect(mockQueryBuilder.where).toHaveBeenCalledWith({ project_id: projectId });
@@ -190,20 +233,201 @@ describe('ProjectsService', () => {
       expect(mockQueryBuilder.whereIn).toHaveBeenCalledWith('column_id', [mockColumn.id]);
 
       expect(result.id).toBe(projectId);
+      expect(result.settings_statuses).toEqual(['s1']);
+      expect(result.settings_types).toEqual(['t1']);
       expect(result.columns[0].tasks[0].title).toBe('Task 1');
     });
 
-    it('should throw NotFoundException if project not found', async () => {
-      mockQueryBuilder.first.mockResolvedValueOnce(null); // Project not found
+    it('should throw NotFoundException if project not found during access check', async () => {
+      mockQueryBuilder.first.mockResolvedValueOnce(null); // Project not found in ensureUserHasAccessToProject
       await expect(service.findProjectById(999, mockUser)).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw ForbiddenException if user is not owner or member', async () => {
+    it('should throw ForbiddenException if user is not owner or member during access check', async () => {
       const otherUser = { ...mockUser, id: 'user-2' };
-      mockQueryBuilder.first.mockResolvedValueOnce({ ...projectData, owner_id: 'another-owner-id' }); // Project found, not owned
+      mockQueryBuilder.first.mockResolvedValueOnce({ ...projectDataRaw, owner_id: 'another-owner-id' }); // Project found, not owned
       mockQueryBuilder.first.mockResolvedValueOnce(null); // Not a member either
 
       await expect(service.findProjectById(projectId, otherUser)).rejects.toThrow(ForbiddenException);
     });
   });
+
+  // --- New tests for getProjectSettings and updateProjectSettings ---
+
+  describe('getProjectSettings', () => {
+    const projectId = 1;
+    const userId = mockUser.id;
+    const rawProjectData = {
+      id: projectId,
+      name: 'Test Project',
+      task_prefix: 'TP',
+      owner_id: userId,
+      settings_statuses: JSON.stringify(['Open', 'Closed']),
+      settings_types: JSON.stringify(['Bug', 'Enhancement']),
+      created_at: new Date().toISOString(), // ensureUserHasAccessToProject will parse this
+      updated_at: new Date().toISOString(),
+      last_task_number: 0 // ensure this field exists in mock for ensureUserHasAccessToProject
+    };
+
+    it('should return project settings if user has access', async () => {
+      mockQueryBuilder.first.mockResolvedValueOnce(rawProjectData); // For ensureUserHasAccessToProject
+
+      const result = await service.getProjectSettings(projectId, userId);
+
+      expect(result).toEqual({
+        id: projectId,
+        name: 'Test Project',
+        task_prefix: 'TP',
+        settings_statuses: ['Open', 'Closed'],
+        settings_types: ['Bug', 'Enhancement'],
+      });
+      expect(mockKnexClient).toHaveBeenCalledWith('projects');
+      expect(mockQueryBuilder.where).toHaveBeenCalledWith({ id: projectId });
+    });
+
+    it('should use default settings if DB values are null', async () => {
+        const projectWithNullSettings = { ...rawProjectData, settings_statuses: null, settings_types: null };
+        mockQueryBuilder.first.mockResolvedValueOnce(projectWithNullSettings);
+
+        const result = await service.getProjectSettings(projectId, userId);
+        expect(result.settings_statuses).toEqual(['To Do', 'In Progress', 'Done']); // Default
+        expect(result.settings_types).toEqual(['Task', 'Bug', 'Feature']); // Default
+    });
+
+    it('should throw NotFoundException if project not found', async () => {
+        mockQueryBuilder.first.mockResolvedValueOnce(null);
+        await expect(service.getProjectSettings(projectId, userId)).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ForbiddenException if user does not have access', async () => {
+        const otherUserId = 'other-user-id';
+        mockQueryBuilder.first.mockResolvedValueOnce({ ...rawProjectData, owner_id: 'someone_else' }); // Project exists
+        mockQueryBuilder.first.mockResolvedValueOnce(null); // User is not a member
+        await expect(service.getProjectSettings(projectId, otherUserId)).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('updateProjectSettings', () => {
+    const projectId = 1;
+    const ownerId = mockUser.id;
+    const initialProjectData = {
+      id: projectId,
+      name: 'Initial Name',
+      task_prefix: 'INIT',
+      owner_id: ownerId,
+      settings_statuses: JSON.stringify(['s1', 's2']),
+      settings_types: JSON.stringify(['t1', 't2']),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      last_task_number: 0
+    };
+
+    const setupMocksForUpdate = (projectDataToReturnOnFirstRead = initialProjectData, updatedProjectData = initialProjectData) => {
+        // Mock for ensureUserHasAccessToProject (first read)
+        mockTrxQueryBuilder.first.mockResolvedValueOnce(projectDataToReturnOnFirstRead);
+        // Mock for the read after update (to return the "updated" record)
+        mockTrxQueryBuilder.first.mockResolvedValueOnce(updatedProjectData);
+    };
+
+    it('should update project settings successfully and return them', async () => {
+      const settingsDto: any = { name: 'Updated Name', prefix: 'UPD', statuses: ['newS1'], types: ['newT1'] };
+      const expectedUpdatedData = {
+        ...initialProjectData,
+        name: settingsDto.name,
+        task_prefix: settingsDto.prefix.toUpperCase(),
+        settings_statuses: JSON.stringify(settingsDto.statuses),
+        settings_types: JSON.stringify(settingsDto.types),
+      };
+      setupMocksForUpdate(initialProjectData, expectedUpdatedData);
+      mockTrxQueryBuilder.update.mockResolvedValueOnce(1); // DB update successful
+      mockTrxQueryBuilder.whereNot.mockReturnThis(); // for prefix check
+      mockTrxQueryBuilder.first.mockResolvedValueOnce(null); // No conflict for prefix
+
+      const result = await service.updateProjectSettings(projectId, ownerId, settingsDto);
+
+      expect(mockKnexClient.transaction).toHaveBeenCalled();
+      expect(mockTrxQueryBuilder.update).toHaveBeenCalledWith(expect.objectContaining({
+        name: 'Updated Name',
+        task_prefix: 'UPD',
+        settings_statuses: JSON.stringify(['newS1']),
+        settings_types: JSON.stringify(['newT1']),
+        updated_at: expect.any(Date),
+      }));
+      expect(result).toEqual({
+        id: projectId,
+        name: 'Updated Name',
+        task_prefix: 'UPD',
+        settings_statuses: ['newS1'],
+        settings_types: ['newT1'],
+      });
+    });
+
+    it('should call TasksService.updateTaskPrefixesForProject if prefix changes', async () => {
+        const settingsDto: any = { prefix: 'NEWPREFIX' };
+        const updatedProjectData = { ...initialProjectData, task_prefix: 'NEWPREFIX' };
+        setupMocksForUpdate(initialProjectData, updatedProjectData);
+        mockTrxQueryBuilder.update.mockResolvedValueOnce(1);
+        mockTrxQueryBuilder.whereNot.mockReturnThis();
+        mockTrxQueryBuilder.first.mockResolvedValueOnce(null); // No conflict for prefix
+        mockTasksService.updateTaskPrefixesForProject.mockResolvedValueOnce(5); // Simulate 5 tasks updated
+
+        await service.updateProjectSettings(projectId, ownerId, settingsDto);
+
+        expect(mockTasksService.updateTaskPrefixesForProject).toHaveBeenCalledWith(
+            projectId,
+            initialProjectData.task_prefix,
+            settingsDto.prefix.toUpperCase(),
+            expect.any(Function) // Knex transaction object (mocked as a function)
+        );
+    });
+
+    it('should NOT call TasksService.updateTaskPrefixesForProject if prefix does not change', async () => {
+        const settingsDto: any = { name: 'Only Name Change' };
+        setupMocksForUpdate(initialProjectData, { ...initialProjectData, name: settingsDto.name });
+        mockTrxQueryBuilder.update.mockResolvedValueOnce(1);
+
+        await service.updateProjectSettings(projectId, ownerId, settingsDto);
+        expect(mockTasksService.updateTaskPrefixesForProject).not.toHaveBeenCalled();
+    });
+
+    it('should throw ForbiddenException if user is not the owner', async () => {
+        const nonOwnerId = 'user-non-owner';
+        // ensureUserHasAccessToProject would allow access if nonOwnerId is a member,
+        // but the service method itself checks project.owner_id === userId
+        setupMocksForUpdate({ ...initialProjectData, owner_id: ownerId }); // Project owned by ownerId
+
+        const settingsDto: any = { name: 'Attempted Update' };
+        await expect(service.updateProjectSettings(projectId, nonOwnerId, settingsDto))
+            .rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw ConflictException if new prefix is already in use', async () => {
+        const settingsDto: any = { prefix: 'EXISTING' };
+        setupMocksForUpdate(initialProjectData);
+        mockTrxQueryBuilder.whereNot.mockReturnThis();
+        mockTrxQueryBuilder.first.mockResolvedValueOnce({ id: 2, task_prefix: 'EXISTING' }); // Prefix conflict
+
+        await expect(service.updateProjectSettings(projectId, ownerId, settingsDto))
+            .rejects.toThrow(ConflictException);
+    });
+
+    it('should return current settings if DTO is empty or only contains non-changeable fields', async () => {
+        const settingsDto: any = {}; // Empty DTO
+        setupMocksForUpdate(initialProjectData);
+        // No call to mockTrxQueryBuilder.update() should happen
+
+        const result = await service.updateProjectSettings(projectId, ownerId, settingsDto);
+
+        expect(mockTrxQueryBuilder.update).not.toHaveBeenCalled();
+        expect(result).toEqual({ // Expecting the initial (parsed) settings
+            id: initialProjectData.id,
+            name: initialProjectData.name,
+            task_prefix: initialProjectData.task_prefix,
+            settings_statuses: JSON.parse(initialProjectData.settings_statuses),
+            settings_types: JSON.parse(initialProjectData.settings_types),
+        });
+    });
+
+  });
+
 });

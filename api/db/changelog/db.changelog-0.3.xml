@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20240726-add-project-settings-fields" author="jules">
+        <!-- Column task_prefix already exists with unique and not-null constraints
+             as per db.changelog-0.1.xml. No action needed for task_prefix here. -->
+
+        <addColumn tableName="projects">
+            <column name="settings_statuses" type="TEXT"> <!-- Storing as JSON string -->
+                <constraints nullable="true"/>
+                <!-- Default value as a JSON array string: -->
+                <defaultValue value="'[\"To Do\", \"In Progress\", \"Done\"]'"/>
+            </column>
+        </addColumn>
+        <addColumn tableName="projects">
+            <column name="settings_types" type="TEXT"> <!-- Storing as JSON string -->
+                <constraints nullable="true"/>
+                <!-- Default value as a JSON array string: -->
+                <defaultValue value="'[\"Task\", \"Bug\", \"Feature\"]'"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException, ForbiddenException, ConflictException, Inject } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, ConflictException, Inject, forwardRef } from '@nestjs/common';
 import { CreateProjectDto } from './dto/create-project.dto';
+import { UpdateProjectSettingsDto } from './dto/update-project-settings.dto';
 import { AddMemberDto } from './dto/add-member.dto';
 import { Knex } from 'knex';
 import { KNEX_CONNECTION } from '../knex/knex.constants';
@@ -7,31 +8,47 @@ import * as crypto from 'crypto';
 import {
     ProjectRecord, UserRecord, ColumnRecord, TaskRecord, ProjectMemberRecord
 } from '../types/db-records';
+import { TasksService } from '../tasks/tasks.service'; // Предполагаем, что TasksService будет здесь
 
-const DEFAULT_COLUMN_NAMES = ['To Do', 'In Progress', 'Done'];
+// Значения по умолчанию для настроек проекта, если они не заданы
+const DEFAULT_PROJECT_STATUSES = ['To Do', 'In Progress', 'Done'];
+const DEFAULT_PROJECT_TYPES = ['Task', 'Bug', 'Feature'];
 
-// РЕФАКТОРИНГ: Убраны дублирующиеся хелперы, так как они используются только в этом файле.
-// Вместо них будет использоваться прямое преобразование.
 
 @Injectable()
 export class ProjectsService {
-  constructor(@Inject(KNEX_CONNECTION) private readonly knex: Knex) {}
+  constructor(
+    @Inject(KNEX_CONNECTION) private readonly knex: Knex,
+    // Используем forwardRef для решения проблемы циклических зависимостей, если TasksService также зависит от ProjectsService
+    @Inject(forwardRef(() => TasksService)) private readonly tasksService: TasksService,
+  ) {}
 
-  async ensureUserHasAccessToProject(projectId: number, userId: string, trx?: Knex.Transaction) {
+  private parseProjectSettings(project: ProjectRecord): ProjectRecord {
+    return {
+      ...project,
+      settings_statuses: project.settings_statuses ? JSON.parse(project.settings_statuses as string) : DEFAULT_PROJECT_STATUSES,
+      settings_types: project.settings_types ? JSON.parse(project.settings_types as string) : DEFAULT_PROJECT_TYPES,
+      // Убедимся, что даты также корректно обрабатываются, если они не были преобразованы ранее
+      created_at: new Date(project.created_at),
+      updated_at: new Date(project.updated_at),
+    };
+  }
+
+  async ensureUserHasAccessToProject(projectId: number, userId: string, trx?: Knex.Transaction): Promise<ProjectRecord> {
     const db = trx || this.knex;
     // Проверяем, является ли пользователь владельцем или участником проекта
-    const project = await db('projects').where({ id: projectId }).first();
-    if (!project) {
+    const projectDb = await db('projects').where({ id: projectId }).first();
+    if (!projectDb) {
         throw new NotFoundException(`Project with ID ${projectId} not found.`);
     }
 
-    if (project.owner_id === userId) {
-        return project; // Владелец имеет доступ
+    if (projectDb.owner_id === userId) {
+        return this.parseProjectSettings(projectDb); // Владелец имеет доступ
     }
 
     const membership = await db('project_members').where({ project_id: projectId, user_id: userId }).first();
     if (membership) {
-        return project; // Участник имеет доступ
+        return this.parseProjectSettings(projectDb); // Участник имеет доступ
     }
 
     throw new ForbiddenException('You do not have permission to access or modify this project.');
@@ -42,15 +59,21 @@ export class ProjectsService {
       const [newProjectDb] = await trx('projects')
         .insert({
           name: createProjectDto.name,
-          task_prefix: createProjectDto.prefix,
+          task_prefix: createProjectDto.prefix.toUpperCase(), // Ensure prefix is uppercase
           owner_id: user.id,
           last_task_number: 0,
+          // settings_statuses and settings_types will use DB defaults if not provided
+          settings_statuses: JSON.stringify(DEFAULT_PROJECT_STATUSES), // Set default statuses
+          settings_types: JSON.stringify(DEFAULT_PROJECT_TYPES),       // Set default types
           created_at: new Date(),
           updated_at: new Date(),
         })
         .returning('*');
 
-      const defaultColumnsData = DEFAULT_COLUMN_NAMES.map((name, index) => ({
+      // Используем статусы из созданного проекта (или значения по умолчанию, если они null)
+      const projectStatuses = newProjectDb.settings_statuses ? JSON.parse(newProjectDb.settings_statuses) : DEFAULT_PROJECT_STATUSES;
+
+      const defaultColumnsData = projectStatuses.map((name: string, index: number) => ({
         id: crypto.randomUUID(), name, position: index, project_id: newProjectDb.id, created_at: new Date(), updatedAt: new Date(),
       }));
 
@@ -62,10 +85,10 @@ export class ProjectsService {
         updated_at: new Date(dbCol.updated_at),
       }));
 
+      const finalProjectRecord = this.parseProjectSettings(newProjectDb);
+
       return {
-         ...newProjectDb,
-         created_at: new Date(newProjectDb.created_at),
-         updated_at: new Date(newProjectDb.updated_at),
+         ...finalProjectRecord,
          columns,
       };
     });
@@ -82,12 +105,13 @@ export class ProjectsService {
     const uniqueDbProjects = Array.from(new Map(allDbProjects.map(p => [p.id, p])).values());
 
     return uniqueDbProjects
-      .map(p => ({ ...p, created_at: new Date(p.created_at), updated_at: new Date(p.updated_at) }))
+      .map(p => this.parseProjectSettings(p)) // Используем parseProjectSettings
       .sort((a,b) => b.created_at.getTime() - a.created_at.getTime());
   }
 
   async findProjectById(projectId: number, user: UserRecord): Promise<ProjectRecord> {
-    const projectFromDb = await this.ensureUserHasAccessToProject(projectId, user.id);
+    // ensureUserHasAccessToProject уже возвращает распарсенный проект
+    const projectWithSettings = await this.ensureUserHasAccessToProject(projectId, user.id);
 
     const columnsFromDb = await this.knex('columns').where({ project_id: projectId }).orderBy('position', 'asc');
     const tasksFromDb = await this.knex('tasks').whereIn('column_id', columnsFromDb.map(c => c.id)).orderBy('position', 'asc');
@@ -107,11 +131,85 @@ export class ProjectsService {
     }));
     
     return {
-        ...projectFromDb,
-        created_at: new Date(projectFromDb.created_at),
-        updated_at: new Date(projectFromDb.updated_at),
+        ...projectWithSettings, // Уже содержит распарсенные settings_statuses и settings_types
         columns,
     };
+  }
+
+  async getProjectSettings(projectId: number, userId: string): Promise<Partial<ProjectRecord>> {
+    const project = await this.ensureUserHasAccessToProject(projectId, userId);
+    // Возвращаем только нужные поля для настроек
+    return {
+      id: project.id,
+      name: project.name,
+      task_prefix: project.task_prefix,
+      settings_statuses: project.settings_statuses,
+      settings_types: project.settings_types,
+    };
+  }
+
+  async updateProjectSettings(
+    projectId: number,
+    userId: string,
+    settingsDto: UpdateProjectSettingsDto,
+  ): Promise<Partial<ProjectRecord>> {
+    return this.knex.transaction(async (trx) => {
+      const project = await this.ensureUserHasAccessToProject(projectId, userId, trx);
+
+      if (project.owner_id !== userId) {
+        throw new ForbiddenException('Only the project owner can change project settings.');
+      }
+
+      const currentPrefix = project.task_prefix;
+      const updatePayload: Partial<ProjectRecord> = { updated_at: new Date() };
+
+      if (settingsDto.name) {
+        updatePayload.name = settingsDto.name;
+      }
+      if (settingsDto.prefix) {
+        const newPrefix = settingsDto.prefix.toUpperCase();
+        // Проверка на уникальность префикса, если он меняется
+        if (newPrefix !== currentPrefix) {
+            const existingProjectWithPrefix = await trx('projects').where({ task_prefix: newPrefix }).whereNot({ id: projectId }).first();
+            if (existingProjectWithPrefix) {
+                throw new ConflictException(`Project prefix '${newPrefix}' is already in use.`);
+            }
+            updatePayload.task_prefix = newPrefix;
+        }
+      }
+      if (settingsDto.statuses) {
+        updatePayload.settings_statuses = JSON.stringify(settingsDto.statuses);
+      }
+      if (settingsDto.types) {
+        updatePayload.settings_types = JSON.stringify(settingsDto.types);
+      }
+
+      if (Object.keys(updatePayload).length === 1 && updatePayload.updated_at) {
+        // Ничего не было изменено кроме updated_at
+        return this.getProjectSettings(projectId, userId); // Возвращаем текущие настройки
+      }
+
+      await trx('projects').where({ id: projectId }).update(updatePayload);
+
+      // Если префикс был изменен, обновить префиксы задач
+      if (updatePayload.task_prefix && updatePayload.task_prefix !== currentPrefix) {
+        await this.tasksService.updateTaskPrefixesForProject(projectId, currentPrefix, updatePayload.task_prefix, trx);
+        console.log(`Task prefixes update initiated for project ${projectId} from ${currentPrefix} to ${updatePayload.task_prefix}.`);
+      }
+
+      // Возвращаем обновленные настройки
+      const updatedProjectRaw = await trx('projects').where({ id: projectId }).first();
+      if (!updatedProjectRaw) throw new NotFoundException('Project disappeared after update.'); // Should not happen
+
+      const parsedUpdatedProject = this.parseProjectSettings(updatedProjectRaw);
+      return {
+        id: parsedUpdatedProject.id,
+        name: parsedUpdatedProject.name,
+        task_prefix: parsedUpdatedProject.task_prefix,
+        settings_statuses: parsedUpdatedProject.settings_statuses,
+        settings_types: parsedUpdatedProject.settings_types,
+      };
+    });
   }
 
   async addMemberToProject(projectId: number, addMemberDto: AddMemberDto, currentUserId: string): Promise<ProjectMemberRecord & { user: UserRecord }> {

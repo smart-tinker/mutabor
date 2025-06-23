@@ -1,12 +1,19 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TasksService } from './tasks.service';
 import { EventsGateway } from '../events/events.gateway';
-import { CommentsService } from '../comments/comments.service'; // Import CommentsService
+import { CommentsService } from '../comments/comments.service';
+import { ProjectsService } from '../projects/projects.service'; // Added ProjectsService
 import { NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { KNEX_CONNECTION } from '../knex/knex.constants';
 
 // --- Mocks ---
-const mockKnexTransactionResult = { id: 'task-1', title: 'Moved Task', column_id: 'col-2', position: 0 }; // Example result
+const mockKnexTransactionResult = { id: 'task-1', title: 'Moved Task', column_id: 'col-2', position: 0 };
+
+// Mock ProjectsService
+const mockProjectsService = {
+  ensureUserHasAccessToProject: jest.fn(),
+  // Add other methods if TasksService uses them directly and they need mocking for other tests
+};
 
 // Mock for the actual query builder chain for transaction objects
 const mockTrxQueryBuilder = {
@@ -118,6 +125,7 @@ describe('TasksService', () => {
     mockEventsGateway.emitTaskMoved.mockClear();
     mockCommentsService.createComment.mockClear();
     mockCommentsService.getCommentsForTask.mockClear();
+    mockProjectsService.ensureUserHasAccessToProject.mockReset(); // Reset ProjectsService mock
 
 
     const module: TestingModule = await Test.createTestingModule({
@@ -126,6 +134,7 @@ describe('TasksService', () => {
         knexProvider,
         { provide: EventsGateway, useValue: mockEventsGateway },
         { provide: CommentsService, useValue: mockCommentsService },
+        { provide: ProjectsService, useValue: mockProjectsService }, // Add ProjectsService provider
       ],
     }).compile();
 
@@ -203,6 +212,82 @@ describe('TasksService', () => {
       expect(eventsGateway.emitTaskMoved).toHaveBeenCalled();
       expect(result.column_id).toBe(moveTaskDto.newColumnId);
       expect(result.position).toBe(moveTaskDto.newPosition);
+    });
+  });
+
+  describe('updateTaskPrefixesForProject', () => {
+    const projectId = 1;
+    const oldPrefix = 'OLD';
+    const newPrefix = 'NEW';
+
+    it('should return 0 if no tasks match the old prefix', async () => {
+      mockQueryBuilder.where.mockReturnThis(); // project_id
+      mockQueryBuilder.andWhere.mockResolvedValue([]); // No tasks found with like oldPrefix-%
+
+      const result = await service.updateTaskPrefixesForProject(projectId, oldPrefix, newPrefix);
+      expect(result).toBe(0);
+      expect(mockKnexClient).toHaveBeenCalledWith('tasks');
+      expect(mockQueryBuilder.where).toHaveBeenCalledWith({ project_id: projectId });
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('human_readable_id', 'like', `${oldPrefix}-%`);
+    });
+
+    it('should update human_readable_id for matching tasks and return the count', async () => {
+      const tasksToUpdate = [
+        { id: 'task-1', human_readable_id: 'OLD-123', project_id: projectId },
+        { id: 'task-2', human_readable_id: 'OLD-456', project_id: projectId },
+      ];
+      // Mock for the initial SELECT query
+      mockQueryBuilder.where.mockReturnThis(); // project_id
+      mockQueryBuilder.andWhere.mockResolvedValue(tasksToUpdate); // Tasks found
+
+      // Mock for the UPDATE queries inside the loop
+      // Each .update() call will be for a different task
+      mockQueryBuilder.update
+        .mockResolvedValueOnce(1) // First task update
+        .mockResolvedValueOnce(1); // Second task update
+
+      const result = await service.updateTaskPrefixesForProject(projectId, oldPrefix, newPrefix);
+
+      expect(result).toBe(2);
+      expect(mockKnexClient).toHaveBeenCalledTimes(1 + tasksToUpdate.length); // 1 for select, N for updates
+
+      // Check the first update call
+      expect(mockQueryBuilder.update).toHaveBeenNthCalledWith(1,
+        expect.objectContaining({ human_readable_id: 'NEW-123', updated_at: expect.any(Date) })
+      );
+      expect(mockQueryBuilder.where).toHaveBeenNthCalledWith(2, { id: 'task-1' }); // where for the first update
+
+      // Check the second update call
+      expect(mockQueryBuilder.update).toHaveBeenNthCalledWith(2,
+        expect.objectContaining({ human_readable_id: 'NEW-456', updated_at: expect.any(Date) })
+      );
+      expect(mockQueryBuilder.where).toHaveBeenNthCalledWith(3, { id: 'task-2' }); // where for the second update
+    });
+
+    it('should use the provided transaction if available', async () => {
+      const tasksToUpdate = [
+        { id: 'task-1', human_readable_id: 'OLD-789', project_id: projectId },
+      ];
+      // trxMock will be used instead of mockQueryBuilder
+      trxMock.mockImplementation((tableName) => {
+        expect(tableName).toBe('tasks'); // Ensure correct table is used in trx
+        return mockTrxQueryBuilder; // Return the transactional query builder
+      });
+
+      mockTrxQueryBuilder.where.mockReturnThis(); // project_id in trx
+      mockTrxQueryBuilder.andWhere.mockResolvedValue(tasksToUpdate); // Tasks found in trx
+      mockTrxQueryBuilder.update.mockResolvedValueOnce(1); // Update in trx
+
+      const result = await service.updateTaskPrefixesForProject(projectId, oldPrefix, newPrefix, trxMock as any);
+
+      expect(result).toBe(1);
+      expect(trxMock).toHaveBeenCalledTimes(1 + tasksToUpdate.length); // 1 for select, N for updates within transaction
+      expect(mockKnexClient).not.toHaveBeenCalledWith('tasks'); // Ensure main knex client wasn't used for 'tasks' table directly
+
+      expect(mockTrxQueryBuilder.update).toHaveBeenCalledWith(
+        expect.objectContaining({ human_readable_id: 'NEW-789', updated_at: expect.any(Date) })
+      );
+      expect(mockTrxQueryBuilder.where).toHaveBeenNthCalledWith(2, { id: 'task-1' });
     });
   });
 });

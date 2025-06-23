@@ -188,4 +188,60 @@ export class TasksService {
     await this.findTaskById(taskId, user); // This already performs access check
     return this.commentsService.getCommentsForTask(taskId);
   }
+
+  async updateTaskPrefixesForProject(
+    projectId: number,
+    oldPrefix: string,
+    newPrefix: string,
+    trx?: Knex.Transaction, // Allow using an existing transaction
+  ): Promise<number> {
+    const db = trx || this.knex; // Use provided transaction or a new connection
+
+    const tasksToUpdate = await db('tasks')
+      .where({ project_id: projectId })
+      .andWhere('human_readable_id', 'like', `${oldPrefix}-%`);
+
+    if (tasksToUpdate.length === 0) {
+      return 0; // No tasks found with the old prefix for this project
+    }
+
+    // We need to update each task's human_readable_id
+    // Knex does not directly support string replacement in updates across all DBs in a simple way.
+    // The most straightforward way for PostgreSQL is to use REPLACE function.
+    // For broader compatibility, fetching and updating one by one or in batches is safer,
+    // but can be less performant for a large number of tasks.
+    // Given the stack (PostgreSQL likely due to Knex/NestJS typical usage), we can lean on DB functions.
+
+    // Example using raw SQL for PostgreSQL's REPLACE.
+    // Ensure this is safe and consider alternatives if DB portability is a high concern.
+    // human_readable_id = REPLACE(human_readable_id, old_prefix || '-', new_prefix || '-')
+    // The expression should be `REPLACE(human_readable_id, '${oldPrefix}-', '${newPrefix}-')`
+
+    // Safer approach: Iterate and update. Less performant for bulk but more portable.
+    let updatedCount = 0;
+    for (const task of tasksToUpdate) {
+      const newTaskHumanReadableId = task.human_readable_id.replace(`${oldPrefix}-`, `${newPrefix}-`);
+      const result = await db('tasks')
+        .where({ id: task.id })
+        .update({ human_readable_id: newTaskHumanReadableId, updated_at: new Date() });
+      updatedCount += result; // result is the number of affected rows
+    }
+
+    // If many tasks, consider batching updates or a more optimized raw query if the DB supports it well.
+    // For PostgreSQL, a single UPDATE query with REPLACE would be more efficient:
+    // const result = await db.raw(
+    //   `UPDATE tasks SET human_readable_id = REPLACE(human_readable_id, ?, ?), updated_at = ? WHERE project_id = ? AND human_readable_id LIKE ?`,
+    //   [`${oldPrefix}-`, `${newPrefix}-`, new Date(), projectId, `${oldPrefix}-%`]
+    // );
+    // updatedCount = result.rowCount; // For PostgreSQL raw query
+
+    if (updatedCount > 0) {
+        console.log(`Updated prefix for ${updatedCount} tasks in project ${projectId} from ${oldPrefix} to ${newPrefix}`);
+        // Optionally, emit events for each updated task if real-time updates are needed for this change.
+        // This might be too noisy, so consider if it's necessary.
+        // For now, we assume this is a background-like operation not requiring individual task update events.
+    }
+
+    return updatedCount;
+  }
 }

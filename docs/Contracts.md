@@ -26,6 +26,14 @@ export class AddMemberDto {
   email: string;
   role: string; // e.g., 'editor', 'viewer'
 }
+
+// DTO для обновления настроек проекта
+export class UpdateProjectSettingsDto {
+  name?: string; // Optional new name of the project
+  prefix?: string; // Optional new unique prefix for tasks (uppercase, alphanumeric, 2-10 chars)
+  statuses?: string[]; // Optional new list of task statuses
+  types?: string[]; // Optional new list of task types
+}
 ```
 
 ### Task & Comment DTOs
