@@ -29,27 +29,18 @@ axiosInstance.interceptors.response.use(
   },
   (error) => {
     // Any status codes that falls outside the range of 2xx cause this function to trigger
-    // Example: Handle 401 Unauthorized globally (e.g., redirect to login)
+    // ИЗМЕНЕНИЕ: Реализована логика автоматического выхода при ошибке 401
     if (error.response && error.response.status === 401) {
-      // localStorage.removeItem('authToken'); // Clear expired token
-      // TODO: redirect to login, update auth state
-      // window.location.href = '/login'; // Or use react-router programmatically
-      console.error('Unauthorized access - 401. Token might be invalid or expired.');
+      // Проверяем, что мы не на странице логина, чтобы избежать цикла редиректов
+      if (window.location.pathname !== '/login') {
+        localStorage.removeItem('authToken');
+        // Перезагружаем страницу на /login. AuthContext переинициализируется и корректно обработает отсутствие токена.
+        window.location.href = '/login';
+        console.error('Unauthorized access - 401. Token might be invalid or expired. Redirecting to login.');
+      }
     }
     return Promise.reject(error);
   }
 );
 
 export default axiosInstance;
-
-// How to use this instance:
-// import axiosInstance from './shared/api/axiosInstance';
-//
-// const fetchData = async () => {
-//   try {
-//     const response = await axiosInstance.get('/protected-route');
-//     console.log(response.data);
-//   } catch (error) {
-//     console.error('Error fetching data', error);
-//   }
-// };

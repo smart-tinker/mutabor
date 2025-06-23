@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useReducer } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   DndContext,
@@ -30,6 +30,43 @@ interface BoardData extends Omit<FullProjectDto, 'columns' | 'tasks'> {
   columns: Column[];
 }
 
+// РЕФАКТОРИНГ: Начало блока для useReducer
+interface AddTaskFormState {
+  title: string;
+  description: string;
+  dueDate: string;
+  type: string;
+  priority: string;
+  tags: string;
+  columnId: string | null;
+}
+
+type FormAction =
+  | { type: 'SET_FIELD'; field: keyof AddTaskFormState; payload: string | null }
+  | { type: 'RESET' };
+
+const initialFormState: AddTaskFormState = {
+  title: '',
+  description: '',
+  dueDate: '',
+  type: '',
+  priority: '',
+  tags: '',
+  columnId: null,
+};
+
+function formReducer(state: AddTaskFormState, action: FormAction): AddTaskFormState {
+  switch (action.type) {
+    case 'SET_FIELD':
+      return { ...state, [action.field]: action.payload };
+    case 'RESET':
+      return initialFormState;
+    default:
+      return state;
+  }
+}
+// РЕФАКТОРИНГ: Конец блока для useReducer
+
 const BoardPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
@@ -42,17 +79,14 @@ const BoardPage: React.FC = () => {
 
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<TaskDto | null>(null);
-  const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
-  const [newTaskTitle, setNewTaskTitle] = useState('');
-  const [newTaskDescription, setNewTaskDescription] = useState('');
-  const [newTaskDueDate, setNewTaskDueDate] = useState('');
-  const [newTaskType, setNewTaskType] = useState('');
-  const [newTaskPriority, setNewTaskPriority] = useState('');
-  const [newTaskTags, setNewTaskTags] = useState('');
+  
+  // РЕФАКТОРИНГ: Замена множества useState на один useReducer
+  const [formState, dispatch] = useReducer(formReducer, initialFormState);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
 
   const numericProjectId = projectId ? parseInt(projectId, 10) : null;
 
+  // ... (остальной код до useEffect остается без изменений) ...
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -166,43 +200,34 @@ const BoardPage: React.FC = () => {
 
   useEffect(() => {
     if (isAddTaskModalOpen && boardData && boardData.columns.length > 0) {
-      if (!selectedColumnId || !boardData.columns.find(col => col.id === selectedColumnId)) {
-        setSelectedColumnId(boardData.columns[0].id);
+      if (!formState.columnId || !boardData.columns.find(col => col.id === formState.columnId)) {
+        dispatch({ type: 'SET_FIELD', field: 'columnId', payload: boardData.columns[0].id });
       }
     }
-  }, [isAddTaskModalOpen, boardData, selectedColumnId]);
-
-  const resetAddTaskForm = () => {
-    setNewTaskTitle('');
-    setNewTaskDescription('');
-    setNewTaskDueDate('');
-    setNewTaskType('');
-    setNewTaskPriority('');
-    setNewTaskTags('');
-  };
+  }, [isAddTaskModalOpen, boardData, formState.columnId]);
 
   const handleModalClose = () => {
-    resetAddTaskForm();
+    dispatch({ type: 'RESET' });
     closeGlobalAddTaskModal();
   };
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTaskTitle.trim() || !selectedColumnId || numericProjectId === null) {
+    if (!formState.title.trim() || !formState.columnId || numericProjectId === null) {
       alert('Please ensure Title and Column are filled.');
       return;
     }
     setIsCreatingTask(true);
     try {
-      const tagsArray = newTaskTags.split(',').map(tag => tag.trim()).filter(Boolean);
+      const tagsArray = formState.tags.split(',').map(tag => tag.trim()).filter(Boolean);
       const taskData: CreateTaskDto = {
-        title: newTaskTitle,
-        description: newTaskDescription,
-        columnId: selectedColumnId,
+        title: formState.title,
+        description: formState.description,
+        columnId: formState.columnId,
         projectId: numericProjectId,
-        dueDate: newTaskDueDate || undefined,
-        type: newTaskType || undefined,
-        priority: newTaskPriority || undefined,
+        dueDate: formState.dueDate || undefined,
+        type: formState.type || undefined,
+        priority: formState.priority || undefined,
         tags: tagsArray.length > 0 ? tagsArray : undefined,
       };
       await taskService.createTask(taskData);
@@ -215,6 +240,7 @@ const BoardPage: React.FC = () => {
     }
   };
 
+  // ... (остальная часть компонента: handleTaskClick, findColumnContainingTask, drag handlers, return) ...
   const handleTaskClick = (task: TaskDto) => {
     setSelectedTask(task);
   };
@@ -315,7 +341,6 @@ const BoardPage: React.FC = () => {
               Manage Members
             </button>
           </div>
-          {selectedColumnId && (
             <Modal
               isOpen={isAddTaskModalOpen}
               onClose={handleModalClose}
@@ -324,44 +349,43 @@ const BoardPage: React.FC = () => {
               <form onSubmit={handleCreateTask} className={styles.form}>
                 <div>
                   <label htmlFor="taskTitle" className={styles.formLabel}>Task Title:</label>
-                  <input id="taskTitle" type="text" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} required className={styles.formInput} />
+                  <input id="taskTitle" type="text" value={formState.title} onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'title', payload: e.target.value })} required className={styles.formInput} />
                 </div>
                 <div>
                   <label htmlFor="taskDescription">Description (Optional):</label>
-                  <textarea id="taskDescription" value={newTaskDescription} onChange={(e) => setNewTaskDescription(e.target.value)} className={styles.formTextarea} />
+                  <textarea id="taskDescription" value={formState.description} onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'description', payload: e.target.value })} className={styles.formTextarea} />
                 </div>
                 <div>
                   <label htmlFor="columnSelect" className={styles.formLabel}>Status/Column:</label>
-                  <select id="columnSelect" value={selectedColumnId || ''} onChange={(e) => setSelectedColumnId(e.target.value)} required className={styles.formSelect}>
+                  <select id="columnSelect" value={formState.columnId || ''} onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'columnId', payload: e.target.value })} required className={styles.formSelect}>
                     <option value="" disabled>Select a column</option>
                     {boardData?.columns.map(column => (<option key={column.id} value={column.id}>{column.name}</option>))}
                   </select>
                 </div>
                 <div>
                   <label htmlFor="taskDueDate" className={styles.formLabel}>Deadline:</label>
-                  <input id="taskDueDate" type="date" value={newTaskDueDate} onChange={(e) => setNewTaskDueDate(e.target.value)} className={styles.formInput} />
+                  <input id="taskDueDate" type="date" value={formState.dueDate} onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'dueDate', payload: e.target.value })} className={styles.formInput} />
                 </div>
                 <div>
                   <label htmlFor="taskType" className={styles.formLabel}>Type:</label>
-                  <input id="taskType" type="text" value={newTaskType} onChange={(e) => setNewTaskType(e.target.value)} className={styles.formInput} placeholder="e.g., Bug, Feature, Chore" />
+                  <input id="taskType" type="text" value={formState.type} onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'type', payload: e.target.value })} className={styles.formInput} placeholder="e.g., Bug, Feature, Chore" />
                 </div>
                 <div>
                   <label htmlFor="taskPriority" className={styles.formLabel}>Priority:</label>
-                  <input id="taskPriority" type="text" value={newTaskPriority} onChange={(e) => setNewTaskPriority(e.target.value)} className={styles.formInput} placeholder="e.g., High, Medium, Low" />
+                  <input id="taskPriority" type="text" value={formState.priority} onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'priority', payload: e.target.value })} className={styles.formInput} placeholder="e.g., High, Medium, Low" />
                 </div>
                 <div>
                   <label htmlFor="taskTags" className={styles.formLabel}>Tags (comma-separated):</label>
-                  <input id="taskTags" type="text" value={newTaskTags} onChange={(e) => setNewTaskTags(e.target.value)} className={styles.formInput} placeholder="e.g., UI, Backend, Urgent" />
+                  <input id="taskTags" type="text" value={formState.tags} onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'tags', payload: e.target.value })} className={styles.formInput} placeholder="e.g., UI, Backend, Urgent" />
                 </div>
                 <div className={styles.formActions}>
                   <button type="button" onClick={handleModalClose} className={`${styles.button} ${styles.buttonSecondary}`}>Cancel</button>
-                  <button type="submit" disabled={isCreatingTask || !selectedColumnId} className={`${styles.button} ${styles.buttonPrimary}`}>
+                  <button type="submit" disabled={isCreatingTask || !formState.columnId} className={`${styles.button} ${styles.buttonPrimary}`}>
                     {isCreatingTask ? 'Creating...' : 'Create Task'}
                   </button>
                 </div>
               </form>
             </Modal>
-          )}
           <div style={{ display: 'flex', gap: '16px', overflowX: 'auto', padding: '10px', minHeight: 'calc(100vh - 100px)' }}>
             {boardData.columns.map((column) => (
               <ColumnLane key={column.id} column={column} onTaskClick={handleTaskClick} />

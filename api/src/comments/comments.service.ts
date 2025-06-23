@@ -105,12 +105,13 @@ export class CommentsService {
     });
   }
 
+  // РЕФАКТОРИНГ: Устранена проблема N+1 запросов.
+  // Теперь все проверки доступа и данные о пользователях получаются за константное количество запросов.
   private async handleMentions(comment: CommentRecord, taskTitle: string, commentAuthorId: string, projectId: number) {
-    const regex = /@([a-zA-Z0-9_.-]+)/g; // Assuming mention by name-like identifier
+    const regex = /@([a-zA-Z0-9_.-]+)/g;
     const mentionedNames = new Set<string>();
     let match;
 
-    // Ensure comment.text is not null or undefined before calling exec
     const textToParse = comment.text || '';
     while ((match = regex.exec(textToParse)) !== null) {
       mentionedNames.add(match[1]);
@@ -118,33 +119,35 @@ export class CommentsService {
 
     if (mentionedNames.size === 0) return;
 
+    // Шаг 1: Получить всех участников проекта (включая владельца) одним запросом
+    const projectOwner = await this.knex('projects').where({ id: projectId }).select('owner_id').first();
+    const projectMembers = await this.knex('project_members').where({ project_id: projectId }).select('user_id');
+    const validUserIds = new Set(projectMembers.map(m => m.user_id));
+    if (projectOwner) {
+      validUserIds.add(projectOwner.owner_id);
+    }
+
+    // Шаг 2: Получить всех упомянутых пользователей, которые также являются участниками проекта
     const usersToNotify = await this.knex('users')
-      .whereIn('name', Array.from(mentionedNames))
-      .andWhereNot('id', commentAuthorId)
+      .whereIn('name', Array.from(mentionedNames)) // Находим по имени
+      .whereIn('id', Array.from(validUserIds))      // Убеждаемся, что они в проекте
+      .andWhereNot('id', commentAuthorId)           // Не уведомляем автора комментария
       .select('id', 'name', 'email');
 
-    const sourceUrl = `/projects/${projectId}/tasks/${comment.task_id}`; // Assuming comment.task_id from DB
+    if (usersToNotify.length === 0) return;
 
+    const sourceUrl = `/projects/${projectId}/tasks/${comment.task_id}`;
     const authorName = comment.author?.name || 'Someone';
     const finalNotificationText = `You were mentioned by ${authorName} in a comment on task "${taskTitle}": "${comment.text.substring(0, 50)}..."`;
 
+    // Шаг 3: Создать уведомления для отфильтрованного списка
     for (const user of usersToNotify) {
-      const isProjectMember = await this.knex('project_members') // Assuming table name project_members
-        .where({ project_id: projectId, user_id: user.id }) // Assuming column names
-        .first();
-
-      const isProjectOwner = await this.knex('projects') // Assuming table name projects
-        .where({ id: projectId, owner_id: user.id }) // Assuming column names
-        .first();
-
-      if (isProjectMember || isProjectOwner) {
-           await this.notificationService.createNotification(
-              user.id,
-              finalNotificationText,
-              sourceUrl,
-              comment.task_id, // Assuming comment.task_id
-           );
-      }
+      await this.notificationService.createNotification(
+        user.id,
+        finalNotificationText,
+        sourceUrl,
+        comment.task_id,
+      );
     }
   }
 }
