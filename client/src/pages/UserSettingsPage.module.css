@@ -6,7 +6,8 @@
 
 .settingsPage h2 {
   margin-bottom: 20px;
-  border-bottom: 1px solid var(--border-color); /* Using CSS variable for theme adaptability */
+  /* Uses --border-color for light theme and specific var for dark, if needed */
+  border-bottom: 1px solid var(--border-color);
   padding-bottom: 10px;
 }
 
@@ -41,7 +42,7 @@
 }
 
 [data-theme="dark"] .settingsPage h2 {
-  border-bottom-color: #555555;
+  border-bottom-color: var(--settings-page-h2-border-color); /* Use CSS variable */
 }
 
 /* Example of how variables from global.css might be used */

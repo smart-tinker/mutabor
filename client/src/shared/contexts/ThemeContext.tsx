@@ -19,8 +19,13 @@ const useThemeSetup = (effectiveTheme: Theme) => {
   }, [effectiveTheme]);
 };
 
+const THEME_STORAGE_KEY = 'themeOption';
+
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [themeOption, setThemeOption] = useState<ThemeOption>('system');
+  const [themeOption, setThemeOption] = useState<ThemeOption>(() => {
+    const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+    return (storedTheme as ThemeOption) || 'system'; // Default to 'system' if nothing is stored
+  });
   const [effectiveTheme, setEffectiveTheme] = useState<Theme>('light');
 
   const applyTheme = useCallback(() => {
@@ -45,6 +50,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   useThemeSetup(effectiveTheme); // Apply theme to documentElement
 
   const handleSetThemeOption = (newThemeOption: ThemeOption) => {
+    localStorage.setItem(THEME_STORAGE_KEY, newThemeOption);
     setThemeOption(newThemeOption);
   };
 

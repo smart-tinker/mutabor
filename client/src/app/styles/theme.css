@@ -34,4 +34,5 @@
   --card-border-color: #444444;
   --modal-background-color: #1e1e1e;
   --modal-text-color: #e0e0e0;
+  --settings-page-h2-border-color: #555555; /* Added for UserSettingsPage */
 }

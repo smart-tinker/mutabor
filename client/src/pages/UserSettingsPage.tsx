@@ -2,6 +2,12 @@ import React from 'react';
 import { useTheme, ThemeOption } from '../shared/contexts/ThemeContext';
 import styles from './UserSettingsPage.module.css'; // We'll create this CSS module next
 
+const themeOptionsConfig: { value: ThemeOption; label: string }[] = [
+  { value: 'system', label: 'System' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+];
+
 const UserSettingsPage: React.FC = () => {
   const { themeOption, setThemeOption, effectiveTheme } = useTheme();
 
@@ -16,36 +22,18 @@ const UserSettingsPage: React.FC = () => {
         <h3>Theme</h3>
         <p>Current effective theme: {effectiveTheme}</p>
         <div className={styles.radioGroup}>
-          <label>
-            <input
-              type="radio"
-              name="theme"
-              value="system"
-              checked={themeOption === 'system'}
-              onChange={handleThemeChange}
-            />
-            System
-          </label>
-          <label>
-            <input
-              type="radio"
-              name="theme"
-              value="light"
-              checked={themeOption === 'light'}
-              onChange={handleThemeChange}
-            />
-            Light
-          </label>
-          <label>
-            <input
-              type="radio"
-              name="theme"
-              value="dark"
-              checked={themeOption === 'dark'}
-              onChange={handleThemeChange}
-            />
-            Dark
-          </label>
+          {themeOptionsConfig.map((option) => (
+            <label key={option.value}>
+              <input
+                type="radio"
+                name="theme"
+                value={option.value}
+                checked={themeOption === option.value}
+                onChange={handleThemeChange}
+              />
+              {option.label}
+            </label>
+          ))}
         </div>
       </section>
     </div>
