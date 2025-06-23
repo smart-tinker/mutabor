@@ -292,5 +292,36 @@ input:disabled, textarea:disabled {
 
 .closeButtonModal {
   margin-top: calc(var(--spacing-base) * 2.5);
-  align-self: flex-end;
+  /* align-self: flex-end; Removed to allow centering or other layouts in modalActions */
+}
+
+.modalActions {
+  display: flex;
+  justify-content: space-between; /* Distributes items: link to left, button to right */
+  align-items: center;
+  margin-top: calc(var(--spacing-base) * 2.5);
+  padding-top: calc(var(--spacing-base) * 1.5);
+  border-top: 1px solid var(--color-border); /* Optional: visual separation */
+}
+
+/* Ensure the link within modalActions looks like a button if desired, or style as a link */
+.modalActions .buttonLink {
+  /* If it should look like a button, inherit from .button or define similar styles */
+  /* For example, to make it look like a secondary button: */
+  /* composes: button; */
+  /* composes: buttonSecondary; */
+  /* Or, if it's a true link, ensure it's styled appropriately */
+  color: var(--color-text-link);
+  text-decoration: none;
+  padding: var(--spacing-base) 0; /* Adjust padding as needed */
+}
+.modalActions .buttonLink:hover {
+  text-decoration: underline;
+}
+
+/* Style for the close button if it's inside modalActions */
+.modalActions .closeButtonModal {
+  margin-top: 0; /* Reset margin-top if it's now part of modalActions */
+  /* Add other specific styles if needed, e.g., make it a primary button */
+  composes: button buttonSecondary; /* Example: make it look like a secondary button */
 }
