@@ -4,7 +4,7 @@
     WORKDIR /usr/src/app
     
     COPY package*.json ./
-    RUN npm install
+    RUN npm cache clean --force && npm install
     COPY . .
     RUN npm run build
     
@@ -33,7 +33,7 @@
     WORKDIR /usr/src/app
     
     COPY package*.json ./
-    RUN npm install --omit=dev
+    RUN npm cache clean --force && npm install --omit=dev
     
     COPY --from=builder /usr/src/app/dist ./dist
     # Копируем и knexfile, и папку с миграциями Liquibase
