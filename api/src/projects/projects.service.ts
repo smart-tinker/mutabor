@@ -14,6 +14,14 @@ import { TasksService } from '../tasks/tasks.service'; // Предполагае
 const DEFAULT_PROJECT_STATUSES = ['To Do', 'In Progress', 'Done'];
 const DEFAULT_PROJECT_TYPES = ['Task', 'Bug', 'Feature'];
 
+// Определим тип для ответа методов get/updateProjectSettings, соответствующий ProjectSettingsResponse на клиенте
+export interface ProjectSettingsDTO {
+  id: number;
+  name: string;
+  prefix: string;
+  settings_statuses: string[];
+  settings_types: string[];
+}
 
 @Injectable()
 export class ProjectsService {
@@ -138,17 +146,6 @@ export class ProjectsService {
     };
   }
 
-// Определим тип для ответа методов get/updateProjectSettings, соответствующий ProjectSettingsResponse на клиенте
-export interface ProjectSettingsDTO {
-  id: number;
-  name: string;
-  prefix: string;
-  settings_statuses: string[];
-  settings_types: string[];
-}
-
-// ... остальной код сервиса ...
-
   async getProjectSettings(projectId: number, userId: string): Promise<ProjectSettingsDTO> {
     const project = await this.ensureUserHasAccessToProject(projectId, userId);
     // Возвращаем только нужные поля для настроек, маппим task_prefix -> prefix
@@ -156,8 +153,8 @@ export interface ProjectSettingsDTO {
       id: project.id,
       name: project.name,
       prefix: project.task_prefix, // Маппинг
-      settings_statuses: project.settings_statuses as string[], // ensureUserHasAccessToProject уже распарсил
-      settings_types: project.settings_types as string[],   // ensureUserHasAccessToProject уже распарсил
+      settings_statuses: project.settings_statuses as unknown as string[], // ensureUserHasAccessToProject уже распарсил
+      settings_types: project.settings_types as unknown as string[],   // ensureUserHasAccessToProject уже распарсил
     };
   }
 
@@ -219,8 +216,8 @@ export interface ProjectSettingsDTO {
         id: parsedUpdatedProject.id,
         name: parsedUpdatedProject.name,
         prefix: parsedUpdatedProject.task_prefix, // Маппинг
-        settings_statuses: parsedUpdatedProject.settings_statuses as string[],
-        settings_types: parsedUpdatedProject.settings_types as string[],
+        settings_statuses: parsedUpdatedProject.settings_statuses as unknown as string[],
+        settings_types: parsedUpdatedProject.settings_types as unknown as string[],
       };
     });
   }
