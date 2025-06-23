@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { projectService } from '../shared/api/projectService';
-import { ProjectSettingsResponse, UpdateProjectSettingsPayload } from '../shared/api/types';
+import type { ProjectSettingsResponse, UpdateProjectSettingsPayload } from '../shared/api/types';
 import styles from './ProjectSettingsPage.module.css';
 // Assuming a shared Button and Input component exists, otherwise use native ones
 // import Button from '../shared/ui/Button/Button';
