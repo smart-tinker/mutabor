@@ -18,7 +18,7 @@ const ColumnLane: React.FC<ColumnLaneProps> = ({ column, onTaskClick }) => {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
 
   // Base class for the column lane, conditionally add 'isOver' class
-  const columnClasses = `${styles.columnLane} ${isOver ? styles.isOver : ''}`;
+  const columnClasses = isOver ? `${styles.columnLane} ${styles.isOver}` : styles.columnLane;
 
   const tasksContainerStyle = { // Kept inline as it's simple and layout-specific
     flexGrow: 1,

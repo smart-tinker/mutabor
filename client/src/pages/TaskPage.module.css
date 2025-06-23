@@ -13,7 +13,7 @@
   background-color: var(--card-background-color); /* Use theme card background */
   padding: var(--spacing-medium); /* Assuming --spacing-medium is globally defined */
   border-radius: var(--border-radius-medium); /* Assuming --border-radius-medium is globally defined */
-  box-shadow: var(--shadow-element); /* TODO: Ensure --shadow-element is themeable or replace */
+  box-shadow: var(--shadow-element);
   color: var(--text-color); /* Default text color for content inside */
 }
 
@@ -79,7 +79,7 @@
   background-color: var(--card-background-color); /* Use theme card background */
   padding: var(--spacing-medium);
   border-radius: var(--border-radius-medium);
-  box-shadow: var(--shadow-element); /* TODO: Ensure --shadow-element is themeable or replace */
+  box-shadow: var(--shadow-element);
   color: var(--text-color); /* Default text color for content inside */
 }
 .commentsSection h2 {
