@@ -2,25 +2,26 @@
 .pageContainer {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-large);
-  padding: var(--spacing-large);
-  max-width: 900px; /* Or your preferred max width */
-  margin: 0 auto; /* Center the content */
-  background-color: var(--color-background-page); /* Ensure it has a background */
+  gap: var(--spacing-large); /* Assuming --spacing-large is globally defined or replace if necessary */
+  padding: var(--spacing-large); /* Assuming --spacing-large is globally defined or replace if necessary */
+  max-width: 900px;
+  margin: 0 auto;
+  background-color: var(--background-color); /* Use main background color */
 }
 
 .taskContent {
-  background-color: var(--color-background-element);
-  padding: var(--spacing-medium);
-  border-radius: var(--border-radius-medium);
-  box-shadow: var(--shadow-element);
+  background-color: var(--card-background-color); /* Use theme card background */
+  padding: var(--spacing-medium); /* Assuming --spacing-medium is globally defined */
+  border-radius: var(--border-radius-medium); /* Assuming --border-radius-medium is globally defined */
+  box-shadow: var(--shadow-element); /* TODO: Ensure --shadow-element is themeable or replace */
+  color: var(--text-color); /* Default text color for content inside */
 }
 
 .taskTitle {
   font-size: 2em;
-  color: var(--color-text-primary);
+  color: var(--text-color); /* Use theme main text color */
   margin-bottom: var(--spacing-medium);
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--border-color); /* Use theme border color */
   padding-bottom: var(--spacing-small);
 }
 
@@ -33,10 +34,10 @@
 }
 .taskMeta p {
   margin: 0;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary-color); /* Use theme secondary text color */
 }
 .taskMeta strong {
-  color: var(--color-text-primary);
+  color: var(--text-color); /* Use theme main text color for emphasis */
 }
 
 .taskDescription {
@@ -44,13 +45,13 @@
 }
 .taskDescription h3 {
   font-size: 1.2em;
-  color: var(--color-text-primary);
+  color: var(--text-color); /* Use theme main text color */
   margin-bottom: var(--spacing-small);
 }
 .taskDescription p {
   line-height: 1.6;
-  color: var(--color-text-secondary);
-  white-space: pre-wrap; /* Preserve formatting */
+  color: var(--text-secondary-color); /* Use theme secondary text color */
+  white-space: pre-wrap;
 }
 
 .taskTags {
@@ -58,7 +59,7 @@
 }
 .taskTags h3 {
   font-size: 1.2em;
-  color: var(--color-text-primary);
+  color: var(--text-color); /* Use theme main text color */
   margin-bottom: var(--spacing-small);
 }
 .tagsContainer {
@@ -67,24 +68,25 @@
   gap: var(--spacing-small);
 }
 .tagItem {
-  background-color: var(--color-background-tag);
-  color: var(--color-text-tag);
+  background-color: var(--tag-background-color); /* Use theme tag background color */
+  color: var(--tag-text-color); /* Use theme tag text color */
   padding: var(--spacing-base-small) var(--spacing-base);
   border-radius: var(--border-radius-small);
   font-size: 0.85em;
 }
 
 .commentsSection {
-  background-color: var(--color-background-element);
+  background-color: var(--card-background-color); /* Use theme card background */
   padding: var(--spacing-medium);
   border-radius: var(--border-radius-medium);
-  box-shadow: var(--shadow-element);
+  box-shadow: var(--shadow-element); /* TODO: Ensure --shadow-element is themeable or replace */
+  color: var(--text-color); /* Default text color for content inside */
 }
 .commentsSection h2 {
   font-size: 1.5em;
-  color: var(--color-text-primary);
+  color: var(--text-color); /* Use theme main text color */
   margin-bottom: var(--spacing-medium);
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--border-color); /* Use theme border color */
   padding-bottom: var(--spacing-small);
 }
 
@@ -92,8 +94,9 @@
 .container {
   padding: var(--spacing-large);
   text-align: center;
+  color: var(--text-color); /* Ensure container text is themeable */
 }
 .errorText {
-  color: var(--color-text-error);
-  font-weight: var(--font-weight-bold);
+  color: var(--danger-text-color); /* Use theme danger text color */
+  font-weight: var(--font-weight-bold); /* Assuming --font-weight-bold is globally defined */
 }

@@ -1,5 +1,38 @@
+.columnLane {
+  padding: 8px;
+  min-width: 300px;
+  max-width: 300px;
+  height: calc(100vh - 150px); /* Example height, adjust as needed */
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--card-background-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-medium); /* Added for consistency */
+  color: var(--text-color);
+}
+
+.columnLane.isOver {
+  border: 2px dashed var(--primary-color);
+  /* Optional: Slightly change background when item is dragged over */
+  /* background-color: var(--element-hover-background-color); */
+}
+
+.columnTitle {
+  text-align: center;
+  margin-bottom: 10px;
+  color: var(--text-color); /* Ensure title uses theme text color */
+}
+
+.noTasksText {
+  font-size: 0.9em;
+  color: var(--text-secondary-color); /* Use secondary text color for less emphasis */
+  text-align: center;
+  margin-top: 20px;
+}
+
 .addTaskButton {
   margin-top: auto; /* Push to bottom */
-  /* The global .secondary class will handle visual styling */
   width: 100%; /* Make button full width of column */
+  /* Assuming global button styles or specific button component will handle theming */
 }
