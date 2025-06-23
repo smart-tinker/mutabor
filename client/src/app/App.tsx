@@ -43,11 +43,11 @@ const App: React.FC = () => {
 
 // Create a new component to use the theme context
 const AppContent: React.FC<any> = ({ isAuthenticated, isLoading, addTaskModalContextValue }) => {
-  const { theme } = useTheme();
+  // const { theme } = useTheme(); // No longer needed here, as ThemeProvider handles it
 
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
+  // useEffect(() => { // This logic is now in ThemeProvider via useThemeSetup
+  //   document.documentElement.setAttribute('data-theme', theme);
+  // }, [theme]);
 
   return (
     <AddTaskModalContext.Provider value={addTaskModalContextValue}>
