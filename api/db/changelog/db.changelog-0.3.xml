@@ -10,13 +10,13 @@
              as per db.changelog-0.1.xml. No action needed for task_prefix here. -->
 
         <addColumn tableName="projects">
-            <column name="settings_statuses" type="JSONB">
+            <column name="settings_statuses" type="JSONB" defaultValue="[]">
                 <constraints nullable="false"/>
                 <!-- Default values are now handled by application logic on project creation -->
             </column>
         </addColumn>
         <addColumn tableName="projects">
-            <column name="settings_types" type="JSONB">
+            <column name="settings_types" type="JSONB" defaultValue="[]">
                 <constraints nullable="false"/>
                 <!-- Default values are now handled by application logic on project creation -->
             </column>
