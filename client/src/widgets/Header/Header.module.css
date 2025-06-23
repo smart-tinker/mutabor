@@ -1,7 +1,7 @@
 .header {
-  background-color: var(--color-background-element);
+  background-color: var(--header-background-color);
   padding: 0 calc(var(--spacing-base) * 3); /* 0 24px */
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--border-color);
   box-shadow: var(--shadow-sm);
 }
 
@@ -17,13 +17,13 @@
 .logo {
   font-size: 24px;
   font-weight: 600;
-  color: var(--color-primary);
+  color: var(--primary-color);
   text-decoration: none;
 }
 
 .logo:hover {
   text-decoration: none; /* Ensure no underline on hover for logo */
-  opacity: 0.85;
+  color: var(--link-hover-color); /* Use link hover color */
 }
 
 .navigation ul {
@@ -41,7 +41,7 @@
 .navigation a,
 .navigation button { /* For LogoutButton styling consistency */
   text-decoration: none;
-  color: var(--color-text-main);
+  color: var(--header-text-color); /* Use header specific text color */
   font-weight: 400;
   padding: calc(var(--spacing-base) * 0.5) calc(var(--spacing-base) * 1); /* 4px 8px */
   border-radius: var(--border-radius-medium); /* Using defined variable */
@@ -49,31 +49,34 @@
 }
 
 .navigation a:hover,
-.navigation button:hover {
-  color: var(--color-primary);
-  background-color: var(--color-primary-background-hover); /* Reinstated background hover */
+.navigation button:not(.secondary):hover { /* Apply hover to general buttons, not specifically styled secondary ones */
+  color: var(--link-hover-color); /* Use link hover color for text */
+  background-color: var(--element-hover-background-color); /* Subtle background for hover */
 }
 
 /* Style for active link if needed, requires NavLink from react-router-dom */
 .navigation a.active {
-  color: var(--color-primary);
+  color: var(--primary-color);
   font-weight: 700;
 }
 
 /* Ensure LogoutButton integrates well */
 .navigation button {
-  background-color: transparent;
+  background-color: transparent; /* Default for link-like buttons */
   border: none;
   cursor: pointer;
 }
 
-.navigation button.secondary { /* Targeting the LogoutButton's specific class if it has one */
-    color: var(--color-text-main); /* Default state */
-    border: 1px solid var(--color-border); /* Match other links better */
+/* Styling for a button that should look like a secondary action button */
+.navigation button.secondary {
+    color: var(--button-secondary-text-color);
+    background-color: var(--button-secondary-background-color);
+    border: 1px solid var(--button-secondary-border-color);
+    /* padding will be inherited from .navigation button */
 }
 
 .navigation button.secondary:hover {
-    color: var(--color-primary);
-    border-color: var(--color-primary);
-    background-color: var(--color-primary-background-hover); /* Reinstated background hover */
+    color: var(--button-secondary-text-color); /* Text color might not change or could be defined in theme */
+    background-color: var(--button-secondary-hover-background-color);
+    border-color: var(--button-secondary-hover-background-color); /* Or a specific hover border color */
 }

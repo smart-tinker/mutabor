@@ -1,16 +1,19 @@
 .taskCard {
-  background-color: var(--color-background-element);
-  border: 1px solid var(--color-border);
+  background-color: var(--card-background-color);
+  border: 1px solid var(--card-border-color);
   border-radius: var(--border-radius-large); /* 8px */
   padding: var(--spacing-base); /* 8px */
   transition: all 0.2s ease-out;
   margin-bottom: var(--spacing-base); /* Add some margin between cards */
   cursor: grab; /* Indicate draggable */
+  color: var(--text-color); /* Ensure default text color is applied */
 }
 
 .taskCard:hover {
   box-shadow: var(--shadow-card-hover);
   transform: translateY(-2px);
+  /* Consider adding a subtle background change on hover if desired */
+  /* background-color: var(--element-hover-background-color); */
 }
 
 .taskCardDragging {
@@ -23,11 +26,12 @@
   font-size: 1rem; /* 16px */
   font-weight: 600;
   margin-bottom: calc(var(--spacing-base) / 2); /* 4px */
+  color: var(--text-color); /* Explicitly use main text color for titles */
 }
 
 .taskDescription {
   font-size: 0.875rem; /* 14px */
-  color: var(--color-text-secondary);
+  color: var(--text-secondary-color);
   margin-bottom: var(--spacing-base); /* 8px */
   /* Hide long descriptions, show more in modal */
   white-space: nowrap;
@@ -37,5 +41,5 @@
 
 .taskMeta {
   font-size: 0.75rem; /* 12px */
-  color: var(--color-text-tertiary);
+  color: var(--text-tertiary-color);
 }
