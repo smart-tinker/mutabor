@@ -1,6 +1,6 @@
 // Assuming an axios instance is configured, e.g., client/src/shared/api/axiosInstance.ts
 import apiClient from './axiosInstance'; // Using axiosInstance.ts as seen from ls
-import { ProjectSettingsResponse, UpdateProjectSettingsPayload } from './types';
+import type { ProjectSettingsResponse, UpdateProjectSettingsPayload } from './types';
 
 // Define interfaces for DTOs based on backend DTOs
 // These should ideally be in a shared types folder or generated from backend schema
