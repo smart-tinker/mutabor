@@ -1,5 +1,6 @@
 // client/src/features/TaskDetailModal/ui/TaskDetailModal.tsx
 import React, { useEffect, useState, useCallback } from 'react';
+import { Link } from 'react-router-dom'; // Импорт Link
 // Use CommentDto from taskService, TaskDto from projectService
 import type { TaskDto } from '../../../shared/api/projectService';
 import { taskService } from '../../../shared/api/taskService'; // Import taskService
@@ -405,8 +406,13 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, onClose
               <AddCommentForm taskId={task.id} onCommentAdded={handleCommentAdded} />
             </div>
           </>
-        {/* The main close button for the modal */}
-        <button onClick={onClose} className={styles.closeButtonModal}>Close</button>
+        {/* Кнопки управления модальным окном */}
+        <div className={styles.modalActions}>
+          <Link to={`/task/${task.id}`} className={`${styles.button} ${styles.buttonLink}`}>
+            Open in New Page
+          </Link>
+          <button onClick={onClose} className={`${styles.button} ${styles.closeButtonModal}`}>Close</button>
+        </div>
       </div>
     </div>
   );

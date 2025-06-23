@@ -1,0 +1,99 @@
+/* client/src/pages/TaskPage.module.css */
+.pageContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-large);
+  padding: var(--spacing-large);
+  max-width: 900px; /* Or your preferred max width */
+  margin: 0 auto; /* Center the content */
+  background-color: var(--color-background-page); /* Ensure it has a background */
+}
+
+.taskContent {
+  background-color: var(--color-background-element);
+  padding: var(--spacing-medium);
+  border-radius: var(--border-radius-medium);
+  box-shadow: var(--shadow-element);
+}
+
+.taskTitle {
+  font-size: 2em;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-medium);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--spacing-small);
+}
+
+.taskMeta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-medium);
+  margin-bottom: var(--spacing-medium);
+  font-size: 0.9em;
+}
+.taskMeta p {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+.taskMeta strong {
+  color: var(--color-text-primary);
+}
+
+.taskDescription {
+  margin-bottom: var(--spacing-medium);
+}
+.taskDescription h3 {
+  font-size: 1.2em;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-small);
+}
+.taskDescription p {
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  white-space: pre-wrap; /* Preserve formatting */
+}
+
+.taskTags {
+  margin-bottom: var(--spacing-medium);
+}
+.taskTags h3 {
+  font-size: 1.2em;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-small);
+}
+.tagsContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-small);
+}
+.tagItem {
+  background-color: var(--color-background-tag);
+  color: var(--color-text-tag);
+  padding: var(--spacing-base-small) var(--spacing-base);
+  border-radius: var(--border-radius-small);
+  font-size: 0.85em;
+}
+
+.commentsSection {
+  background-color: var(--color-background-element);
+  padding: var(--spacing-medium);
+  border-radius: var(--border-radius-medium);
+  box-shadow: var(--shadow-element);
+}
+.commentsSection h2 {
+  font-size: 1.5em;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-medium);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--spacing-small);
+}
+
+/* For loading and error states if you use .container for them */
+.container {
+  padding: var(--spacing-large);
+  text-align: center;
+}
+.errorText {
+  color: var(--color-text-error);
+  font-weight: var(--font-weight-bold);
+}
