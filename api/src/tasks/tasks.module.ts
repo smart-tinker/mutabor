@@ -1,15 +1,15 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { TasksController } from './tasks.controller';
 import { EventsModule } from '../events/events.module';
 import { CommentsModule } from '../comments/comments.module';
-import { ProjectsModule } from '../projects/projects.module'; // --- ИСПРАВЛЕНИЕ #5 ---
+import { ProjectsModule } from '../projects/projects.module';
 
 @Module({
   imports: [
     EventsModule,
     CommentsModule,
-    ProjectsModule, // --- ИСПРАВЛЕНИЕ #5 ---
+    forwardRef(() => ProjectsModule), // Use forwardRef to resolve circular dependency
   ],
   controllers: [TasksController],
   providers: [TasksService],

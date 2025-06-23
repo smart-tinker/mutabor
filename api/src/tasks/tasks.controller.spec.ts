@@ -2,14 +2,15 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TasksController } from './tasks.controller';
 import { TasksService } from './tasks.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { UserRecord, TaskRecord } from '../types/db-records';
 
-const mockUser: any /* User */ = { id: 'user-1', email: 'test@example.com', name: 'Test User', password: 'pwd', createdAt: new Date(), updatedAt: new Date() };
-const mockTask: any /* Task */ = { id: 'task-1', humanReadableId: 'TP-1', taskNumber: 1, title: 'Test Task', description: null, position: 0, projectId: 1, columnId: 'col-1', assigneeId: null, creatorId: 'user-1', dueDate: null, createdAt: new Date(), updatedAt: new Date() };
+const mockUser: UserRecord = { id: 'user-1', email: 'test@example.com', name: 'Test User', created_at: new Date(), updated_at: new Date() };
+const mockTask: TaskRecord = { id: 'task-1', human_readable_id: 'TP-1', task_number: 1, title: 'Test Task', description: null, position: 0, project_id: 1, column_id: 'col-1', assignee_id: null, creator_id: 'user-1', due_date: null, created_at: new Date(), updated_at: new Date(), type: null, priority: null, tags: null };
 
-// Mock TasksService
 const mockTasksService = {
   createTask: jest.fn().mockResolvedValue(mockTask),
   findTaskById: jest.fn().mockResolvedValue(mockTask),
+  findTaskByHumanId: jest.fn().mockResolvedValue(mockTask),
   updateTask: jest.fn().mockResolvedValue(mockTask),
   moveTask: jest.fn().mockResolvedValue(mockTask),
 };
@@ -21,9 +22,7 @@ describe('TasksController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [TasksController],
-      providers: [
-        { provide: TasksService, useValue: mockTasksService },
-      ],
+      providers: [{ provide: TasksService, useValue: mockTasksService }],
     })
     .overrideGuard(JwtAuthGuard)
     .useValue({ canActivate: jest.fn(() => true) })
@@ -49,13 +48,21 @@ describe('TasksController', () => {
   });
 
   describe('findOne', () => {
-    it('should call service.findTaskById and return a task', async () => {
+    it('should call service.findTaskById with UUID and return a task', async () => {
       const result = await controller.findOne(mockTask.id, mockReq);
       expect(service.findTaskById).toHaveBeenCalledWith(mockTask.id, mockUser);
       expect(result).toEqual(mockTask);
     });
   });
 
+  describe('findOneByHid', () => {
+    it('should call service.findTaskByHumanId and return a task', async () => {
+      const result = await controller.findOneByHid(mockTask.human_readable_id, mockReq);
+      expect(service.findTaskByHumanId).toHaveBeenCalledWith(mockTask.human_readable_id, mockUser);
+      expect(result).toEqual(mockTask);
+    });
+  });
+  
   describe('update', () => {
     it('should call service.updateTask and return a task', async () => {
       const updateDto = { title: 'Updated Task' };

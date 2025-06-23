@@ -11,7 +11,7 @@ import {
 import type { DragEndEvent, DragOverEvent, DragStartEvent } from '@dnd-kit/core';
 
 import { projectService } from '../shared/api/projectService';
-import type { ProjectDto as FullProjectDto, ColumnDto as ProjectColumnDto, TaskDto } from '../shared/api/projectService';
+import type { FullProjectDto, ColumnDto as ProjectColumnDto, TaskDto } from '../shared/api/projectService';
 import { taskService } from '../shared/api/taskService';
 import type { CreateTaskDto } from '../shared/api/taskService';
 import { socket, joinProjectRoom, leaveProjectRoom } from '../shared/lib/socket';
@@ -30,7 +30,6 @@ interface BoardData extends Omit<FullProjectDto, 'columns' | 'tasks'> {
   columns: Column[];
 }
 
-// РЕФАКТОРИНГ: Начало блока для useReducer
 interface AddTaskFormState {
   title: string;
   description: string;
@@ -65,7 +64,6 @@ function formReducer(state: AddTaskFormState, action: FormAction): AddTaskFormSt
       return state;
   }
 }
-// РЕФАКТОРИНГ: Конец блока для useReducer
 
 const BoardPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -80,13 +78,11 @@ const BoardPage: React.FC = () => {
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<TaskDto | null>(null);
   
-  // РЕФАКТОРИНГ: Замена множества useState на один useReducer
   const [formState, dispatch] = useReducer(formReducer, initialFormState);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
 
   const numericProjectId = projectId ? parseInt(projectId, 10) : null;
 
-  // ... (остальной код до useEffect остается без изменений) ...
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -117,7 +113,7 @@ const BoardPage: React.FC = () => {
       setBoardData({ ...projectDetails, columns: transformedColumns });
       setError(null);
     } catch (err: any) {
-      if (err && err.status === 404) {
+      if (err.response?.status === 404) {
         navigate('/404');
       } else {
         setError('Failed to fetch board data.');
@@ -137,52 +133,42 @@ const BoardPage: React.FC = () => {
       socket.once('connect', onConnect);
       if (socket.connected) onConnect();
 
-      const handleTaskCreated = (newTask: TaskDto) => {
-        setBoardData((prevBoardData) => {
-          if (!prevBoardData || newTask.projectId !== numericProjectId) return prevBoardData;
-          const newColumns = prevBoardData.columns.map(column => {
-            if (column.id === newTask.columnId) {
-              if (column.tasksList.find(task => task.id === newTask.id)) return column;
-              return { ...column, tasksList: [...column.tasksList, newTask].sort((a,b) => a.position - b.position) };
-            }
-            return column;
-          });
-          return { ...prevBoardData, columns: newColumns };
-        });
-      };
-
-      const handleTaskMoved = (movedTask: TaskDto) => {
-        setBoardData(prev => {
-            if (!prev || movedTask.projectId !== numericProjectId) return prev;
-            let newColumns = JSON.parse(JSON.stringify(prev.columns)) as Column[];
+      const handleTaskEvent = (task: TaskDto, type: 'created' | 'updated' | 'moved') => {
+        setBoardData((prev) => {
+          if (!prev || task.project_id !== numericProjectId) return prev;
+      
+          let newColumns = JSON.parse(JSON.stringify(prev.columns)) as Column[];
+      
+          // Remove task from its old position in all cases (except creation)
+          if (type !== 'created') {
             newColumns = newColumns.map(col => ({
-                ...col,
-                tasksList: col.tasksList.filter(t => t.id !== movedTask.id)
+              ...col,
+              tasksList: col.tasksList.filter(t => t.id !== task.id)
             }));
-            const targetColumnIndex = newColumns.findIndex(col => col.id === movedTask.columnId);
-            if (targetColumnIndex !== -1) {
-                newColumns[targetColumnIndex].tasksList.push(movedTask);
-                newColumns[targetColumnIndex].tasksList.sort((a, b) => a.position - b.position);
+          }
+      
+          // Add/Update task in its new/current column
+          const targetColumnIndex = newColumns.findIndex(col => col.id === task.column_id);
+          if (targetColumnIndex !== -1) {
+            const taskExists = newColumns[targetColumnIndex].tasksList.some(t => t.id === task.id);
+            if (!taskExists) {
+              newColumns[targetColumnIndex].tasksList.push(task);
+            } else {
+              // If it's an update, replace the existing task
+              const taskIndex = newColumns[targetColumnIndex].tasksList.findIndex(t => t.id === task.id);
+              newColumns[targetColumnIndex].tasksList[taskIndex] = task;
             }
-            return { ...prev, columns: newColumns };
+            // Always sort the tasks in the affected column
+            newColumns[targetColumnIndex].tasksList.sort((a, b) => a.position - b.position);
+          }
+      
+          return { ...prev, columns: newColumns };
         });
       };
-
-      const handleTaskUpdated = (updatedTask: TaskDto) => {
-        setBoardData(prev => {
-            if (!prev || updatedTask.projectId !== numericProjectId) return prev;
-            const newColumns = prev.columns.map(col => {
-                const taskIndex = col.tasksList.findIndex(t => t.id === updatedTask.id);
-                if (taskIndex !== -1) {
-                    const updatedTasksList = [...col.tasksList];
-                    updatedTasksList[taskIndex] = updatedTask;
-                    return { ...col, tasksList: updatedTasksList.sort((a,b) => a.position - b.position) };
-                }
-                return col;
-            });
-            return { ...prev, columns: newColumns };
-        });
-      };
+      
+      const handleTaskCreated = (newTask: TaskDto) => handleTaskEvent(newTask, 'created');
+      const handleTaskMoved = (movedTask: TaskDto) => handleTaskEvent(movedTask, 'moved');
+      const handleTaskUpdated = (updatedTask: TaskDto) => handleTaskEvent(updatedTask, 'updated');
 
       socket.on('task:created', handleTaskCreated);
       socket.on('task:moved', handleTaskMoved);
@@ -240,7 +226,6 @@ const BoardPage: React.FC = () => {
     }
   };
 
-  // ... (остальная часть компонента: handleTaskClick, findColumnContainingTask, drag handlers, return) ...
   const handleTaskClick = (task: TaskDto) => {
     setSelectedTask(task);
   };
@@ -333,7 +318,7 @@ const BoardPage: React.FC = () => {
       >
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '10px' }}>
-            <h1>{boardData.name}{boardData.prefix ? ` (${boardData.prefix})` : ''}</h1>
+            <h1>{boardData.name}{boardData.task_prefix ? ` (${boardData.task_prefix})` : ''}</h1>
             <button
               onClick={() => setIsMembersModalOpen(true)}
               style={{ padding: '8px 15px', cursor: 'pointer' }}

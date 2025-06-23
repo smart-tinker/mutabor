@@ -76,7 +76,7 @@ const ManageProjectMembersModal: React.FC<ManageProjectMembersModalProps> = ({ p
         {!isLoadingMembers && members.length === 0 && <p>No members yet (besides the owner).</p>}
         <ul className={styles.memberList}>
           {members.map(member => (
-            <li key={member.userId} className={styles.memberItem}>
+            <li key={member.user_id} className={styles.memberItem}>
               <span>{member.user?.name || member.user?.email} ({member.role})</span>
               {/* Add kick/role change buttons here later */}
             </li>

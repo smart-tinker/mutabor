@@ -2,9 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ProjectsController } from './projects.controller';
 import { ProjectsService } from './projects.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ProjectRecord, UserRecord } from '../types/db-records';
 
-const mockUser: any = { id: 'user-1', email: 'test@example.com', name: 'Test User', password: 'pwd', createdAt: new Date(), updatedAt: new Date() };
-const mockProject: any = { id: 1, name: 'Test Project', taskPrefix: 'TP', lastTaskNumber: 0, ownerId: 'user-1', createdAt: new Date(), updatedAt: new Date() };
+const mockUser: UserRecord = { id: 'user-1', email: 'test@example.com', name: 'Test User', created_at: new Date(), updated_at: new Date() };
+const mockProject: ProjectRecord = { id: 1, name: 'Test Project', task_prefix: 'TP', last_task_number: 0, owner_id: 'user-1', created_at: new Date(), updated_at: new Date(), settings_statuses: null, settings_types: null };
 
 // Mock ProjectsService
 const mockProjectsService = {
@@ -24,7 +25,6 @@ describe('ProjectsController', () => {
         { provide: ProjectsService, useValue: mockProjectsService },
       ],
     })
-    // Mock JwtAuthGuard to always allow access for controller tests
     .overrideGuard(JwtAuthGuard)
     .useValue({ canActivate: jest.fn(() => true) })
     .compile();

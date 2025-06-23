@@ -1,31 +1,13 @@
-import apiClient from './axiosInstance'; // Your configured axios instance
+import apiClient from './axiosInstance';
+import type { TaskDto } from './projectService'; // Import unified TaskDto
 
-// Basic TaskDto definition - adjust as per actual structure
-export interface TaskDto {
-  id: string;
-  title: string;
-  description?: string;
-  status: string; // Example: 'todo', 'inprogress', 'done'
-  priority?: string;
-  type?: string;
-  dueDate?: string | null;
-  createdAt: string;
-  updatedAt: string;
-  humanReadableId: string; // e.g., PHX-123
-  tags?: string[];
-  assignee?: { id: string; username: string; avatarUrl?: string };
-  project?: { id: number; name: string };
-  columnId?: string;
-  position?: number;
-}
-
+// DTO for creating a task
 export interface CreateTaskDto {
   title: string;
   description?: string;
   columnId: string;
-  projectId: number; // Ensure this is passed from BoardPage
+  projectId: number;
   assigneeId?: string;
-  // Fields from previous CreateTaskDto in backend, to be aligned with TaskRecord
   dueDate?: string;
   type?: string;
   priority?: string;
@@ -35,34 +17,62 @@ export interface CreateTaskDto {
 // For updating tasks, all fields are optional
 export interface UpdateTaskDto {
   title?: string;
-  description?: string;
-  columnId?: string; // Usually handled by move, but can be here for general updates
-  assigneeId?: string | null; // Allow setting to null
-  dueDate?: string | null; // Allow setting to null
-  type?: string | null; // Allow setting to null
-  priority?: string | null; // Allow setting to null
-  tags?: string[] | null; // Allow setting to null
-  position?: number; // If position is also updatable directly
+  description?: string | null;
+  columnId?: string;
+  assigneeId?: string | null;
+  dueDate?: string | null;
+  type?: string | null;
+  priority?: string | null;
+  tags?: string[] | null;
+  position?: number;
 }
 
 export interface MoveTaskDto {
   newColumnId: string;
   newPosition: number;
-  // oldColumnId?: string; // Backend might not need this if it re-calculates based on task's current state
+}
+
+// DTOs for Comments
+export interface CommentAuthorDto {
+  id: string;
+  name?: string | null;
+  email: string;
+}
+
+// Raw DTO from API
+export interface ApiCommentDto {
+  id: string;
+  text: string;
+  task_id: string;
+  author_id: string | null;
+  created_at: string;
+  updated_at: string;
+  author?: CommentAuthorDto | null;
+}
+
+// Client-side DTO with Date objects
+export interface CommentDto {
+  id: string;
+  text: string;
+  taskId: string;
+  authorId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  author?: CommentAuthorDto | null;
+}
+
+export interface CreateCommentPayloadDto {
+  text: string;
 }
 
 // Helper function to transform API comment DTO to client-side DTO
-export const transformCommentDto = (apiComment: ApiCommentDto): CommentDto => {
-  return {
-    id: apiComment.id,
-    text: apiComment.text,
-    taskId: apiComment.task_id,
-    authorId: apiComment.author_id,
-    createdAt: new Date(apiComment.created_at),
-    updatedAt: new Date(apiComment.updated_at),
-    author: apiComment.author,
-  };
-};
+export const transformCommentDto = (apiComment: ApiCommentDto): CommentDto => ({
+  ...apiComment,
+  taskId: apiComment.task_id,
+  authorId: apiComment.author_id,
+  createdAt: new Date(apiComment.created_at),
+  updatedAt: new Date(apiComment.updated_at),
+});
 
 export const taskService = {
   createTask: async (data: CreateTaskDto): Promise<TaskDto> => {
@@ -91,40 +101,7 @@ export const taskService = {
   },
 
   getTaskById: async (taskId: string): Promise<TaskDto> => {
-    // taskId is expected to be a string (human-readable ID, e.g., "PROJ-123")
-    const response = await apiClient.get<TaskDto>(`/tasks/${taskId}`);
+    const response = await apiClient.get<TaskDto>(`/tasks/by-hid/${taskId}`);
     return response.data;
   },
 };
-
-// DTOs for Comments
-export interface CommentAuthorDto {
-  id: string;
-  name?: string | null;
-  email: string;
-}
-
-export interface CommentDto {
-  id: string;
-  text: string;
-  taskId: string;
-  authorId: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  author?: CommentAuthorDto | null;
-}
-
-// DTO for API response before transformation
-export interface ApiCommentDto {
-  id: string;
-  text: string;
-  task_id: string;
-  author_id: string | null;
-  created_at: string; // Dates are strings from the API
-  updated_at: string; // Dates are strings from the API
-  author?: CommentAuthorDto | null; // Assuming CommentAuthorDto is already correct or will be handled separately
-}
-
-export interface CreateCommentPayloadDto {
-  text: string;
-}

@@ -4,30 +4,31 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: var(--backdrop-color, rgba(0, 0, 0, 0.5));
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 1000; /* Ensure it's above other content */
+  z-index: 1000;
 }
 
 .modalContent {
-  background: white;
+  background: var(--modal-background-color, white);
+  color: var(--modal-text-color, black);
   padding: 20px;
   border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-modal, 0 4px 6px rgba(0, 0, 0, 0.1));
   min-width: 300px;
   max-width: 90%;
-  max-height: 90vh; /* Max height */
-  overflow-y: auto; /* Allow scrolling for content that exceeds max height */
-  position: relative; /* For positioning the close button */
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
 }
 
 .modalHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-color, #eee);
   padding-bottom: 10px;
   margin-bottom: 20px;
 }
@@ -35,6 +36,7 @@
 .modalTitle {
   margin: 0;
   font-size: 1.25rem;
+  color: inherit;
 }
 
 .closeButton {
@@ -43,7 +45,8 @@
   font-size: 1.5rem;
   cursor: pointer;
   padding: 0;
-  line-height: 1; /* Ensure the '×' is aligned well */
+  line-height: 1;
+  color: inherit;
 }
 
 .modalBody {

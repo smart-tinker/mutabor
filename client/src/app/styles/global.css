@@ -3,52 +3,27 @@
 /* Global Styles for Mutabor */
 
 /* 1. CSS Variables (Design Tokens) */
-/* :root is now handled by [data-theme] in theme.css */
 body {
-  /* Primary Color */
-  --color-primary: #6D28D9; /* Deep, calm purple */
-
-  /* Semantic Colors */
-  --color-success: #10B981; /* Green */
-  --color-error: #EF4444;   /* Red */
-  --color-warning: #F59E0B; /* Amber */
-  --color-info: #3B82F6;    /* Blue */
-
-  /* Neutral Palette (Greys) */
-  --color-background-page: #F9FAFB;    /* Almost white, light tint */
-  --color-background-element: #FFFFFF; /* Pure white for cards, modals */
-  --color-border: #E5E7EB;           /* Light grey borders */
-  --color-text-main: #1F2937;         /* Main text, almost black */
-  --color-text-secondary: #6B7280;    /* Secondary text, grey */
-  --color-text-disabled: #D1D5DB;     /* Text for disabled elements */
-
-  /* Typography */
+  --color-primary: #6D28D9;
+  --color-success: #10B981;
+  --color-error: #EF4444;
+  --color-warning: #F59E0B;
+  --color-info: #3B82F6;
   --font-family-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-family-mono: "SF Mono", "Menlo", "Consolas", "Courier New", monospace;
-
-  /* Spacing Unit */
   --spacing-base: 8px;
-
-  /* Border Radius */
   --border-radius-small: 4px;
   --border-radius-medium: 6px;
   --border-radius-large: 8px;
-
-  /* RGB version of primary color for rgba() usage */
-  --color-primary-rgb: 109, 40, 217; /* Corresponds to #6D28D9 */
-
-  /* Derived colors */
-  --color-error-dark: #d73737; /* Darken(--color-error, 10%) */
-  --color-primary-background-hover: rgba(var(--color-primary-rgb), 0.1); /* Updated: Light primary background for hover */
-  --color-background-danger-subtle: rgba(239, 68, 68, 0.1); /* Light red background for error messages */
-  --color-background-success-subtle: rgba(16, 185, 129, 0.1); /* Light green background for success messages */
-  --color-backdrop: rgba(0, 0, 0, 0.5); /* For modal overlays */
-
-  /* Shadows */
-  --shadow-focus: 0 0 0 2px rgba(var(--color-primary-rgb), 0.2); /* Consistent focus shadow */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* New: Even smaller shadow */
-  --shadow-small: 0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px 0 rgba(0,0,0,0.06); /* General small shadow */
-  --shadow-medium: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); /* General medium shadow */
+  --color-primary-rgb: 109, 40, 217;
+  --color-error-dark: #d73737;
+  --color-primary-background-hover: rgba(var(--color-primary-rgb), 0.1);
+  --color-background-danger-subtle: rgba(239, 68, 68, 0.1);
+  --color-background-success-subtle: rgba(16, 185, 129, 0.1);
+  --shadow-focus: 0 0 0 2px rgba(var(--color-primary-rgb), 0.2);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-small: 0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px 0 rgba(0,0,0,0.06);
+  --shadow-medium: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
   --shadow-modal: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   --shadow-card-hover: 0 4px 8px -2px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.06);
 }
@@ -56,7 +31,7 @@ body {
 /* 2. Basic Body and HTML Styles */
 html {
   box-sizing: border-box;
-  font-size: 16px; /* Base font size */
+  font-size: 16px;
 }
 
 *, *:before, *:after {
@@ -67,8 +42,8 @@ body {
   margin: 0;
   padding: 0;
   font-family: var(--font-family-main);
-  background-color: var(--background-color); /* Use theme variable */
-  color: var(--text-color); /* Use theme variable */
+  background-color: var(--background-color);
+  color: var(--text-color);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -77,8 +52,8 @@ body {
 /* 3. Basic Typography */
 h1, h2, h3, h4, h5, h6 {
   margin-top: 0;
-  margin-bottom: calc(var(--spacing-base) * 2); /* 16px */
-  font-weight: 600; /* Default to semi-bold for headings */
+  margin-bottom: calc(var(--spacing-base) * 2);
+  font-weight: 600;
 }
 
 h1 { font-size: 32px; font-weight: 700; }
@@ -87,33 +62,34 @@ h3 { font-size: 20px; }
 
 p {
   margin-top: 0;
-  margin-bottom: calc(var(--spacing-base) * 2); /* 16px */
+  margin-bottom: calc(var(--spacing-base) * 2);
 }
 
 a {
-  color: var(--color-primary);
+  color: var(--link-color);
   text-decoration: none;
 }
 
 a:hover {
   text-decoration: underline;
+  color: var(--link-hover-color);
 }
 
-/* 4. Basic Form Styling (can be overridden by component-specific styles) */
+/* 4. Basic Form Styling */
 input[type="text"],
 input[type="email"],
 input[type="password"],
 textarea,
 select {
   font-family: var(--font-family-main);
-  padding: calc(var(--spacing-base) * 1.5); /* 12px */
-  border: 1px solid var(--color-border);
-  border-radius: var(--border-radius-medium); /* 6px */
+  padding: calc(var(--spacing-base) * 1.5);
+  border: 1px solid var(--input-border-color);
+  border-radius: var(--border-radius-medium);
   font-size: 16px;
-  background-color: var(--color-background-element);
-  color: var(--color-text-main);
-  width: 100%; /* Default to full width */
-  margin-bottom: calc(var(--spacing-base) * 2); /* 16px */
+  background-color: var(--input-background-color);
+  color: var(--input-text-color);
+  width: 100%;
+  margin-bottom: calc(var(--spacing-base) * 2);
 }
 
 input[type="text"]:focus,
@@ -122,7 +98,7 @@ input[type="password"]:focus,
 textarea:focus,
 select:focus {
   outline: none;
-  border-color: var(--color-primary);
+  border-color: var(--primary-color);
   box-shadow: var(--shadow-focus);
 }
 
@@ -131,18 +107,18 @@ input[type="email"]:disabled,
 input[type="password"]:disabled,
 textarea:disabled,
 select:disabled {
-  background-color: var(--color-background-page);
-  color: var(--color-text-disabled);
-  border-color: var(--color-border);
+  background-color: var(--background-disabled-color);
+  color: var(--text-disabled-color);
+  border-color: var(--border-color);
   cursor: not-allowed;
-  opacity: 0.7; /* Visual cue for disabled */
+  opacity: 0.7;
 }
 
 button {
   font-family: var(--font-family-main);
-  padding: calc(var(--spacing-base) * 1.25) calc(var(--spacing-base) * 2.5); /* 10px 20px */
+  padding: calc(var(--spacing-base) * 1.25) calc(var(--spacing-base) * 2.5);
   border: none;
-  border-radius: var(--border-radius-medium); /* 6px */
+  border-radius: var(--border-radius-medium);
   cursor: pointer;
   font-size: 16px;
   font-weight: 500;
@@ -150,83 +126,69 @@ button {
 }
 
 button.primary {
-  background-color: var(--color-primary);
-  color: var(--color-background-element);
+  background-color: var(--button-background-color);
+  color: var(--button-text-color);
 }
 
 button.primary:hover {
-  background-color: #5a1eae; /* Darken(--color-primary, 10%) - manual for now */
+  background-color: var(--button-hover-background-color);
 }
 
 button.secondary {
-  background-color: var(--color-background-element);
-  color: var(--color-primary);
-  border: 1px solid var(--color-primary);
+  background-color: var(--button-secondary-background-color);
+  color: var(--button-secondary-text-color);
+  border: 1px solid var(--button-secondary-border-color);
 }
 
 button.secondary:hover {
-  background-color: #f3eefc; /* Lighten(--color-primary, ~90%) - manual for now */
+  background-color: var(--button-secondary-hover-background-color);
 }
 
 button.danger {
-  background-color: var(--color-error);
-  color: var(--color-background-element); /* White text on red background */
-  border: 1px solid var(--color-error);
+  background-color: var(--danger-background-color);
+  color: var(--button-text-color);
+  border: 1px solid var(--danger-border-color);
 }
 button.danger:hover {
   background-color: var(--color-error-dark);
   border-color: var(--color-error-dark);
 }
 button.danger:focus {
-  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3); /* Focus ring for error color */
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3);
 }
 
-/* Disabled States */
 button:disabled,
 button.primary:disabled,
 button.secondary:disabled,
 button.danger:disabled {
-  background-color: var(--color-background-page); /* More neutral background */
-  color: var(--color-text-disabled);
-  border-color: var(--color-border); /* Use standard border for disabled state */
+  background-color: var(--button-disabled-background-color);
+  color: var(--button-disabled-text-color);
+  border-color: var(--button-disabled-background-color);
   cursor: not-allowed;
-  opacity: 0.7; /* Visual cue for disabled */
+  opacity: 0.7;
 }
 
-/* Ensure specific border for secondary disabled if needed, or let global override */
-/* The general rule above already sets border-color: var(--color-border), which is fine for secondary. */
-/* If secondary disabled needed a *different* border than other disabled buttons, you'd add it here. */
-/* For now, the above is sufficient. */
-
-/* Input Error State */
 input.input-error,
 textarea.input-error,
 select.input-error {
-  border-color: var(--color-error);
-  /* The box-shadow for error state can use --color-error's RGB components if defined,
-     or a pre-calculated rgba value. For now, keep existing explicit rgba for error shadow.
-     If --color-error-rgb is defined later, this could be var(--shadow-error-focus) */
+  border-color: var(--danger-border-color);
   box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
 }
 
 input.input-error:focus,
 textarea.input-error:focus,
 select.input-error:focus {
-  border-color: var(--color-error); /* Ensure error color remains on focus */
-  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3); /* Slightly more prominent error shadow on focus */
+  border-color: var(--danger-border-color);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3);
 }
 
-/* Utility Classes (Optional, but can be useful) */
+/* Utility Classes */
 .text-center { text-align: center; }
 .mt-1 { margin-top: var(--spacing-base); }
 .mb-1 { margin-bottom: var(--spacing-base); }
-/* ... add more spacing utilities as needed ... */
 
 .text-caption {
-  font-size: 14px; /* 0.875rem */
-  font-weight: 400; /* Normal weight */
-  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-secondary-color);
 }
-
-/* Specific styles for RegistrationForm if needed, or keep them in the component's module.css */
-/* For now, the global input/button styles will apply. */

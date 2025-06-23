@@ -1,21 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom'; // Assuming react-router-dom is used
-import { projectService } from '../shared/api/projectService'; // Adjust path as needed
-import type { ProjectDto, CreateProjectDto } from '../shared/api/projectService';
+import { Link } from 'react-router-dom';
+import { projectService } from '../shared/api/projectService';
+import type { ProjectListDto, CreateProjectDto } from '../shared/api/projectService';
 import { Modal } from '../shared/ui/Modal';
 import styles from './DashboardPage.module.css';
 
 const DashboardPage: React.FC = () => {
-  const [projects, setProjects] = useState<ProjectDto[]>([]);
+  const [projects, setProjects] = useState<ProjectListDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // State for new project modal/form
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectPrefix, setNewProjectPrefix] = useState('');
   const [isCreating, setIsCreating] = useState(false);
-
 
   const fetchProjects = async () => {
     try {
@@ -71,7 +69,6 @@ const DashboardPage: React.FC = () => {
         title="Create New Project"
       >
         <form onSubmit={handleCreateProject}>
-          {/* Remove the h2 title from here as it's now a prop of Modal */}
           <div>
             <label htmlFor="projectName">Project Name:</label>
             <input
@@ -129,7 +126,7 @@ const DashboardPage: React.FC = () => {
             {projects.map((project) => (
               <tr key={project.id}>
                 <td>{project.name}</td>
-                <td>{project.prefix}</td>
+                <td>{project.task_prefix}</td>
                 <td className={styles.link}>
                   <Link to={`/projects/${project.id}`}>View Board</Link>
                 </td>

@@ -1,10 +1,12 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import Header from './Header';
-import { useAuth } from '../../app/auth/AuthContext';
+import { useAuth, AuthenticatedUser } from '../../app/auth/AuthContext';
+import { useAddTaskModal } from '../../shared/contexts/AddTaskModalContext';
 
-// Mock useAuth
+// Mock hooks
 vi.mock('../../app/auth/AuthContext');
+vi.mock('../../shared/contexts/AddTaskModalContext');
 
 // Mock child components
 vi.mock('../../features/Notifications', () => ({
@@ -15,21 +17,27 @@ vi.mock('../../features/authByEmail/ui/LogoutButton', () => ({
 }));
 
 describe('Header Component', () => {
-  const mockUseAuth = useAuth as vi.MockedFunction<typeof useAuth>;
+  const mockUseAuth = useAuth as vi.Mock;
+  const mockUseAddTaskModal = useAddTaskModal as vi.Mock;
+
+  beforeEach(() => {
+    mockUseAddTaskModal.mockReturnValue({ openModal: vi.fn() });
+  });
 
   afterEach(() => {
     vi.clearAllMocks();
   });
 
   describe('Authenticated User', () => {
+    const mockUser: AuthenticatedUser = { id: '1', name: 'Test User', email: 'test@example.com' };
     beforeEach(() => {
       mockUseAuth.mockReturnValue({
         isAuthenticated: true,
         isLoading: false,
-        user: { name: 'Test User', email: 'test@example.com' },
+        user: mockUser,
       });
       render(
-        <MemoryRouter>
+        <MemoryRouter initialEntries={['/dashboard']}>
           <Header />
         </MemoryRouter>
       );
@@ -62,10 +70,11 @@ describe('Header Component', () => {
 
   describe('Authenticated User (displays email if name is not available)', () => {
     beforeEach(() => {
+      const mockUserWithoutName: AuthenticatedUser = { id: '1', email: 'test@example.com' };
       mockUseAuth.mockReturnValue({
         isAuthenticated: true,
         isLoading: false,
-        user: { email: 'test@example.com' }, // No name
+        user: mockUserWithoutName,
       });
       render(
         <MemoryRouter>
@@ -77,7 +86,6 @@ describe('Header Component', () => {
       expect(screen.getByText(/Welcome, test@example.com/i)).toBeInTheDocument();
     });
   });
-
 
   describe('Unauthenticated User', () => {
     beforeEach(() => {
@@ -121,7 +129,7 @@ describe('Header Component', () => {
   describe('Loading State', () => {
     it('should display loading message when isLoading is true', () => {
       mockUseAuth.mockReturnValue({
-        isAuthenticated: false, // Or true, doesn't matter for loading state
+        isAuthenticated: false,
         isLoading: true,
         user: null,
       });

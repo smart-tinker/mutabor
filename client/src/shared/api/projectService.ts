@@ -1,71 +1,68 @@
-// Assuming an axios instance is configured, e.g., client/src/shared/api/axiosInstance.ts
-import apiClient from './axiosInstance'; // Using axiosInstance.ts as seen from ls
+import apiClient from './axiosInstance';
 import type { ProjectSettingsResponse, UpdateProjectSettingsPayload } from './types';
 
-// Define interfaces for DTOs based on backend DTOs
-// These should ideally be in a shared types folder or generated from backend schema
+export interface TaskDto {
+  id: string;
+  human_readable_id: string; // FIX: Changed to snake_case to match backend
+  title: string;
+  description?: string | null;
+  position: number;
+  project_id: number;
+  column_id: string;
+  assignee_id?: string | null;
+  creator_id: string;
+  due_date?: string | null;
+  type?: string | null;
+  priority?: string | null;
+  tags?: string[] | null;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface ColumnDto {
   id: string;
   name: string;
   position: number;
-  projectId: number;
-  tasks?: TaskDto[]; // TaskDto to be defined similarly
-  createdAt: Date;
-  updatedAt: Date;
+  project_id: number;
+  tasks?: TaskDto[];
+  created_at: string;
+  updated_at: string;
 }
 
-export interface TaskDto {
-  id: string;
-  humanReadableId: string;
-  taskNumber: number;
-  title: string;
-  description?: string;
-  position: number;
-  projectId: number;
-  columnId: string;
-  assigneeId?: string;
-  creatorId: string;
-  dueDate?: string; // Kept as string, client can parse if needed
-  type?: string;
-  priority?: string;
-  tags?: string[];
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface ProjectDto {
+export interface ProjectListDto {
   id: number;
   name: string;
-  prefix: string;
-  ownerId: string;
-  createdAt: Date;
-  updatedAt: Date;
+  task_prefix: string;
+  owner_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FullProjectDto extends ProjectListDto {
   columns?: ColumnDto[];
-  tasks?: TaskDto[]; // Or all tasks for the board if not nested under columns in this DTO
-  // Added from backend ProjectDto for settings
+  tasks?: TaskDto[];
   settings_statuses?: string[];
   settings_types?: string[];
 }
+
+export type ParsedProjectRecord = FullProjectDto;
 
 export interface CreateProjectDto {
   name: string;
   prefix: string;
 }
 
-// Add near other DTO definitions in projectService.ts
-export interface UserSummaryDto { // For nested user details
+export interface UserSummaryDto {
   id: string;
   email: string;
   name?: string | null;
 }
 
 export interface ProjectMemberDto {
-  userId: string;
-  projectId: number;
+  project_id: number;
+  user_id: string;
   role: string;
-  user?: UserSummaryDto; // Based on backend response
-  // Add other fields if the backend sends more for a ProjectMember
+  user?: UserSummaryDto;
 }
 
 export interface AddMemberDto {
@@ -74,18 +71,18 @@ export interface AddMemberDto {
 }
 
 export const projectService = {
-  createProject: async (data: CreateProjectDto): Promise<ProjectDto> => {
-    const response = await apiClient.post<ProjectDto>('/projects', data);
+  createProject: async (data: CreateProjectDto): Promise<FullProjectDto> => {
+    const response = await apiClient.post<FullProjectDto>('/projects', data);
     return response.data;
   },
 
-  getUserProjects: async (): Promise<ProjectDto[]> => {
-    const response = await apiClient.get<ProjectDto[]>('/projects');
+  getUserProjects: async (): Promise<ProjectListDto[]> => {
+    const response = await apiClient.get<ProjectListDto[]>('/projects');
     return response.data;
   },
 
-  getProjectById: async (projectId: number): Promise<ProjectDto> => {
-    const response = await apiClient.get<ProjectDto>(`/projects/${projectId}`);
+  getProjectById: async (projectId: number): Promise<FullProjectDto> => {
+    const response = await apiClient.get<FullProjectDto>(`/projects/${projectId}`);
     return response.data;
   },
 
@@ -99,7 +96,6 @@ export const projectService = {
     return response.data;
   },
 
-  // Project Settings API calls
   getProjectSettings: async (projectId: number): Promise<ProjectSettingsResponse> => {
     const response = await apiClient.get<ProjectSettingsResponse>(`/projects/${projectId}/settings`);
     return response.data;
