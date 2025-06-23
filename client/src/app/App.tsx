@@ -1,7 +1,8 @@
 // Example in App.tsx using react-router-dom
-import React, { useState } from 'react'; // Import useState
+import React, { useState, useEffect } from 'react'; // Import useState and useEffect
 import './styles/global.css';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ThemeProvider, useTheme } from '../shared/contexts/ThemeContext'; // Import ThemeProvider and useTheme
 import LoginPage from '../pages/LoginPage';
 import RegistrationPage from '../pages/RegistrationPage';
 import DashboardPage from '../pages/DashboardPage';
@@ -28,6 +29,25 @@ const App: React.FC = () => {
   if (isLoading) {
     return <div>Loading application...</div>;
   }
+
+  return (
+    <ThemeProvider>
+      <AppContent
+        isAuthenticated={isAuthenticated}
+        isLoading={isLoading}
+        addTaskModalContextValue={addTaskModalContextValue}
+      />
+    </ThemeProvider>
+  );
+};
+
+// Create a new component to use the theme context
+const AppContent: React.FC<any> = ({ isAuthenticated, isLoading, addTaskModalContextValue }) => {
+  const { theme } = useTheme();
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
 
   return (
     <AddTaskModalContext.Provider value={addTaskModalContextValue}>
