@@ -1,5 +1,5 @@
 import React from 'react';
-import { useTheme, ThemeOption } from '../shared/contexts/ThemeContext';
+import { useTheme, type ThemeOption } from '../shared/contexts/ThemeContext';
 import styles from './UserSettingsPage.module.css'; // We'll create this CSS module next
 
 const themeOptionsConfig: { value: ThemeOption; label: string }[] = [
