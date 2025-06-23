@@ -2,6 +2,7 @@ import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../app/auth/AuthContext';
 import LogoutButton from '../../features/authByEmail/ui/LogoutButton';
 import { NotificationBell } from '../../features/Notifications';
+import ThemeSwitcher from '../../features/ThemeSwitcher/ThemeSwitcher'; // Import ThemeSwitcher
 import styles from './Header.module.css';
 import { useAddTaskModal } from '../../shared/contexts/AddTaskModalContext';
 
@@ -40,6 +41,9 @@ const Header: React.FC = () => {
                 </li>
                 <li>
                   <NotificationBell />
+                </li>
+                <li>
+                  <ThemeSwitcher /> {/* Add ThemeSwitcher component */}
                 </li>
                 <li>
                   <LogoutButton />

@@ -1,7 +1,10 @@
+@import './theme.css'; /* Import theme variables */
+
 /* Global Styles for Mutabor */
 
 /* 1. CSS Variables (Design Tokens) */
-:root {
+/* :root is now handled by [data-theme] in theme.css */
+body {
   /* Primary Color */
   --color-primary: #6D28D9; /* Deep, calm purple */
 
@@ -64,8 +67,8 @@ body {
   margin: 0;
   padding: 0;
   font-family: var(--font-family-main);
-  background-color: var(--color-background-page);
-  color: var(--color-text-main);
+  background-color: var(--background-color); /* Use theme variable */
+  color: var(--text-color); /* Use theme variable */
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
