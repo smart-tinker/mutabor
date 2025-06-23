@@ -6,7 +6,7 @@ import { Knex } from 'knex';
 import { KNEX_CONNECTION } from '../knex/knex.constants';
 import * as crypto from 'crypto';
 import {
-    ProjectRecord, UserRecord, ColumnRecord, TaskRecord, ProjectMemberRecord
+    ProjectRecord, UserRecord, ColumnRecord, TaskRecord, ProjectMemberRecord, ParsedProjectRecord
 } from '../types/db-records';
 import { TasksService } from '../tasks/tasks.service'; // Предполагаем, что TasksService будет здесь
 
@@ -33,18 +33,21 @@ export class ProjectsService {
     @Inject(forwardRef(() => TasksService)) private readonly tasksService: TasksService,
   ) {}
 
-  private parseProjectSettings(project: ProjectRecord): ProjectRecord {
+  private parseProjectSettings(project: ProjectRecord): ParsedProjectRecord {
+    const statuses = project.settings_statuses ? JSON.parse(project.settings_statuses) : DEFAULT_PROJECT_STATUSES;
+    const types = project.settings_types ? JSON.parse(project.settings_types) : DEFAULT_PROJECT_TYPES;
+
     return {
       ...project,
-      settings_statuses: project.settings_statuses ? JSON.parse(project.settings_statuses as string) : DEFAULT_PROJECT_STATUSES,
-      settings_types: project.settings_types ? JSON.parse(project.settings_types as string) : DEFAULT_PROJECT_TYPES,
+      settings_statuses: statuses,
+      settings_types: types,
       // Убедимся, что даты также корректно обрабатываются, если они не были преобразованы ранее
       created_at: new Date(project.created_at),
       updated_at: new Date(project.updated_at),
     };
   }
 
-  async ensureUserHasAccessToProject(projectId: number, userId: string, trx?: Knex.Transaction): Promise<ProjectRecord> {
+  async ensureUserHasAccessToProject(projectId: number, userId: string, trx?: Knex.Transaction): Promise<ParsedProjectRecord> {
     const db = trx || this.knex;
     // Проверяем, является ли пользователь владельцем или участником проекта
     const projectDb = await db('projects').where({ id: projectId }).first();
@@ -64,7 +67,7 @@ export class ProjectsService {
     throw new ForbiddenException('You do not have permission to access or modify this project.');
   }
 
-  async createProject(createProjectDto: CreateProjectDto, user: UserRecord): Promise<ProjectRecord> {
+  async createProject(createProjectDto: CreateProjectDto, user: UserRecord): Promise<ParsedProjectRecord> {
     return this.knex.transaction(async (trx) => {
       const [newProjectDb] = await trx('projects')
         .insert({
@@ -104,7 +107,7 @@ export class ProjectsService {
     });
   }
 
-  async findAllProjectsForUser(user: UserRecord): Promise<ProjectRecord[]> {
+  async findAllProjectsForUser(user: UserRecord): Promise<ParsedProjectRecord[]> {
     const projectsAsOwnerDb = await this.knex('projects').where({ owner_id: user.id });
     const projectsAsMemberDb = await this.knex('projects')
         .join('project_members', 'projects.id', '=', 'project_members.project_id')
@@ -119,7 +122,7 @@ export class ProjectsService {
       .sort((a,b) => b.created_at.getTime() - a.created_at.getTime());
   }
 
-  async findProjectById(projectId: number, user: UserRecord): Promise<ProjectRecord> {
+  async findProjectById(projectId: number, user: UserRecord): Promise<ParsedProjectRecord> {
     // ensureUserHasAccessToProject уже возвращает распарсенный проект
     const projectWithSettings = await this.ensureUserHasAccessToProject(projectId, user.id);
 
@@ -153,8 +156,8 @@ export class ProjectsService {
       id: project.id,
       name: project.name,
       prefix: project.task_prefix, // Маппинг
-      settings_statuses: project.settings_statuses as unknown as string[], // ensureUserHasAccessToProject уже распарсил
-      settings_types: project.settings_types as unknown as string[],   // ensureUserHasAccessToProject уже распарсил
+      settings_statuses: project.settings_statuses, // Now correctly typed as string[] from ParsedProjectRecord
+      settings_types: project.settings_types,     // Now correctly typed as string[] from ParsedProjectRecord
     };
   }
 
@@ -216,8 +219,8 @@ export class ProjectsService {
         id: parsedUpdatedProject.id,
         name: parsedUpdatedProject.name,
         prefix: parsedUpdatedProject.task_prefix, // Маппинг
-        settings_statuses: parsedUpdatedProject.settings_statuses as unknown as string[],
-        settings_types: parsedUpdatedProject.settings_types as unknown as string[],
+        settings_statuses: parsedUpdatedProject.settings_statuses, // Now correctly typed as string[]
+        settings_types: parsedUpdatedProject.settings_types,     // Now correctly typed as string[]
       };
     });
   }
