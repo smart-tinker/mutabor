@@ -1,5 +1,23 @@
 import apiClient from './axiosInstance'; // Your configured axios instance
-import type { TaskDto } from './projectService'; // Reuse TaskDto from projectService for now
+
+// Basic TaskDto definition - adjust as per actual structure
+export interface TaskDto {
+  id: string;
+  title: string;
+  description?: string;
+  status: string; // Example: 'todo', 'inprogress', 'done'
+  priority?: string;
+  type?: string;
+  dueDate?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  humanReadableId: string; // e.g., PHX-123
+  tags?: string[];
+  assignee?: { id: string; username: string; avatarUrl?: string };
+  project?: { id: number; name: string };
+  columnId?: string;
+  position?: number;
+}
 
 export interface CreateTaskDto {
   title: string;
@@ -70,6 +88,12 @@ export const taskService = {
   addTaskComment: async (taskId: string, data: CreateCommentPayloadDto): Promise<CommentDto> => {
     const response = await apiClient.post<ApiCommentDto>(`/tasks/${taskId}/comments`, data);
     return transformCommentDto(response.data);
+  },
+
+  getTaskById: async (taskId: string): Promise<TaskDto> => {
+    // taskId is expected to be a string (human-readable ID, e.g., "PROJ-123")
+    const response = await apiClient.get<TaskDto>(`/tasks/${taskId}`);
+    return response.data;
   },
 };
 

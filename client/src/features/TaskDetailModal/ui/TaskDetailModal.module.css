@@ -293,6 +293,7 @@ input:disabled, textarea:disabled {
 .closeButtonModal {
   margin-top: calc(var(--spacing-base) * 2.5);
   /* align-self: flex-end; Removed to allow centering or other layouts in modalActions */
+  composes: button buttonSecondary; /* Moved composition here */
 }
 
 .modalActions {
@@ -323,5 +324,5 @@ input:disabled, textarea:disabled {
 .modalActions .closeButtonModal {
   margin-top: 0; /* Reset margin-top if it's now part of modalActions */
   /* Add other specific styles if needed, e.g., make it a primary button */
-  composes: button buttonSecondary; /* Example: make it look like a secondary button */
+  /* composes: button buttonSecondary; */ /* Removed from here */
 }

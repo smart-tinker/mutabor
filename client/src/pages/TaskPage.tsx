@@ -1,26 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { taskService } from '../shared/api/taskService';
-import type { TaskDto, CommentDto as ApiCommentDto } from '../shared/api/taskService'; // Используем type import
-import { transformCommentDto } from '../shared/api/taskService'; // Для трансформации комментариев
+import type { TaskDto, CommentDto } from '../shared/api/taskService'; // Используем type import, ensure CommentDto is imported
+// import { transformCommentDto } from '../shared/api/taskService'; // No longer needed
 import { CommentList, AddCommentForm } from '../features/Comments'; // Компоненты для комментариев
 import styles from './TaskPage.module.css'; // Стили для страницы
 
-// Интерфейс для комментариев после трансформации, если отличается от ApiCommentDto
-interface DisplayCommentDto extends Omit<ApiCommentDto, 'created_at' | 'updated_at' | 'author_id' | 'task_id'> {
-  id: number;
-  content: string;
-  author: { id: number; username: string; avatarUrl?: string };
-  createdAt: Date;
-  updatedAt: Date;
-  taskId: number;
-}
-
+// DisplayCommentDto is no longer needed, using CommentDto directly for state.
 
 const TaskPage: React.FC = () => {
   const { taskId } = useParams<{ taskId: string }>();
   const [task, setTask] = useState<TaskDto | null>(null);
-  const [comments, setComments] = useState<DisplayCommentDto[]>([]);
+  const [comments, setComments] = useState<CommentDto[]>([]); // Changed to CommentDto[]
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,21 +21,21 @@ const TaskPage: React.FC = () => {
       setIsLoading(true);
       setError(null);
       try {
-        const numericTaskId = parseInt(taskId, 10);
-        if (isNaN(numericTaskId)) {
-          setError('Invalid Task ID');
-          setIsLoading(false);
-          return;
-        }
+        // const numericTaskId = parseInt(taskId, 10); // No longer needed, taskId is used as string
+        // if (isNaN(numericTaskId)) { // This check might still be useful if taskId can be non-numeric string
+        //   setError('Invalid Task ID format');
+        //   setIsLoading(false);
+        //   return;
+        // }
         // Загрузка данных задачи
-        const taskData = await taskService.getTaskById(numericTaskId);
+        const taskData = await taskService.getTaskById(taskId);
         setTask(taskData);
 
         // Загрузка комментариев к задаче
-        const commentsData = await taskService.getTaskComments(numericTaskId); // Исправлено
-        // Трансформация комментариев, если это необходимо (например, формат даты, структура автора)
-        const transformedComments = commentsData.map(transformCommentDto);
-        setComments(transformedComments);
+        const commentsData = await taskService.getTaskComments(taskId); // Исправлено, using string taskId
+        // commentsData is already CommentDto[] as getTaskComments handles the transformation.
+        // DisplayCommentDto is now compatible with CommentDto.
+        setComments(commentsData);
 
       } catch (err) {
         setError('Failed to load task details.');
@@ -57,11 +48,11 @@ const TaskPage: React.FC = () => {
     fetchTaskDetails();
   }, [taskId]);
 
-  const handleCommentAdded = (apiComment: ApiCommentDto) => {
-    // Трансформируем комментарий из API в формат для отображения
-    const displayComment = transformCommentDto(apiComment);
+  // handleCommentAdded now receives a CommentDto directly, as AddCommentForm calls it
+  // with the result of taskService.addTaskComment (which returns CommentDto)
+  const handleCommentAdded = (newComment: CommentDto) => {
     setComments(prevComments =>
-      [...prevComments, displayComment].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+      [...prevComments, newComment].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
     );
   };
 
@@ -79,7 +70,7 @@ const TaskPage: React.FC = () => {
   }
 
   // Basic date formatter
-  const formatDate = (dateString?: string | Date) => {
+  const formatDate = (dateString?: string | Date | null) => {
     if (!dateString) return 'Not set';
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC'
@@ -112,7 +103,7 @@ const TaskPage: React.FC = () => {
           <div className={styles.taskTags}>
             <h3>Tags</h3>
             <div className={styles.tagsContainer}>
-              {task.tags.map(tag => <span key={tag} className={styles.tagItem}>{tag}</span>)}
+              {task.tags.map((tag: string) => <span key={tag} className={styles.tagItem}>{tag}</span>)}
             </div>
           </div>
         )}
