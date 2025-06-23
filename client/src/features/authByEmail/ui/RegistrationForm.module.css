@@ -2,14 +2,15 @@
   max-width: calc(var(--spacing-base) * 50); /* 400px */
   margin: calc(var(--spacing-base) * 4) auto; /* 32px auto */
   padding: calc(var(--spacing-base) * 3); /* 24px */
-  background-color: var(--color-background-element);
+  background-color: var(--card-background-color); /* Forms are often card-like */
   border-radius: var(--border-radius-large); /* 8px */
   box-shadow: var(--shadow-medium);
+  color: var(--text-color); /* Default text color for form content */
 }
 
 .formContainer h2 {
   text-align: center;
-  color: var(--color-text-main);
+  color: var(--text-color); /* Main text color for heading */
   margin-bottom: calc(var(--spacing-base) * 3); /* 24px */
 }
 
@@ -20,24 +21,25 @@
 .formField label {
   display: block;
   margin-bottom: var(--spacing-base); /* 8px */
-  color: var(--color-text-secondary);
+  color: var(--text-secondary-color); /* Labels can use secondary text color */
   font-weight: 500;
 }
 
-/* Input fields will use global styles by default */
+/* Input fields will use global styles by default or can use --input-background-color etc. */
 /* We can add specific overrides here if needed */
 
 .submitButton {
   /* Use the global .primary button style by adding the class in JSX */
+  /* This button should use var(--button-background-color) and var(--button-text-color) via global styles */
   width: 100%;
   padding: calc(var(--spacing-base) * 1.5); /* 12px - larger for a primary action */
   font-weight: 600;
 }
 
 .errorMessage {
-  color: var(--color-error);
-  background-color: var(--color-background-danger-subtle); /* Light red background */
-  border: 1px solid var(--color-error);
+  color: var(--danger-text-color);
+  background-color: var(--danger-background-subtle-color);
+  border: 1px solid var(--danger-border-color);
   padding: calc(var(--spacing-base) * 1.5); /* 12px */
   border-radius: var(--border-radius-medium);
   margin-bottom: calc(var(--spacing-base) * 2); /* 16px */
@@ -45,9 +47,9 @@
 }
 
 .successMessage {
-  color: var(--color-success);
-  background-color: var(--color-background-success-subtle); /* Light green background */
-  border: 1px solid var(--color-success);
+  color: var(--success-text-color);
+  background-color: var(--success-background-subtle-color);
+  border: 1px solid var(--success-border-color);
   padding: calc(var(--spacing-base) * 1.5); /* 12px */
   border-radius: var(--border-radius-medium);
   margin-bottom: calc(var(--spacing-base) * 2); /* 16px */
@@ -57,4 +59,13 @@
 .registrationLinkContainer {
   text-align: center;
   margin-top: calc(var(--spacing-base) * 2); /* 16px, was 1rem */
+}
+/* Links inside this container should use var(--link-color) */
+.registrationLinkContainer a {
+  color: var(--link-color);
+  text-decoration: none;
+}
+.registrationLinkContainer a:hover {
+  text-decoration: underline;
+  color: var(--link-hover-color);
 }

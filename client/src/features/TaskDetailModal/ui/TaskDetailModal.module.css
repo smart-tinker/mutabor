@@ -1,12 +1,13 @@
 /* client/src/features/TaskDetailModal/ui/TaskDetailModal.module.css */
 .modalOverlay {
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-  background-color: var(--color-backdrop);
+  background-color: var(--backdrop-color);
   display: flex; justify-content: center; align-items: center;
   z-index: 1050;
 }
 .modalContent {
-  background-color: var(--color-background-element);
+  background-color: var(--modal-background-color);
+  color: var(--modal-text-color); /* Default text color for modal content */
   padding: calc(var(--spacing-base) * 3);
   border-radius: var(--border-radius-large);
   min-width: calc(var(--spacing-base) * 63); /* 504px */
@@ -20,11 +21,14 @@
 .taskDetails {
   /* Removed fixed margin-bottom, sections will handle their own */
 }
-.taskDetails h2 { margin-top: 0; }
+.taskDetails h2 {
+  margin-top: 0;
+  color: var(--modal-text-color); /* Ensure h2 uses modal text color */
+}
 /* .taskDetails p { white-space: pre-wrap; } Defined in .description specific styles */
 
 .commentsSection {
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--border-subtle-color); /* Use subtle border */
   padding-top: calc(var(--spacing-base) * 2);
   margin-top: calc(var(--spacing-base) * 2); /* Added margin-top for separation */
   overflow-y: auto;
@@ -35,7 +39,7 @@
 .editIcon {
   background: none;
   border: none;
-  color: var(--color-text-link);
+  color: var(--link-color);
   cursor: pointer;
   margin-left: var(--spacing-base-small); /* Reduced margin for "Edit" */
   font-size: 0.85em; /* Slightly smaller */
@@ -45,6 +49,7 @@
 }
 .editIcon:hover {
   text-decoration: underline;
+  color: var(--link-hover-color);
 }
 
 /* Shared styles for sections within taskDetails */
@@ -61,6 +66,7 @@
   justify-content: space-between;
   align-items: center;
   font-size: 1.8em;
+  color: var(--modal-text-color); /* Ensure this h2 also uses modal text color */
 }
 .taskHeader h2 .inlineEditSection { /* Specifically for title's edit mode form */
   flex-grow: 1; /* Allow the form to take space */
@@ -71,6 +77,7 @@
 .description {
   composes: taskDetailsSection;
   line-height: 1.6;
+  color: var(--modal-text-color); /* Description text */
 }
 .descriptionView {
   display: flex;
@@ -97,7 +104,7 @@
 }
 .metaGridItemLabel {
   font-weight: var(--font-weight-bold);
-  color: var(--color-text-secondary);
+  color: var(--text-secondary-color); /* Use themed secondary text color */
   font-size: 0.9em;
 }
 .metaGridItemValueArea { /* Container for (value + edit button) in view mode for meta items */
@@ -111,6 +118,7 @@
 .metaGridItemValueText { /* Class for the actual text value span itself */
   flex-grow: 1; /* Allow text to take available space */
   word-break: break-word; /* Break long words if necessary */
+  color: var(--modal-text-color); /* Ensure value text uses modal text color */
 }
 
 
@@ -119,7 +127,7 @@
 }
 .tagsSectionLabel {
   font-weight: var(--font-weight-bold);
-  color: var(--color-text-secondary);
+  color: var(--text-secondary-color); /* Use themed secondary text color */
   font-size: 0.9em;
   margin-bottom: var(--spacing-base-small);
   display: block;
@@ -139,8 +147,8 @@
   flex-grow: 1; /* Allow tags to take space */
 }
 .tagItem {
-  background-color: var(--color-background-tag);
-  color: var(--color-text-tag);
+  background-color: var(--tag-background-color);
+  color: var(--tag-text-color);
   padding: var(--spacing-base-small) var(--spacing-base);
   border-radius: var(--border-radius-medium);
   font-size: 0.9em;
@@ -151,12 +159,13 @@
 .editableFieldLabel { /* Default for label rendered by EditableField */
   display: block;
   font-weight: var(--font-weight-bold);
-  color: var(--color-text-secondary);
+  color: var(--text-secondary-color); /* Use themed secondary text color */
   font-size: 0.9em;
   margin-bottom: var(--spacing-base-extra-small);
 }
 .editableFieldValueText { /* Default for value span rendered by EditableField */
   word-break: break-word;
+  color: var(--modal-text-color); /* Default value text */
 }
 .defaultValueArea { /* Default for container of (value + edit button) */
   display: flex;
@@ -203,11 +212,11 @@
 .formTextareaFull {
   width: 100%;
   padding: var(--spacing-base);
-  border: 1px solid var(--color-border-input);
+  border: 1px solid var(--input-border-color);
   border-radius: var(--border-radius-medium);
   box-sizing: border-box;
-  background-color: var(--color-background-input);
-  color: var(--color-text-input);
+  background-color: var(--input-background-color);
+  color: var(--input-text-color);
 }
 .formTextareaFull {
   min-height: 100px;
@@ -215,25 +224,26 @@
 }
 .formInput {
   padding: var(--spacing-base-small) var(--spacing-base);
-  border: 1px solid var(--color-border-input);
+  border: 1px solid var(--input-border-color);
   border-radius: var(--border-radius-medium);
   box-sizing: border-box;
-  background-color: var(--color-background-input);
-  color: var(--color-text-input);
+  background-color: var(--input-background-color);
+  color: var(--input-text-color);
 }
 input::placeholder, textarea::placeholder {
-  color: var(--color-text-placeholder);
+  color: var(--text-placeholder-color);
   opacity: 1;
 }
 input:disabled, textarea:disabled {
-  background-color: var(--color-background-disabled);
+  background-color: var(--background-disabled-color);
+  color: var(--text-disabled-color); /* Add disabled text color */
   cursor: not-allowed;
 }
 
 
 /* Error Messages */
 .errorTextSmall {
-  color: var(--color-text-error);
+  color: var(--danger-text-color);
   font-size: 0.85em;
   width: 100%;
 }
@@ -246,44 +256,49 @@ input:disabled, textarea:disabled {
   border-radius: var(--border-radius-medium);
   cursor: pointer;
   font-weight: var(--font-weight-bold);
-  transition: background-color 0.2s ease-in-out, opacity 0.2s ease-in-out;
+  transition: background-color 0.2s ease-in-out, opacity 0.2s ease-in-out, color 0.2s ease-in-out, border-color 0.2s ease-in-out;
   text-align: center;
 }
 .buttonPrimary {
-  background-color: var(--color-button-primary-default);
-  color: var(--color-text-button-primary);
+  background-color: var(--button-background-color); /* Themed primary button */
+  color: var(--button-text-color);
 }
 .buttonPrimary:hover:not(:disabled) {
-  background-color: var(--color-button-primary-hover);
+  background-color: var(--button-hover-background-color);
 }
 .buttonPrimary:disabled {
-  background-color: var(--color-button-disabled);
-  opacity: 0.7;
+  background-color: var(--button-disabled-background-color);
+  color: var(--button-disabled-text-color);
+  opacity: 0.7; /* Consider removing if disabled colors are sufficient */
   cursor: not-allowed;
 }
 .buttonSecondary {
-  background-color: var(--color-button-secondary-default);
-  color: var(--color-text-button-secondary);
-  border: 1px solid var(--color-border-button-secondary);
+  background-color: var(--button-secondary-background-color);
+  color: var(--button-secondary-text-color);
+  border: 1px solid var(--button-secondary-border-color);
 }
 .buttonSecondary:hover:not(:disabled) {
-  background-color: var(--color-button-secondary-hover);
+  background-color: var(--button-secondary-hover-background-color);
+  /* border-color might also change on hover if desired */
 }
 .buttonSecondary:disabled {
-  background-color: var(--color-button-disabled);
-  opacity: 0.7;
+  background-color: var(--button-disabled-background-color);
+  color: var(--button-disabled-text-color);
+  border-color: var(--button-disabled-background-color); /* Or a specific disabled border */
+  opacity: 0.7; /* Consider removing if disabled colors are sufficient */
   cursor: not-allowed;
 }
 .buttonLink {
   background: none;
   border: none;
-  color: var(--color-text-link);
+  color: var(--link-color);
   text-decoration: none;
   padding: 0;
   font-weight: normal;
 }
 .buttonLink:hover {
   text-decoration: underline;
+  color: var(--link-hover-color);
 }
 .buttonSmall {
   padding: var(--spacing-base-small) var(--spacing-base);
@@ -302,7 +317,7 @@ input:disabled, textarea:disabled {
   align-items: center;
   margin-top: calc(var(--spacing-base) * 2.5);
   padding-top: calc(var(--spacing-base) * 1.5);
-  border-top: 1px solid var(--color-border); /* Optional: visual separation */
+  border-top: 1px solid var(--border-subtle-color); /* Optional: visual separation, use subtle */
 }
 
 /* Ensure the link within modalActions looks like a button if desired, or style as a link */
@@ -312,12 +327,13 @@ input:disabled, textarea:disabled {
   /* composes: button; */
   /* composes: buttonSecondary; */
   /* Or, if it's a true link, ensure it's styled appropriately */
-  color: var(--color-text-link);
+  color: var(--link-color); /* Use themed link color */
   text-decoration: none;
   padding: var(--spacing-base) 0; /* Adjust padding as needed */
 }
 .modalActions .buttonLink:hover {
   text-decoration: underline;
+  color: var(--link-hover-color); /* Use themed link hover color */
 }
 
 /* Style for the close button if it's inside modalActions */
