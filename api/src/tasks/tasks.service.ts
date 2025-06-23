@@ -1,6 +1,6 @@
 // api/src/tasks/tasks.service.ts
 
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Inject } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Inject, Logger } from '@nestjs/common';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { MoveTaskDto } from './dto/move-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
@@ -26,11 +26,13 @@ function toTaskRecord(dbTask: any): TaskRecord {
 
 @Injectable()
 export class TasksService {
+  private readonly logger = new Logger(TasksService.name);
+
   constructor(
     @Inject(KNEX_CONNECTION) private readonly knex: Knex,
     @Inject(EventsGateway) private eventsGateway: EventsGateway,
     private commentsService: CommentsService,
-    private projectsService: ProjectsService, // --- ИСПРАВЛЕНИЕ #5 ---
+    private projectsService: ProjectsService,
   ) {}
 
   async createTask(createTaskDto: CreateTaskDto, user: UserRecord): Promise<TaskRecord> {
@@ -212,31 +214,24 @@ export class TasksService {
     // but can be less performant for a large number of tasks.
     // Given the stack (PostgreSQL likely due to Knex/NestJS typical usage), we can lean on DB functions.
 
-    // Example using raw SQL for PostgreSQL's REPLACE.
-    // Ensure this is safe and consider alternatives if DB portability is a high concern.
-    // human_readable_id = REPLACE(human_readable_id, old_prefix || '-', new_prefix || '-')
-    // The expression should be `REPLACE(human_readable_id, '${oldPrefix}-', '${newPrefix}-')`
+    // Using a single UPDATE query with REPLACE for PostgreSQL for efficiency.
+    const oldPrefixPattern = `${oldPrefix}-`;
+    const newPrefixPattern = `${newPrefix}-`;
 
-    // Safer approach: Iterate and update. Less performant for bulk but more portable.
-    let updatedCount = 0;
-    for (const task of tasksToUpdate) {
-      const newTaskHumanReadableId = task.human_readable_id.replace(`${oldPrefix}-`, `${newPrefix}-`);
-      const result = await db('tasks')
-        .where({ id: task.id })
-        .update({ human_readable_id: newTaskHumanReadableId, updated_at: new Date() });
-      updatedCount += result; // result is the number of affected rows
-    }
+    const result = await db.raw(
+      `UPDATE tasks
+       SET
+         human_readable_id = REPLACE(human_readable_id, ?, ?),
+         updated_at = ?
+       WHERE project_id = ? AND human_readable_id LIKE ?`,
+      [oldPrefixPattern, newPrefixPattern, new Date(), projectId, `${oldPrefixPattern}%`]
+    );
 
-    // If many tasks, consider batching updates or a more optimized raw query if the DB supports it well.
-    // For PostgreSQL, a single UPDATE query with REPLACE would be more efficient:
-    // const result = await db.raw(
-    //   `UPDATE tasks SET human_readable_id = REPLACE(human_readable_id, ?, ?), updated_at = ? WHERE project_id = ? AND human_readable_id LIKE ?`,
-    //   [`${oldPrefix}-`, `${newPrefix}-`, new Date(), projectId, `${oldPrefix}-%`]
-    // );
-    // updatedCount = result.rowCount; // For PostgreSQL raw query
+    const updatedCount = result.rowCount || 0; // rowCount is specific to PostgreSQL with knex.
+                                           // For other DBs, this might differ.
 
     if (updatedCount > 0) {
-        console.log(`Updated prefix for ${updatedCount} tasks in project ${projectId} from ${oldPrefix} to ${newPrefix}`);
+        this.logger.log(`Updated prefix for ${updatedCount} tasks in project ${projectId} from ${oldPrefix} to ${newPrefixPattern.slice(0, -1)}.`);
         // Optionally, emit events for each updated task if real-time updates are needed for this change.
         // This might be too noisy, so consider if it's necessary.
         // For now, we assume this is a background-like operation not requiring individual task update events.

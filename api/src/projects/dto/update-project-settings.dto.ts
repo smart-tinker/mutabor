@@ -45,7 +45,7 @@ export class UpdateProjectSettingsDto {
   })
   @IsOptional()
   @IsArray()
-  @ArrayNotEmpty()
+  // @ArrayNotEmpty() is redundant if @ArrayMinSize(1) is present
   @ArrayMinSize(1)
   @IsString({ each: true })
   @MinLength(1, { each: true })
@@ -60,7 +60,7 @@ export class UpdateProjectSettingsDto {
   })
   @IsOptional()
   @IsArray()
-  @ArrayNotEmpty()
+  // @ArrayNotEmpty() is redundant if @ArrayMinSize(1) is present
   @ArrayMinSize(1)
   @IsString({ each: true })
   @MinLength(1, { each: true })

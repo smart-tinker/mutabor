@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ProjectsService } from './projects.service';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ProjectsService, ProjectSettingsDTO } from './projects.service'; // Import ProjectSettingsDTO
+import { ForbiddenException, NotFoundException, Logger } from '@nestjs/common'; // Import Logger
 
 const mockUser: any = { id: 'user-1', email: 'test@example.com', name: 'Test User', password: 'hashedpassword', created_at: new Date(), updated_at: new Date() };
 const mockProject: any /* Project & { columns?: Column[] } */ = { id: 1, name: 'Test Project', task_prefix: 'TP', last_task_number: 0, owner_id: 'user-1', created_at: new Date(), updated_at: new Date() };
@@ -17,6 +17,17 @@ import { ConflictException } from '@nestjs/common'; // Import ConflictException
 const mockTasksService = {
   updateTaskPrefixesForProject: jest.fn(),
 };
+
+// Mock Logger
+const mockLogger = {
+  log: jest.fn(),
+  error: jest.fn(),
+  warn: jest.fn(),
+  debug: jest.fn(),
+  verbose: jest.fn(),
+  setLogLevels: jest.fn(), // Added to satisfy LoggerService interface if needed by NestJS internally
+};
+
 
 // Mock Knex
 // Mock for the actual query builder chain for transaction objects
@@ -92,7 +103,12 @@ describe('ProjectsService', () => {
 
     // Reset mockTasksService calls
     mockTasksService.updateTaskPrefixesForProject.mockReset();
-
+    // Reset Logger mocks
+    Object.values(mockLogger).forEach(mockFn => {
+      if (jest.isMockFunction(mockFn)) {
+        mockFn.mockReset();
+      }
+    });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -102,10 +118,16 @@ describe('ProjectsService', () => {
           provide: TasksService,
           useValue: mockTasksService,
         },
+        {
+          provide: Logger, // Provide the mock logger
+          useValue: mockLogger,
+        }
       ],
     }).compile();
 
     service = module.get<ProjectsService>(ProjectsService);
+    // Manually inject logger into the service instance for testing private logger property
+    (service as any).logger = mockLogger;
   });
 
   it('should be defined', () => {
@@ -277,7 +299,7 @@ describe('ProjectsService', () => {
       expect(result).toEqual({
         id: projectId,
         name: 'Test Project',
-        task_prefix: 'TP',
+        prefix: 'TP', // Check for 'prefix'
         settings_statuses: ['Open', 'Closed'],
         settings_types: ['Bug', 'Enhancement'],
       });
@@ -356,20 +378,21 @@ describe('ProjectsService', () => {
       expect(result).toEqual({
         id: projectId,
         name: 'Updated Name',
-        task_prefix: 'UPD',
+        prefix: 'UPD', // Check for 'prefix'
         settings_statuses: ['newS1'],
         settings_types: ['newT1'],
       });
     });
 
-    it('should call TasksService.updateTaskPrefixesForProject if prefix changes', async () => {
+    it('should call TasksService.updateTaskPrefixesForProject and logger.log if prefix changes', async () => {
         const settingsDto: any = { prefix: 'NEWPREFIX' };
+        const numAffectedTasks = 5;
         const updatedProjectData = { ...initialProjectData, task_prefix: 'NEWPREFIX' };
         setupMocksForUpdate(initialProjectData, updatedProjectData);
         mockTrxQueryBuilder.update.mockResolvedValueOnce(1);
         mockTrxQueryBuilder.whereNot.mockReturnThis();
         mockTrxQueryBuilder.first.mockResolvedValueOnce(null); // No conflict for prefix
-        mockTasksService.updateTaskPrefixesForProject.mockResolvedValueOnce(5); // Simulate 5 tasks updated
+        mockTasksService.updateTaskPrefixesForProject.mockResolvedValueOnce(numAffectedTasks);
 
         await service.updateProjectSettings(projectId, ownerId, settingsDto);
 
@@ -379,15 +402,19 @@ describe('ProjectsService', () => {
             settingsDto.prefix.toUpperCase(),
             expect.any(Function) // Knex transaction object (mocked as a function)
         );
+        expect(mockLogger.log).toHaveBeenCalledWith(
+            `Task prefixes update for project ${projectId} (from ${initialProjectData.task_prefix} to ${settingsDto.prefix.toUpperCase()}) affected ${numAffectedTasks} tasks.`
+        );
     });
 
-    it('should NOT call TasksService.updateTaskPrefixesForProject if prefix does not change', async () => {
+    it('should NOT call TasksService.updateTaskPrefixesForProject or logger.log for prefix if prefix does not change', async () => {
         const settingsDto: any = { name: 'Only Name Change' };
         setupMocksForUpdate(initialProjectData, { ...initialProjectData, name: settingsDto.name });
         mockTrxQueryBuilder.update.mockResolvedValueOnce(1);
 
         await service.updateProjectSettings(projectId, ownerId, settingsDto);
         expect(mockTasksService.updateTaskPrefixesForProject).not.toHaveBeenCalled();
+        expect(mockLogger.log).not.toHaveBeenCalledWith(expect.stringContaining('Task prefixes update'));
     });
 
     it('should throw ForbiddenException if user is not the owner', async () => {
@@ -419,10 +446,10 @@ describe('ProjectsService', () => {
         const result = await service.updateProjectSettings(projectId, ownerId, settingsDto);
 
         expect(mockTrxQueryBuilder.update).not.toHaveBeenCalled();
-        expect(result).toEqual({ // Expecting the initial (parsed) settings
+        expect(result).toEqual({ // Expecting the initial (parsed) settings with 'prefix'
             id: initialProjectData.id,
             name: initialProjectData.name,
-            task_prefix: initialProjectData.task_prefix,
+            prefix: initialProjectData.task_prefix, // Check for 'prefix'
             settings_statuses: JSON.parse(initialProjectData.settings_statuses),
             settings_types: JSON.parse(initialProjectData.settings_types),
         });

@@ -10,17 +10,15 @@
              as per db.changelog-0.1.xml. No action needed for task_prefix here. -->
 
         <addColumn tableName="projects">
-            <column name="settings_statuses" type="TEXT"> <!-- Storing as JSON string -->
-                <constraints nullable="true"/>
-                <!-- Default value as a JSON array string: -->
-                <defaultValue value="'[\"To Do\", \"In Progress\", \"Done\"]'"/>
+            <column name="settings_statuses" type="JSONB">
+                <constraints nullable="false"/>
+                <!-- Default values are now handled by application logic on project creation -->
             </column>
         </addColumn>
         <addColumn tableName="projects">
-            <column name="settings_types" type="TEXT"> <!-- Storing as JSON string -->
-                <constraints nullable="true"/>
-                <!-- Default value as a JSON array string: -->
-                <defaultValue value="'[\"Task\", \"Bug\", \"Feature\"]'"/>
+            <column name="settings_types" type="JSONB">
+                <constraints nullable="false"/>
+                <!-- Default values are now handled by application logic on project creation -->
             </column>
         </addColumn>
     </changeSet>

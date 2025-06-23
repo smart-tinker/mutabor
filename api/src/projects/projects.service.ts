@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, ConflictException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, ConflictException, Inject, forwardRef, Logger } from '@nestjs/common';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectSettingsDto } from './dto/update-project-settings.dto';
 import { AddMemberDto } from './dto/add-member.dto';
@@ -17,6 +17,8 @@ const DEFAULT_PROJECT_TYPES = ['Task', 'Bug', 'Feature'];
 
 @Injectable()
 export class ProjectsService {
+  private readonly logger = new Logger(ProjectsService.name);
+
   constructor(
     @Inject(KNEX_CONNECTION) private readonly knex: Knex,
     // Используем forwardRef для решения проблемы циклических зависимостей, если TasksService также зависит от ProjectsService
@@ -136,15 +138,26 @@ export class ProjectsService {
     };
   }
 
-  async getProjectSettings(projectId: number, userId: string): Promise<Partial<ProjectRecord>> {
+// Определим тип для ответа методов get/updateProjectSettings, соответствующий ProjectSettingsResponse на клиенте
+export interface ProjectSettingsDTO {
+  id: number;
+  name: string;
+  prefix: string;
+  settings_statuses: string[];
+  settings_types: string[];
+}
+
+// ... остальной код сервиса ...
+
+  async getProjectSettings(projectId: number, userId: string): Promise<ProjectSettingsDTO> {
     const project = await this.ensureUserHasAccessToProject(projectId, userId);
-    // Возвращаем только нужные поля для настроек
+    // Возвращаем только нужные поля для настроек, маппим task_prefix -> prefix
     return {
       id: project.id,
       name: project.name,
-      task_prefix: project.task_prefix,
-      settings_statuses: project.settings_statuses,
-      settings_types: project.settings_types,
+      prefix: project.task_prefix, // Маппинг
+      settings_statuses: project.settings_statuses as string[], // ensureUserHasAccessToProject уже распарсил
+      settings_types: project.settings_types as string[],   // ensureUserHasAccessToProject уже распарсил
     };
   }
 
@@ -152,9 +165,9 @@ export class ProjectsService {
     projectId: number,
     userId: string,
     settingsDto: UpdateProjectSettingsDto,
-  ): Promise<Partial<ProjectRecord>> {
+  ): Promise<ProjectSettingsDTO> {
     return this.knex.transaction(async (trx) => {
-      const project = await this.ensureUserHasAccessToProject(projectId, userId, trx);
+      const project = await this.ensureUserHasAccessToProject(projectId, userId, trx); // project содержит распарсенные settings_statuses/types и task_prefix
 
       if (project.owner_id !== userId) {
         throw new ForbiddenException('Only the project owner can change project settings.');
@@ -193,21 +206,21 @@ export class ProjectsService {
 
       // Если префикс был изменен, обновить префиксы задач
       if (updatePayload.task_prefix && updatePayload.task_prefix !== currentPrefix) {
-        await this.tasksService.updateTaskPrefixesForProject(projectId, currentPrefix, updatePayload.task_prefix, trx);
-        console.log(`Task prefixes update initiated for project ${projectId} from ${currentPrefix} to ${updatePayload.task_prefix}.`);
+        const numUpdatedTasks = await this.tasksService.updateTaskPrefixesForProject(projectId, currentPrefix, updatePayload.task_prefix, trx);
+        this.logger.log(`Task prefixes update for project ${projectId} (from ${currentPrefix} to ${updatePayload.task_prefix}) affected ${numUpdatedTasks} tasks.`);
       }
 
       // Возвращаем обновленные настройки
       const updatedProjectRaw = await trx('projects').where({ id: projectId }).first();
       if (!updatedProjectRaw) throw new NotFoundException('Project disappeared after update.'); // Should not happen
 
-      const parsedUpdatedProject = this.parseProjectSettings(updatedProjectRaw);
+      const parsedUpdatedProject = this.parseProjectSettings(updatedProjectRaw); // Это все еще ProjectRecord
       return {
         id: parsedUpdatedProject.id,
         name: parsedUpdatedProject.name,
-        task_prefix: parsedUpdatedProject.task_prefix,
-        settings_statuses: parsedUpdatedProject.settings_statuses,
-        settings_types: parsedUpdatedProject.settings_types,
+        prefix: parsedUpdatedProject.task_prefix, // Маппинг
+        settings_statuses: parsedUpdatedProject.settings_statuses as string[],
+        settings_types: parsedUpdatedProject.settings_types as string[],
       };
     });
   }

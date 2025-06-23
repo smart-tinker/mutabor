@@ -2,11 +2,21 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TasksService } from './tasks.service';
 import { EventsGateway } from '../events/events.gateway';
 import { CommentsService } from '../comments/comments.service';
-import { ProjectsService } from '../projects/projects.service'; // Added ProjectsService
-import { NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { ProjectsService } from '../projects/projects.service';
+import { NotFoundException, ForbiddenException, BadRequestException, Logger } from '@nestjs/common'; // Import Logger
 import { KNEX_CONNECTION } from '../knex/knex.constants';
 
 // --- Mocks ---
+// Mock Logger
+const mockLogger = {
+  log: jest.fn(),
+  error: jest.fn(),
+  warn: jest.fn(),
+  debug: jest.fn(),
+  verbose: jest.fn(),
+  setLogLevels: jest.fn(),
+};
+
 const mockKnexTransactionResult = { id: 'task-1', title: 'Moved Task', column_id: 'col-2', position: 0 };
 
 // Mock ProjectsService
@@ -94,30 +104,32 @@ describe('TasksService', () => {
 
     // Query Builder (non-transactional)
     mockQueryBuilder.where = jest.fn().mockReturnThis();
-    mockQueryBuilder.andWhere = jest.fn().mockReturnThis(); // Added andWhere
+    mockQueryBuilder.andWhere = jest.fn().mockReturnThis();
     mockQueryBuilder.leftJoin = jest.fn().mockReturnThis();
     mockQueryBuilder.select = jest.fn().mockReturnThis();
-    mockQueryBuilder.first = jest.fn(); // To be defined in tests with mockResolvedValueOnce
+    mockQueryBuilder.first = jest.fn();
     mockQueryBuilder.increment = jest.fn().mockReturnThis();
-    mockQueryBuilder.returning = jest.fn(); // To be defined in tests
+    mockQueryBuilder.returning = jest.fn();
     mockQueryBuilder.count = jest.fn().mockReturnThis();
-    (mockQueryBuilder.count() as any).first = jest.fn().mockResolvedValue({count: '0'}); // Default for count().first()
+    (mockQueryBuilder.count() as any).first = jest.fn().mockResolvedValue({count: '0'});
     mockQueryBuilder.insert = jest.fn().mockReturnThis();
     mockQueryBuilder.update = jest.fn().mockReturnThis();
+    mockQueryBuilder.raw = jest.fn(); // Add mock for raw
 
     // Transactional Query Builder
     mockTrxQueryBuilder.where = jest.fn().mockReturnThis();
     mockTrxQueryBuilder.andWhere = jest.fn().mockReturnThis();
-    mockTrxQueryBuilder.first = jest.fn(); // To be defined in tests
+    mockTrxQueryBuilder.first = jest.fn();
     mockTrxQueryBuilder.forUpdate = jest.fn().mockReturnThis();
     mockTrxQueryBuilder.increment = jest.fn().mockResolvedValue(1);
     mockTrxQueryBuilder.decrement = jest.fn().mockResolvedValue(1);
     mockTrxQueryBuilder.update = jest.fn().mockReturnThis();
-    mockTrxQueryBuilder.returning = jest.fn().mockResolvedValue([mockKnexTransactionResult]); // Default return for trx update
+    mockTrxQueryBuilder.returning = jest.fn().mockResolvedValue([mockKnexTransactionResult]);
     mockTrxQueryBuilder.insert = jest.fn().mockReturnThis();
     mockTrxQueryBuilder.select = jest.fn().mockReturnThis();
     mockTrxQueryBuilder.count = jest.fn().mockReturnThis();
     mockTrxQueryBuilder.leftJoin = jest.fn().mockReturnThis();
+    mockTrxQueryBuilder.raw = jest.fn(); // Add mock for raw
 
     // Other service mocks
     mockEventsGateway.emitTaskCreated.mockClear();
@@ -125,7 +137,10 @@ describe('TasksService', () => {
     mockEventsGateway.emitTaskMoved.mockClear();
     mockCommentsService.createComment.mockClear();
     mockCommentsService.getCommentsForTask.mockClear();
-    mockProjectsService.ensureUserHasAccessToProject.mockReset(); // Reset ProjectsService mock
+    mockProjectsService.ensureUserHasAccessToProject.mockReset();
+    Object.values(mockLogger).forEach(mockFn => { // Reset logger mocks
+        if (jest.isMockFunction(mockFn)) mockFn.mockReset();
+    });
 
 
     const module: TestingModule = await Test.createTestingModule({
@@ -134,11 +149,13 @@ describe('TasksService', () => {
         knexProvider,
         { provide: EventsGateway, useValue: mockEventsGateway },
         { provide: CommentsService, useValue: mockCommentsService },
-        { provide: ProjectsService, useValue: mockProjectsService }, // Add ProjectsService provider
+        { provide: ProjectsService, useValue: mockProjectsService },
+        { provide: Logger, useValue: mockLogger }, // Add Logger provider
       ],
     }).compile();
 
     service = module.get<TasksService>(TasksService);
+    (service as any).logger = mockLogger; // Manually inject logger
     eventsGateway = module.get<EventsGateway>(EventsGateway);
   });
 
@@ -219,75 +236,60 @@ describe('TasksService', () => {
     const projectId = 1;
     const oldPrefix = 'OLD';
     const newPrefix = 'NEW';
+    const newPrefixPattern = `${newPrefix}-`;
 
-    it('should return 0 if no tasks match the old prefix', async () => {
-      mockQueryBuilder.where.mockReturnThis(); // project_id
-      mockQueryBuilder.andWhere.mockResolvedValue([]); // No tasks found with like oldPrefix-%
+    it('should return 0 if no tasks match (mocking raw response for 0 affected)', async () => {
+      // The SELECT for tasksToUpdate is now gone, direct raw update.
+      mockQueryBuilder.raw.mockResolvedValue({ rowCount: 0 });
 
       const result = await service.updateTaskPrefixesForProject(projectId, oldPrefix, newPrefix);
       expect(result).toBe(0);
-      expect(mockKnexClient).toHaveBeenCalledWith('tasks');
-      expect(mockQueryBuilder.where).toHaveBeenCalledWith({ project_id: projectId });
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('human_readable_id', 'like', `${oldPrefix}-%`);
+      expect(mockQueryBuilder.raw).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE tasks'),
+        expect.arrayContaining([`${oldPrefix}-`, newPrefixPattern, expect.any(Date), projectId, `${oldPrefix}-%`])
+      );
+      expect(mockLogger.log).not.toHaveBeenCalled();
     });
 
-    it('should update human_readable_id for matching tasks and return the count', async () => {
-      const tasksToUpdate = [
-        { id: 'task-1', human_readable_id: 'OLD-123', project_id: projectId },
-        { id: 'task-2', human_readable_id: 'OLD-456', project_id: projectId },
-      ];
-      // Mock for the initial SELECT query
-      mockQueryBuilder.where.mockReturnThis(); // project_id
-      mockQueryBuilder.andWhere.mockResolvedValue(tasksToUpdate); // Tasks found
-
-      // Mock for the UPDATE queries inside the loop
-      // Each .update() call will be for a different task
-      mockQueryBuilder.update
-        .mockResolvedValueOnce(1) // First task update
-        .mockResolvedValueOnce(1); // Second task update
+    it('should update human_readable_id using db.raw and log the count', async () => {
+      const affectedRows = 2;
+      mockQueryBuilder.raw.mockResolvedValue({ rowCount: affectedRows });
 
       const result = await service.updateTaskPrefixesForProject(projectId, oldPrefix, newPrefix);
 
-      expect(result).toBe(2);
-      expect(mockKnexClient).toHaveBeenCalledTimes(1 + tasksToUpdate.length); // 1 for select, N for updates
-
-      // Check the first update call
-      expect(mockQueryBuilder.update).toHaveBeenNthCalledWith(1,
-        expect.objectContaining({ human_readable_id: 'NEW-123', updated_at: expect.any(Date) })
+      expect(result).toBe(affectedRows);
+      expect(mockQueryBuilder.raw).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE tasks SET human_readable_id = REPLACE(human_readable_id, ?, ?), updated_at = ? WHERE project_id = ? AND human_readable_id LIKE ?'),
+        [`${oldPrefix}-`, newPrefixPattern, expect.any(Date), projectId, `${oldPrefix}-%`]
       );
-      expect(mockQueryBuilder.where).toHaveBeenNthCalledWith(2, { id: 'task-1' }); // where for the first update
-
-      // Check the second update call
-      expect(mockQueryBuilder.update).toHaveBeenNthCalledWith(2,
-        expect.objectContaining({ human_readable_id: 'NEW-456', updated_at: expect.any(Date) })
+      expect(mockLogger.log).toHaveBeenCalledWith(
+        `Updated prefix for ${affectedRows} tasks in project ${projectId} from ${oldPrefix} to ${newPrefix}.`
       );
-      expect(mockQueryBuilder.where).toHaveBeenNthCalledWith(3, { id: 'task-2' }); // where for the second update
     });
 
-    it('should use the provided transaction if available', async () => {
-      const tasksToUpdate = [
-        { id: 'task-1', human_readable_id: 'OLD-789', project_id: projectId },
-      ];
-      // trxMock will be used instead of mockQueryBuilder
-      trxMock.mockImplementation((tableName) => {
-        expect(tableName).toBe('tasks'); // Ensure correct table is used in trx
-        return mockTrxQueryBuilder; // Return the transactional query builder
-      });
-
-      mockTrxQueryBuilder.where.mockReturnThis(); // project_id in trx
-      mockTrxQueryBuilder.andWhere.mockResolvedValue(tasksToUpdate); // Tasks found in trx
-      mockTrxQueryBuilder.update.mockResolvedValueOnce(1); // Update in trx
+    it('should use the provided transaction and its raw method if available', async () => {
+      const affectedRowsInTrx = 1;
+      mockTrxQueryBuilder.raw.mockResolvedValue({ rowCount: affectedRowsInTrx });
+      // No need to mock trxMock.mockImplementation for specific table, raw is called directly on trx object
 
       const result = await service.updateTaskPrefixesForProject(projectId, oldPrefix, newPrefix, trxMock as any);
 
-      expect(result).toBe(1);
-      expect(trxMock).toHaveBeenCalledTimes(1 + tasksToUpdate.length); // 1 for select, N for updates within transaction
-      expect(mockKnexClient).not.toHaveBeenCalledWith('tasks'); // Ensure main knex client wasn't used for 'tasks' table directly
-
-      expect(mockTrxQueryBuilder.update).toHaveBeenCalledWith(
-        expect.objectContaining({ human_readable_id: 'NEW-789', updated_at: expect.any(Date) })
+      expect(result).toBe(affectedRowsInTrx);
+      expect(mockTrxQueryBuilder.raw).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE tasks'),
+        expect.arrayContaining([`${oldPrefix}-`, newPrefixPattern, expect.any(Date), projectId, `${oldPrefix}-%`])
       );
-      expect(mockTrxQueryBuilder.where).toHaveBeenNthCalledWith(2, { id: 'task-1' });
+      expect(mockQueryBuilder.raw).not.toHaveBeenCalled(); // Ensure main knex client's raw wasn't used
+      expect(mockLogger.log).toHaveBeenCalledWith(
+        `Updated prefix for ${affectedRowsInTrx} tasks in project ${projectId} from ${oldPrefix} to ${newPrefix}.`
+      );
+    });
+
+    it('should handle cases where rowCount might be undefined from db.raw', async () => {
+        mockQueryBuilder.raw.mockResolvedValue({}); // Simulate driver not returning rowCount
+        const result = await service.updateTaskPrefixesForProject(projectId, oldPrefix, newPrefix);
+        expect(result).toBe(0);
+        expect(mockLogger.log).not.toHaveBeenCalled();
     });
   });
 });
