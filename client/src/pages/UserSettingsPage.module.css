@@ -1,0 +1,58 @@
+.settingsPage {
+  padding: 20px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.settingsPage h2 {
+  margin-bottom: 20px;
+  /* Uses --border-color for light theme and specific var for dark, if needed */
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 10px;
+}
+
+.themeSettings {
+  margin-bottom: 30px;
+}
+
+.themeSettings h3 {
+  margin-bottom: 10px;
+}
+
+.radioGroup label {
+  display: block;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.radioGroup input[type="radio"] {
+  margin-right: 8px;
+}
+
+/* Add some basic styling for light and dark themes for the page itself */
+/* These would ideally be part of a global stylesheet or more comprehensive theming solution */
+[data-theme="light"] .settingsPage {
+  background-color: #ffffff;
+  color: #333333;
+}
+
+[data-theme="dark"] .settingsPage {
+  background-color: #333333;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .settingsPage h2 {
+  border-bottom-color: var(--settings-page-h2-border-color); /* Use CSS variable */
+}
+
+/* Example of how variables from global.css might be used */
+/* Ensure --border-color is defined in your global styles */
+/*
+:root {
+  --border-color: #e0e0e0;
+}
+
+[data-theme="dark"] {
+  --border-color: #555555;
+}
+*/

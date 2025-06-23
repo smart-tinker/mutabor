@@ -2,7 +2,7 @@ import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../app/auth/AuthContext';
 import LogoutButton from '../../features/authByEmail/ui/LogoutButton';
 import { NotificationBell } from '../../features/Notifications';
-import ThemeSwitcher from '../../features/ThemeSwitcher/ThemeSwitcher'; // Import ThemeSwitcher
+// ThemeSwitcher is removed as its functionality will be on the UserSettingsPage
 import styles from './Header.module.css';
 import { useAddTaskModal } from '../../shared/contexts/AddTaskModalContext';
 
@@ -43,8 +43,9 @@ const Header: React.FC = () => {
                   <NotificationBell />
                 </li>
                 <li>
-                  <ThemeSwitcher /> {/* Add ThemeSwitcher component */}
+                  <NavLink to="/settings" className={({ isActive }) => isActive ? styles.active : ''}>Settings</NavLink>
                 </li>
+                {/* ThemeSwitcher component removed from here */}
                 <li>
                   <LogoutButton />
                 </li>
