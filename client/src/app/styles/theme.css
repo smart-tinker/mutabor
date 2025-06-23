@@ -54,6 +54,7 @@
   --tag-text-color: #495057;
 
   --backdrop-color: rgba(0, 0, 0, 0.5);
+  --shadow-element: 0 2px 4px rgba(0,0,0,0.1); /* Default shadow for light theme */
 }
 
 /* Dark Theme Variables */
@@ -113,4 +114,5 @@
   --tag-text-color: #e0e0e0;
 
   --backdrop-color: rgba(0, 0, 0, 0.7);
+  --shadow-element: 0 2px 4px rgba(0,0,0,0.4); /* Subtle shadow for dark theme */
 }

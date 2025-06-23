@@ -5,8 +5,10 @@
   padding: 8px;
   box-sizing: border-box;
   margin-bottom: 10px;
-  border: 1px solid #ccc; /* Added some default border */
-  border-radius: 4px; /* Added some default border-radius */
+  border: 1px solid var(--input-border-color); /* Use theme input border color */
+  border-radius: 4px;
+  background-color: var(--input-background-color); /* Use theme input background color */
+  color: var(--input-text-color); /* Use theme input text color */
 }
 
 .formTextarea {
@@ -23,25 +25,26 @@
 
 .button {
   padding: 8px 15px;
-  border-radius: 4px; /* Added default border-radius */
-  border: 1px solid transparent; /* Base for button */
+  border-radius: 4px;
+  border: 1px solid transparent;
   cursor: pointer;
 }
 
 .buttonPrimary {
-  background-color: #007bff; /* Example primary color */
-  color: white;
-  border-color: #007bff;
+  background-color: var(--button-background-color);
+  color: var(--button-text-color);
+  border-color: var(--button-background-color);
 }
 
 .buttonPrimary:disabled {
-  background-color: #007bff;
-  opacity: 0.65;
+  background-color: var(--button-disabled-background-color);
+  color: var(--button-disabled-text-color);
+  opacity: 0.65; /* Keep opacity for visual cue */
   cursor: not-allowed;
 }
 
 .buttonSecondary {
-  background-color: #6c757d; /* Example secondary/cancel color */
-  color: white;
-  border-color: #6c757d;
+  background-color: var(--button-secondary-background-color);
+  color: var(--button-secondary-text-color);
+  border-color: var(--button-secondary-border-color);
 }

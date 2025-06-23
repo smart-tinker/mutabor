@@ -2,34 +2,35 @@
   width: 100%;
   border-collapse: collapse;
   margin-top: 20px;
-  background-color: var(--color-background-page); /* Added */
+  background-color: var(--card-background-color); /* Use card background for table */
+  color: var(--text-color); /* Ensure text color contrasts with background */
 }
 
 .table th,
 .table td {
-  border: 1px solid var(--color-border); /* Changed from #ddd */
+  border: 1px solid var(--border-color); /* Use theme border color */
   padding: 8px;
   text-align: left;
 }
 
 .table th {
-  /* Changed from #f2f2f2, using a variable that's very light grey */
-  /* Consider var(--color-border) or a light primary tint if a more distinct header is desired */
-  background-color: var(--color-background-page);
+  background-color: var(--background-subtle-color); /* Use a subtle background for header */
   font-weight: bold;
+  color: var(--text-color); /* Ensure header text is readable */
 }
 
 .table tbody tr:hover {
-  background-color: var(--color-primary-background-hover); /* Changed from #f5f5f5 */
+  background-color: var(--element-hover-background-color); /* Use theme hover color */
 }
 
 .link a {
-  color: var(--color-primary); /* Changed from #007bff */
+  color: var(--link-color); /* Use theme link color */
   text-decoration: none;
 }
 
 .link a:hover {
   text-decoration: underline;
+  color: var(--link-hover-color); /* Use theme link hover color */
 }
 
 /* Styles for the modal form elements */
@@ -38,8 +39,10 @@
   padding: 8px;
   box-sizing: border-box;
   margin-bottom: 10px;
-  border: 1px solid #ccc; /* Added some default border */
-  border-radius: 4px; /* Added some default border-radius */
+  border: 1px solid var(--input-border-color); /* Use theme input border color */
+  border-radius: 4px;
+  background-color: var(--input-background-color); /* Use theme input background color */
+  color: var(--input-text-color); /* Use theme input text color */
 }
 
 .formActions {
@@ -51,25 +54,26 @@
 
 .button {
   padding: 8px 15px;
-  border-radius: 4px; /* Added default border-radius */
-  border: 1px solid transparent; /* Base for button */
+  border-radius: 4px;
+  border: 1px solid transparent;
   cursor: pointer;
 }
 
 .buttonPrimary {
-  background-color: #007bff; /* Example primary color */
-  color: white;
-  border-color: #007bff;
+  background-color: var(--button-background-color);
+  color: var(--button-text-color);
+  border-color: var(--button-background-color);
 }
 
 .buttonPrimary:disabled {
-  background-color: #007bff;
-  opacity: 0.65;
+  background-color: var(--button-disabled-background-color);
+  color: var(--button-disabled-text-color);
+  opacity: 0.65; /* Keep opacity for visual cue, though colors also change */
   cursor: not-allowed;
 }
 
 .buttonSecondary {
-  background-color: #6c757d; /* Example secondary/cancel color */
-  color: white;
-  border-color: #6c757d;
+  background-color: var(--button-secondary-background-color);
+  color: var(--button-secondary-text-color);
+  border-color: var(--button-secondary-border-color);
 }

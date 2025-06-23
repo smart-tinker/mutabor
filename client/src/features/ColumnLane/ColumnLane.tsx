@@ -3,6 +3,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useDroppable } from '@dnd-kit/core';
 import TaskCard from '../TaskCard/TaskCard'; // Adjust path
 import type { ColumnDto as ProjectColumnDto, TaskDto } from '../../shared/api/projectService'; // Use TaskDto directly
+import styles from './ColumnLane.module.css'; // Import CSS module
 
 interface Column extends ProjectColumnDto {
   tasksList: TaskDto[]; // Use TaskDto
@@ -10,43 +11,32 @@ interface Column extends ProjectColumnDto {
 
 interface ColumnLaneProps {
   column: Column;
-  // onAddTask: (columnId: string) => void; // Function to open add task modal - REMOVED
   onTaskClick: (task: TaskDto) => void; // New prop for task click
 }
 
 const ColumnLane: React.FC<ColumnLaneProps> = ({ column, onTaskClick }) => {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
 
-  const style = {
-    border: isOver ? '2px dashed #007bff' : '1px solid #ccc',
-    padding: '8px',
-    minWidth: '300px', // Increased minWidth
-    maxWidth: '300px', // Added maxWidth
-    height: 'calc(100vh - 150px)', // Example height, adjust as needed
-    overflowY: 'auto' as 'auto', // Ensure proper typing for overflowY
-    background: isOver ? '#e9f5ff' : '#f9f9f9',
-    display: 'flex',
-    flexDirection: 'column' as 'column', // Ensure proper typing
-  };
+  // Base class for the column lane, conditionally add 'isOver' class
+  const columnClasses = isOver ? `${styles.columnLane} ${styles.isOver}` : styles.columnLane;
 
-  const tasksContainerStyle = {
+  const tasksContainerStyle = { // Kept inline as it's simple and layout-specific
     flexGrow: 1,
-    minHeight: '50px', // Minimum height for the droppable area of tasks
+    minHeight: '50px',
   };
 
   return (
-    <div ref={setNodeRef} style={style}>
-      <h2 style={{textAlign: 'center', marginBottom: '10px'}}>{column.name}</h2>
+    <div ref={setNodeRef} className={columnClasses}>
+      <h2 className={styles.columnTitle}>{column.name}</h2>
       <div style={tasksContainerStyle}>
         <SortableContext items={column.tasksList.map(task => task.id)} strategy={verticalListSortingStrategy}>
           {column.tasksList.length === 0 ? (
-            <p style={{ fontSize: '0.9em', color: 'grey', textAlign: 'center', marginTop: '20px' }}>No tasks here.</p>
+            <p className={styles.noTasksText}>No tasks here.</p>
           ) : (
             column.tasksList.map(task => <TaskCard key={task.id} task={task} onTaskClick={onTaskClick} />)
           )}
         </SortableContext>
       </div>
-      {/* Removed Add Task Button from here */}
     </div>
   );
 };
