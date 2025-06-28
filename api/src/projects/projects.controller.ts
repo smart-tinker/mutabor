@@ -4,9 +4,9 @@ import { CreateProjectDto } from './dto/create-project.dto';
 import { AddMemberDto } from './dto/add-member.dto';
 import { UpdateProjectSettingsDto } from './dto/update-project-settings.dto';
 import { UpdateColumnDto } from './dto/update-column.dto';
-import { CreateColumnDto } from './dto/create-column.dto'; // ### ДОБАВЛЕНО ###
+import { CreateColumnDto } from './dto/create-column.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { PoliciesGuard } from '../casl/policies.guard';
 import { CheckPolicies } from '../casl/check-policies.decorator';
 import { CanManageProjectSettingsPolicy, CanEditProjectContentPolicy } from '../casl/project-policies.handler';
@@ -19,39 +19,42 @@ export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard) // Этот гвард не нужен, т.к. есть глобальный
   @HttpCode(HttpStatus.CREATED)
   create(@Body() createProjectDto: CreateProjectDto, @Req() req) {
     return this.projectsService.createProject(createProjectDto, req.user);
   }
 
   @Get()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard) // Этот гвард не нужен, т.к. есть глобальный
   findAll(@Req() req) {
     return this.projectsService.findAllProjectsForUser(req.user.id);
   }
 
+  // ### ИСПРАВЛЕНИЕ: Убрали 'new' из вызова декоратора ###
   @Get(':id')
-  @CheckPolicies(new CanEditProjectContentPolicy())
-  findOne(@Param('id', ParseIntPipe) id: number, @Req() req) {
-    return this.projectsService.getProjectDetails(id, req.user.id);
+  @CheckPolicies(CanEditProjectContentPolicy)
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    // Всю необходимую информацию гвард получит из параметров запроса
+    return this.projectsService.getProjectDetails(id);
   }
   
+  // ### ИСПРАВЛЕНИЕ: Убрали 'new' из вызова декоратора ###
   @Put(':id/settings')
-  @CheckPolicies(new CanManageProjectSettingsPolicy())
+  @CheckPolicies(CanManageProjectSettingsPolicy)
   updateProjectSettings(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateProjectSettingsDto: UpdateProjectSettingsDto,
-    @Req() req,
   ) {
-    return this.projectsService.updateProjectSettings(id, req.user.id, updateProjectSettingsDto);
+    return this.projectsService.updateProjectSettings(id, updateProjectSettingsDto);
   }
   
   // --- Columns CRUD ---
 
+  // ### ИСПРАВЛЕНИЕ: Убрали 'new' из вызова декоратора ###
   @Post(':projectId/columns')
   @HttpCode(HttpStatus.CREATED)
-  @CheckPolicies(new CanEditProjectContentPolicy())
+  @CheckPolicies(CanEditProjectContentPolicy)
   createColumn(
     @Param('projectId', ParseIntPipe) projectId: number,
     @Body() createColumnDto: CreateColumnDto,
@@ -59,9 +62,10 @@ export class ProjectsController {
     return this.projectsService.createColumn(projectId, createColumnDto);
   }
 
+  // ### ИСПРАВЛЕНИЕ: Убрали 'new' из вызова декоратора ###
   @Patch(':projectId/columns/:columnId')
   @HttpCode(HttpStatus.OK)
-  @CheckPolicies(new CanEditProjectContentPolicy())
+  @CheckPolicies(CanEditProjectContentPolicy)
   updateColumn(
     @Param('projectId', ParseIntPipe) projectId: number,
     @Param('columnId', ParseUUIDPipe) columnId: string,
@@ -70,9 +74,10 @@ export class ProjectsController {
     return this.projectsService.updateColumn(projectId, columnId, updateColumnDto);
   }
 
+  // ### ИСПРАВЛЕНИЕ: Убрали 'new' из вызова декоратора ###
   @Delete(':projectId/columns/:columnId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @CheckPolicies(new CanEditProjectContentPolicy())
+  @CheckPolicies(CanEditProjectContentPolicy)
   deleteColumn(
     @Param('projectId', ParseIntPipe) projectId: number,
     @Param('columnId', ParseUUIDPipe) columnId: string,
@@ -82,22 +87,22 @@ export class ProjectsController {
 
   // --- Members ---
 
+  // ### ИСПРАВЛЕНИЕ: Убрали 'new' из вызова декоратора ###
   @Post(':projectId/members')
-  @CheckPolicies(new CanManageProjectSettingsPolicy())
+  @CheckPolicies(CanManageProjectSettingsPolicy)
   addMember(
     @Param('projectId', ParseIntPipe) projectId: number,
     @Body() addMemberDto: AddMemberDto,
-    @Req() req,
   ) {
-    return this.projectsService.addMemberToProject(projectId, addMemberDto, req.user.id);
+    return this.projectsService.addMemberToProject(projectId, addMemberDto);
   }
 
+  // ### ИСПРАВЛЕНИЕ: Убрали 'new' из вызова декоратора ###
   @Get(':projectId/members')
-  @CheckPolicies(new CanEditProjectContentPolicy())
+  @CheckPolicies(CanEditProjectContentPolicy)
   getMembers(
     @Param('projectId', ParseIntPipe) projectId: number,
-    @Req() req,
   ) {
-    return this.projectsService.getProjectMembers(projectId, req.user.id);
+    return this.projectsService.getProjectMembers(projectId);
   }
 }

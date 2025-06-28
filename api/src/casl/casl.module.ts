@@ -1,13 +1,12 @@
-import { Module, forwardRef } from '@nestjs/common';
-import { ProjectsModule } from '../projects/projects.module';
-import { TasksModule } from '../tasks/tasks.module';
+// api/src/casl/casl.module.ts
+import { Module } from '@nestjs/common';
+// import { CaslAbilityFactory } from './casl-ability.factory'; // УДАЛЯЕМ ЭТОТ ИМПОРТ
 
-// Этот модуль не экспортирует провайдеров, так как Guard глобальный.
-// Он служит для разрешения циклических зависимостей.
 @Module({
-    imports: [
-        forwardRef(() => ProjectsModule),
-        forwardRef(() => TasksModule),
-    ],
+  // Этот модуль теперь пуст, так как гвард глобальный,
+  // а фабрику мы удалили. Он больше не нужен для DI.
+  imports: [], 
+  providers: [],
+  exports: [],
 })
 export class CaslModule {}

@@ -1,3 +1,4 @@
+// api/src/notifications/notifications.module.ts
 import { Module, forwardRef } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { NotificationsController } from './notifications.controller';
@@ -9,10 +10,11 @@ import { ProjectsModule } from '../projects/projects.module';
   imports: [
     KnexModule, 
     EventsModule,
-    forwardRef(() => ProjectsModule) // Для получения данных о проекте
+    // Эта связь является частью цикла, поэтому forwardRef здесь обязателен.
+    forwardRef(() => ProjectsModule)
   ],
   controllers: [NotificationsController],
   providers: [NotificationsService],
-  exports: [NotificationsService], // Экспортируем сервис для использования в других модулях
+  exports: [NotificationsService],
 })
 export class NotificationsModule {}

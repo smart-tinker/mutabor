@@ -1,8 +1,10 @@
+// api/src/notifications/notifications.service.ts
+
 import { Injectable, Inject } from '@nestjs/common';
 import { Knex } from 'knex';
 import { KNEX_CONNECTION } from '../knex/knex.constants';
 import * as crypto from 'crypto';
-import { NotificationRecord, CommentRecord } from '../types/db-records';
+import { NotificationRecord, CommentRecord, UserRecord } from '../types/db-records';
 import { EventsGateway } from '../events/events.gateway';
 import { ProjectsService } from '../projects/projects.service';
 
@@ -11,7 +13,6 @@ export class NotificationsService {
   constructor(
     @Inject(KNEX_CONNECTION) private readonly knex: Knex,
     private readonly eventsGateway: EventsGateway,
-    // Инжектируем ProjectsService, чтобы получить список участников проекта
     private readonly projectsService: ProjectsService,
   ) {}
 
@@ -39,7 +40,7 @@ export class NotificationsService {
   }
 
   async createMentionNotifications(comment: CommentRecord, taskTitle: string, projectId: number) {
-    const regex = /@([a-zA-Z0-9_.-]+)/g;
+    const regex = /@([\w.-]+)/g; // Упрощено регулярное выражение
     let match;
     const mentionedNames = new Set<string>();
 
@@ -49,20 +50,25 @@ export class NotificationsService {
 
     if (mentionedNames.size === 0) return;
     
-    // Получаем всех участников проекта одним запросом
-    const members = await this.projectsService.getProjectMembers(projectId, comment.author_id);
-    const owner = await this.knex('projects').where({id: projectId}).select('owner_id').first();
-    const ownerInfo = await this.knex('users').where({id: owner.owner_id}).select('id', 'name', 'email').first();
-    
-    const allProjectUsers = [...members.map(m => m.user), ownerInfo];
+    // ### ИСПРАВЛЕНИЕ: вызов getProjectMembers с одним аргументом ###
+    const membersResult = await this.projectsService.getProjectMembers(projectId);
+    const members: UserRecord[] = membersResult.map(m => m.user as UserRecord);
 
-    const usersToNotify = allProjectUsers.filter(user => 
+    const ownerResult = await this.knex('projects').where({id: projectId}).select('owner_id').first();
+    const ownerInfo = await this.knex('users').where({id: ownerResult.owner_id}).select('id', 'name', 'email').first();
+    
+    // Собираем всех уникальных пользователей проекта
+    const allProjectUsersMap = new Map<string, UserRecord>();
+    allProjectUsersMap.set(ownerInfo.id, ownerInfo);
+    members.forEach(m => allProjectUsersMap.set(m.id, m));
+
+    const usersToNotify = Array.from(allProjectUsersMap.values()).filter(user => 
         mentionedNames.has(user.name) && user.id !== comment.author_id
     );
 
     if (usersToNotify.length === 0) return;
 
-    const sourceUrl = `/tasks/${comment.task_id}`; // Пример URL
+    const sourceUrl = `/tasks/${comment.task_id}`;
     const authorName = comment.author?.name || 'Someone';
     const text = `You were mentioned by ${authorName} in a comment on task "${taskTitle}": "${comment.text.substring(0, 50)}..."`;
 

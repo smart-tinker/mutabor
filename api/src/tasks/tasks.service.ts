@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Inject, Logger, forwardRef } from '@nestjs/common';
+// api/src/tasks/tasks.service.ts
+import { Injectable, NotFoundException, BadRequestException, Inject, Logger, forwardRef } from '@nestjs/common';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { MoveTaskDto } from './dto/move-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
@@ -8,8 +9,10 @@ import { CreateCommentDto } from '../comments/dto/create-comment.dto';
 import { Knex } from 'knex';
 import { KNEX_CONNECTION } from '../knex/knex.constants';
 import * as crypto from 'crypto';
-import { TaskRecord, UserRecord } from '../types/db-records';
+import { TaskRecord, UserRecord, ProjectRecord } from '../types/db-records';
 import { ProjectsService } from '../projects/projects.service';
+// ### ИСПРАВЛЕНИЕ: Импортируем Role напрямую из его источника ###
+import { Role } from '../casl/roles.enum';
 
 @Injectable()
 export class TasksService {
@@ -23,13 +26,23 @@ export class TasksService {
     private projectsService: ProjectsService,
   ) {}
 
-  // ### ИЗМЕНЕНИЕ: Сигнатура метода изменена ###
+  async getTaskAndProjectForPermissionCheck(
+    taskId: string,
+    userId: string,
+  ): Promise<{ task: TaskRecord; project: ProjectRecord; userRole: Role }> {
+    const task = await this.knex('tasks').where({ id: taskId }).first();
+    if (!task) {
+      throw new NotFoundException(`Task with ID ${taskId} not found.`);
+    }
+
+    const { project, userRole } = await this.projectsService.getProjectAndRole(task.project_id, userId);
+    return { task, project, userRole };
+  }
+
   async createTask(projectId: number, createTaskDto: CreateTaskDto, user: UserRecord): Promise<TaskRecord> {
     const { title, description, columnId, assigneeId, dueDate, type, priority, tags } = createTaskDto;
 
     return this.knex.transaction(async (trx) => {
-      // Проверка прав теперь выполняется в Guard'e, но для целостности данных
-      // нужно убедиться, что колонка принадлежит проекту.
       const column = await trx('columns').where({id: columnId, project_id: projectId}).first();
       if(!column) throw new BadRequestException(`Column with ID ${columnId} does not belong to project ${projectId}.`);
 
@@ -46,15 +59,15 @@ export class TasksService {
       const taskNumber = updatedProject.last_task_number;
       const humanReadableId = `${updatedProject.task_prefix}-${taskNumber}`;
 
-      const tasksInColumn = await trx('tasks').where({ column_id: columnId }).count({ count: '*' }).first();
-      const position = parseInt(tasksInColumn.count as string, 10);
+      const tasksInColumnResult = await trx('tasks').where({ column_id: columnId }).count({ count: '*' }).first();
+      const position = parseInt(tasksInColumnResult.count as string, 10);
 
       const [newTask] = await trx('tasks').insert({
         id: crypto.randomUUID(),
         title,
         description,
         column_id: columnId,
-        project_id: projectId, // projectId теперь берется из параметра
+        project_id: projectId,
         assignee_id: assigneeId,
         due_date: dueDate ? new Date(dueDate) : null,
         type,
@@ -71,15 +84,13 @@ export class TasksService {
     });
   }
 
-  async findTaskById(taskId: string, user: UserRecord): Promise<TaskRecord> {
-    // Проверка прав доступа выполняется в Guard'e
+  async findTaskById(taskId: string): Promise<TaskRecord> {
     const task = await this.knex('tasks').where({ id: taskId }).first();
     if (!task) throw new NotFoundException(`Task with ID ${taskId} not found.`);
     return task;
   }
 
-  async updateTask(taskId: string, updateTaskDto: UpdateTaskDto, user: UserRecord): Promise<TaskRecord> {
-    // Проверка прав доступа выполняется в Guard'e
+  async updateTask(taskId: string, updateTaskDto: UpdateTaskDto): Promise<TaskRecord> {
     return this.knex.transaction(async (trx) => {
         const task = await trx('tasks').where({ id: taskId }).first();
         if (!task) throw new NotFoundException(`Task with ID ${taskId} not found.`);
@@ -111,8 +122,7 @@ export class TasksService {
     });
   }
 
-  async moveTask(taskId: string, moveTaskDto: MoveTaskDto, user: UserRecord): Promise<TaskRecord> {
-    // Проверка прав доступа выполняется в Guard'e
+  async moveTask(taskId: string, moveTaskDto: MoveTaskDto): Promise<TaskRecord> {
     const { newColumnId, newPosition } = moveTaskDto;
 
     return this.knex.transaction(async (trx) => {
@@ -139,21 +149,15 @@ export class TasksService {
   }
 
   async addCommentToTask(taskId: string, createCommentDto: CreateCommentDto, author: UserRecord) {
-    // Проверка прав доступа выполняется в Guard'e
     const task = await this.knex('tasks').where({ id: taskId }).first();
     if (!task) throw new NotFoundException(`Task with ID ${taskId} not found.`);
     return this.commentsService.createComment(task.id, createCommentDto, author.id);
   }
 
-  async getCommentsForTask(taskId: string, user: UserRecord) {
-    // Проверка прав доступа выполняется в Guard'e
+  async getCommentsForTask(taskId: string) {
     const task = await this.knex('tasks').where({ id: taskId }).first();
     if (!task) throw new NotFoundException(`Task with ID ${taskId} not found.`);
     return this.commentsService.getCommentsForTask(taskId);
-  }
-
-  async findTaskForPolicyCheck(taskId: string): Promise<TaskRecord | null> {
-    return this.knex('tasks').where({ id: taskId }).first();
   }
 
   async updateTaskPrefixesForProject(
