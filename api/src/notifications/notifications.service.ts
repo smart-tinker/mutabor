@@ -1,97 +1,92 @@
-import { Injectable, NotFoundException, ForbiddenException, Inject } from '@nestjs/common';
-import { EventsGateway } from '../events/events.gateway'; // Import EventsGateway
+import { Injectable, Inject } from '@nestjs/common';
 import { Knex } from 'knex';
-import { KNEX_CONNECTION } from '../knex/knex.constants'; // Assuming this constant is defined for injection
-import * as crypto from 'crypto'; // For UUID generation
-import { NotificationRecord } from '../types/db-records'; // Import NotificationRecord
+import { KNEX_CONNECTION } from '../knex/knex.constants';
+import * as crypto from 'crypto';
+import { NotificationRecord, CommentRecord } from '../types/db-records';
+import { EventsGateway } from '../events/events.gateway';
+import { ProjectsService } from '../projects/projects.service';
 
 @Injectable()
 export class NotificationsService {
   constructor(
     @Inject(KNEX_CONNECTION) private readonly knex: Knex,
-    private eventsGateway: EventsGateway, // Inject EventsGateway
+    private readonly eventsGateway: EventsGateway,
+    // Инжектируем ProjectsService, чтобы получить список участников проекта
+    private readonly projectsService: ProjectsService,
   ) {}
 
   async createNotification(
     recipientId: string,
     text: string,
-    sourceUrl?: string,
+    sourceUrl: string,
     taskId?: string,
-  ): Promise<NotificationRecord | null> {
-    const recipient = await this.knex('users').where({ id: recipientId }).first();
-    if (!recipient) {
-      console.error(`Recipient user with ID ${recipientId} not found for notification.`);
-      return null;
-    }
-
+    trx?: Knex.Transaction,
+  ): Promise<NotificationRecord> {
+    const db = trx || this.knex;
     const notificationId = crypto.randomUUID();
-    const notificationData = {
+    const newNotificationData = {
       id: notificationId,
       recipient_id: recipientId,
       text,
       source_url: sourceUrl,
       task_id: taskId,
-      is_read: false,
-      created_at: new Date(),
-      updated_at: new Date(),
     };
 
-    const [insertedRow] = await this.knex('notifications')
-      .insert(notificationData)
-      .returning('*');
+    const [notification] = await db('notifications').insert(newNotificationData).returning('*');
 
-    const newNotification: NotificationRecord = {
-        ...insertedRow,
-        created_at: new Date(insertedRow.created_at),
-        updated_at: new Date(insertedRow.updated_at),
-    };
-
-    if (newNotification) {
-      this.eventsGateway.emitNotificationNew(newNotification, recipientId);
-    }
-    return newNotification;
+    this.eventsGateway.emitNotificationNew(notification);
+    return notification;
   }
 
-  async getUserNotifications(userId: string): Promise<NotificationRecord[]> {
-    const notifications = await this.knex('notifications')
+  async createMentionNotifications(comment: CommentRecord, taskTitle: string, projectId: number) {
+    const regex = /@([a-zA-Z0-9_.-]+)/g;
+    let match;
+    const mentionedNames = new Set<string>();
+
+    while ((match = regex.exec(comment.text)) !== null) {
+      mentionedNames.add(match[1]);
+    }
+
+    if (mentionedNames.size === 0) return;
+    
+    // Получаем всех участников проекта одним запросом
+    const members = await this.projectsService.getProjectMembers(projectId, comment.author_id);
+    const owner = await this.knex('projects').where({id: projectId}).select('owner_id').first();
+    const ownerInfo = await this.knex('users').where({id: owner.owner_id}).select('id', 'name', 'email').first();
+    
+    const allProjectUsers = [...members.map(m => m.user), ownerInfo];
+
+    const usersToNotify = allProjectUsers.filter(user => 
+        mentionedNames.has(user.name) && user.id !== comment.author_id
+    );
+
+    if (usersToNotify.length === 0) return;
+
+    const sourceUrl = `/tasks/${comment.task_id}`; // Пример URL
+    const authorName = comment.author?.name || 'Someone';
+    const text = `You were mentioned by ${authorName} in a comment on task "${taskTitle}": "${comment.text.substring(0, 50)}..."`;
+
+    for (const user of usersToNotify) {
+      await this.createNotification(user.id, text, sourceUrl, comment.task_id);
+    }
+  }
+
+  async getNotificationsForUser(userId: string): Promise<NotificationRecord[]> {
+    return this.knex('notifications')
       .where({ recipient_id: userId })
-      .orderBy('created_at', 'desc');
-    return notifications.map(n => ({
-        ...n,
-        created_at: new Date(n.created_at),
-        updated_at: new Date(n.updated_at),
-    }));
+      .orderBy('created_at', 'desc')
+      .limit(50);
   }
 
-  async markNotificationAsRead(notificationId: string, userId: string): Promise<NotificationRecord> {
-    const notificationFromDb = await this.knex('notifications')
-      .where({ id: notificationId })
-      .first();
-
-    if (!notificationFromDb) {
-      throw new NotFoundException(`Notification with ID ${notificationId} not found.`);
-    }
-    if (notificationFromDb.recipient_id !== userId) {
-      throw new ForbiddenException('You cannot mark this notification as read.');
-    }
-
-    const [updatedRow] = await this.knex('notifications')
-      .where({ id: notificationId })
+  async markAsRead(notificationId: string, userId: string): Promise<NotificationRecord> {
+    const [notification] = await this.knex('notifications')
+      .where({ id: notificationId, recipient_id: userId })
       .update({ is_read: true, updated_at: new Date() })
       .returning('*');
-
-    return {
-        ...updatedRow,
-        created_at: new Date(updatedRow.created_at),
-        updated_at: new Date(updatedRow.updated_at),
-    };
-  }
-
-  async markAllNotificationsAsRead(userId: string): Promise<{ message: string }> {
-    await this.knex('notifications')
-      .where({ recipient_id: userId, is_read: false })
-      .update({ is_read: true, updated_at: new Date() });
-
-    return { message: 'All unread notifications marked as read.' };
+    
+    if (notification) {
+      this.eventsGateway.emitNotificationRead(notification);
+    }
+    return notification;
   }
 }

@@ -1,89 +1,70 @@
-// Purposely excluding password_hash from UserRecord for security best practices
-// when returning user objects from services.
 export interface UserRecord {
-  id: string; // UUID
+  id: string;
   email: string;
   name: string | null;
+  password_hash: string;
   created_at: Date;
   updated_at: Date;
 }
 
 export interface ProjectRecord {
-  id: number; // SERIAL
+  id: number;
   name: string;
-  owner_id: string; // Foreign key to UserRecord.id
-  task_prefix: string; // Unique prefix for tasks, e.g., "PROJ"
+  task_prefix: string;
+  owner_id: string;
   last_task_number: number;
-  settings_statuses: string | null; // JSON string from DB
-  settings_types: string | null;    // JSON string from DB
   created_at: Date;
   updated_at: Date;
-  columns?: ColumnRecord[];
-  // For application layer, these might be parsed:
-  // parsed_settings_statuses?: string[];
-  // parsed_settings_types?: string[];
 }
 
-export interface ParsedProjectRecord extends Omit<ProjectRecord, 'settings_statuses' | 'settings_types'> {
-  settings_statuses: string[];
-  settings_types: string[];
+export interface ProjectTaskTypeRecord {
+    id: number;
+    name: string;
+    project_id: number;
+    created_at: Date;
+    updated_at: Date;
 }
 
 export interface ColumnRecord {
-  id: string; // UUID
+  id: string;
   name: string;
-  project_id: number; // Foreign key to ProjectRecord.id
   position: number;
+  project_id: number;
+  tasks?: TaskRecord[]; // This is for temporary in-memory joining, not a DB column
   created_at: Date;
   updated_at: Date;
-  tasks?: TaskRecord[];
 }
 
 export interface TaskRecord {
-  id: string; // UUID
+  id: string;
   human_readable_id: string;
   task_number: number;
   title: string;
   description: string | null;
   position: number;
-  project_id: number; // Foreign key to ProjectRecord.id
-  column_id: string; // Foreign key to ColumnRecord.id
-  assignee_id: string | null; // Foreign key to UserRecord.id
-  creator_id: string; // Foreign key to UserRecord.id
-  due_date: Date | null;
+  project_id: number;
+  column_id: string;
+  assignee_id: string | null;
+  creator_id: string;
   type: string | null;
   priority: string | null;
   tags: string[] | null;
-  created_at: Date;
-  updated_at: Date;
-}
-
-export interface CommentRecord {
-  id: string; // UUID
-  text: string;
-  task_id: string; // Foreign key to TaskRecord.id
-  author_id: string; // Foreign key to UserRecord.id
-  created_at: Date;
-  updated_at: Date;
-  // For returning comments with author details:
-  author?: UserRecord;
-}
-
-export interface NotificationRecord {
-  id: string; // UUID
-  recipient_id: string; // Foreign key to UserRecord.id
-  text: string;
-  is_read: boolean;
-  source_url: string | null;
-  task_id: string | null; // Foreign key to TaskRecord.id
+  due_date: Date | null;
   created_at: Date;
   updated_at: Date;
 }
 
 export interface ProjectMemberRecord {
-  project_id: number; // Foreign key to ProjectRecord.id
-  user_id: string; // Foreign key to UserRecord.id
-  role: string; // e.g., 'editor', 'viewer'
-  created_at: Date;
-  updated_at: Date;
+    project_id: number;
+    user_id: string;
+    role: string;
+    created_at: Date;
+    updated_at: Date;
 }
+
+export interface ProjectMemberWithUser extends ProjectMemberRecord {
+    user: Omit<UserRecord, 'password_hash'>;
+}
+
+// NOTE: ProjectDetailsDto has been moved to its own file in `src/projects/dto`
+// to separate database record types from data transfer objects.

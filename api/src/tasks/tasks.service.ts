@@ -1,5 +1,3 @@
-// api/src/tasks/tasks.service.ts
-
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Inject, Logger, forwardRef } from '@nestjs/common';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { MoveTaskDto } from './dto/move-task.dto';
@@ -13,17 +11,6 @@ import * as crypto from 'crypto';
 import { TaskRecord, UserRecord } from '../types/db-records';
 import { ProjectsService } from '../projects/projects.service';
 
-// Helper to convert DB record to TaskRecord
-function toTaskRecord(dbTask: any): TaskRecord {
-    if (!dbTask) return null;
-    return {
-        ...dbTask,
-        due_date: dbTask.due_date ? new Date(dbTask.due_date) : null,
-        created_at: new Date(dbTask.created_at),
-        updated_at: new Date(dbTask.updated_at),
-    };
-}
-
 @Injectable()
 export class TasksService {
   private readonly logger = new Logger(TasksService.name);
@@ -32,19 +19,22 @@ export class TasksService {
     @Inject(KNEX_CONNECTION) private readonly knex: Knex,
     @Inject(EventsGateway) private eventsGateway: EventsGateway,
     private commentsService: CommentsService,
-    @Inject(forwardRef(() => ProjectsService)) // <-- THE FIX IS HERE
+    @Inject(forwardRef(() => ProjectsService))
     private projectsService: ProjectsService,
   ) {}
 
-  async createTask(createTaskDto: CreateTaskDto, user: UserRecord): Promise<TaskRecord> {
-    const { title, description, columnId, projectId, assigneeId, dueDate, type, priority, tags } = createTaskDto;
+  // ### ИЗМЕНЕНИЕ: Сигнатура метода изменена ###
+  async createTask(projectId: number, createTaskDto: CreateTaskDto, user: UserRecord): Promise<TaskRecord> {
+    const { title, description, columnId, assigneeId, dueDate, type, priority, tags } = createTaskDto;
 
     return this.knex.transaction(async (trx) => {
-      await this.projectsService.ensureUserHasAccessToProject(projectId, user.id, trx);
-
+      // Проверка прав теперь выполняется в Guard'e, но для целостности данных
+      // нужно убедиться, что колонка принадлежит проекту.
       const column = await trx('columns').where({id: columnId, project_id: projectId}).first();
-      if(!column) {
-        throw new NotFoundException(`Column ${columnId} not found in project ${projectId}.`);
+      if(!column) throw new BadRequestException(`Column with ID ${columnId} does not belong to project ${projectId}.`);
+
+      if (type && !(await this.projectsService.isTaskTypeValidForProject(projectId, type, trx))) {
+        throw new BadRequestException(`Task type '${type}' is not valid for this project.`);
       }
 
       const [updatedProject] = await trx('projects')
@@ -58,29 +48,23 @@ export class TasksService {
 
       const tasksInColumn = await trx('tasks').where({ column_id: columnId }).count({ count: '*' }).first();
       const position = parseInt(tasksInColumn.count as string, 10);
-      const taskId = crypto.randomUUID();
 
-      const newTaskDataForDb = {
+      const [newTask] = await trx('tasks').insert({
+        id: crypto.randomUUID(),
         title,
-        description: description || null,
+        description,
         column_id: columnId,
-        project_id: projectId,
-        assignee_id: assigneeId || null,
+        project_id: projectId, // projectId теперь берется из параметра
+        assignee_id: assigneeId,
         due_date: dueDate ? new Date(dueDate) : null,
-        type: type || null,
-        priority: priority || null,
-        tags: tags || null,
-        id: taskId,
+        type,
+        priority,
+        tags,
         human_readable_id: humanReadableId,
         task_number: taskNumber,
-        position: position,
+        position,
         creator_id: user.id,
-        created_at: new Date(),
-        updated_at: new Date(),
-      };
-
-      const [insertedTask] = await trx('tasks').insert(newTaskDataForDb).returning('*');
-      const newTask = toTaskRecord(insertedTask);
+      }).returning('*');
 
       this.eventsGateway.emitTaskCreated(newTask);
       return newTask;
@@ -88,138 +72,104 @@ export class TasksService {
   }
 
   async findTaskById(taskId: string, user: UserRecord): Promise<TaskRecord> {
-    const taskFromDb = await this.knex('tasks').where({ id: taskId }).first();
-    if (!taskFromDb) {
-      throw new NotFoundException(`Task with ID ${taskId} not found.`);
-    }
-
-    await this.projectsService.ensureUserHasAccessToProject(taskFromDb.project_id, user.id);
-
-    return toTaskRecord(taskFromDb);
-  }
-
-  async findTaskByHumanId(humanReadableId: string, user: UserRecord): Promise<TaskRecord> {
-    const taskFromDb = await this.knex('tasks').where({ human_readable_id: humanReadableId }).first();
-    if (!taskFromDb) {
-      throw new NotFoundException(`Task with ID ${humanReadableId} not found.`);
-    }
-    await this.projectsService.ensureUserHasAccessToProject(taskFromDb.project_id, user.id);
-    return toTaskRecord(taskFromDb);
+    // Проверка прав доступа выполняется в Guard'e
+    const task = await this.knex('tasks').where({ id: taskId }).first();
+    if (!task) throw new NotFoundException(`Task with ID ${taskId} not found.`);
+    return task;
   }
 
   async updateTask(taskId: string, updateTaskDto: UpdateTaskDto, user: UserRecord): Promise<TaskRecord> {
-    const task = await this.findTaskById(taskId, user);
+    // Проверка прав доступа выполняется в Guard'e
+    return this.knex.transaction(async (trx) => {
+        const task = await trx('tasks').where({ id: taskId }).first();
+        if (!task) throw new NotFoundException(`Task with ID ${taskId} not found.`);
 
-    if (updateTaskDto.columnId && updateTaskDto.columnId !== task.column_id) {
-      throw new BadRequestException('To move a task, please use the dedicated move endpoint.');
-    }
+        if (updateTaskDto.type && !(await this.projectsService.isTaskTypeValidForProject(task.project_id, updateTaskDto.type, trx))) {
+            throw new BadRequestException(`Task type '${updateTaskDto.type}' is not valid for this project.`);
+        }
 
-    const updatePayloadForDb: Partial<Omit<TaskRecord, 'id' | 'created_at' | 'human_readable_id' | 'task_number' | 'project_id' | 'creator_id'>> = {};
+        const { title, description, assigneeId, dueDate, type, priority, tags } = updateTaskDto;
+        const updatePayload = {
+            ...(title !== undefined && { title }),
+            ...(description !== undefined && { description }),
+            ...(assigneeId !== undefined && { assignee_id: assigneeId }),
+            ...(dueDate !== undefined && { due_date: dueDate ? new Date(dueDate) : null }),
+            ...(type !== undefined && { type }),
+            ...(priority !== undefined && { priority }),
+            ...(tags !== undefined && { tags }),
+        };
 
-    if (updateTaskDto.title !== undefined) updatePayloadForDb.title = updateTaskDto.title;
-    if (updateTaskDto.description !== undefined) updatePayloadForDb.description = updateTaskDto.description;
-    if (updateTaskDto.assigneeId !== undefined) updatePayloadForDb.assignee_id = updateTaskDto.assigneeId;
-    if (updateTaskDto.position !== undefined) updatePayloadForDb.position = updateTaskDto.position;
-    if (updateTaskDto.dueDate !== undefined) updatePayloadForDb.due_date = updateTaskDto.dueDate ? new Date(updateTaskDto.dueDate) : null;
-    if (updateTaskDto.type !== undefined) updatePayloadForDb.type = updateTaskDto.type;
-    if (updateTaskDto.priority !== undefined) updatePayloadForDb.priority = updateTaskDto.priority;
-    if (updateTaskDto.tags !== undefined) updatePayloadForDb.tags = updateTaskDto.tags;
+        if (Object.keys(updatePayload).length === 0) return task;
 
-    if (Object.keys(updatePayloadForDb).length === 0) {
-      return task;
-    }
+        const [updatedTask] = await trx('tasks')
+            .where({ id: taskId })
+            .update({ ...updatePayload, updated_at: new Date() })
+            .returning('*');
 
-    updatePayloadForDb.updated_at = new Date();
-
-    const [updatedDbTask] = await this.knex('tasks')
-      .where({ id: taskId })
-      .update(updatePayloadForDb)
-      .returning('*');
-
-    const updatedTask = toTaskRecord(updatedDbTask);
-    this.eventsGateway.emitTaskUpdated(updatedTask);
-    return updatedTask;
+        this.eventsGateway.emitTaskUpdated(updatedTask);
+        return updatedTask;
+    });
   }
 
   async moveTask(taskId: string, moveTaskDto: MoveTaskDto, user: UserRecord): Promise<TaskRecord> {
+    // Проверка прав доступа выполняется в Guard'e
     const { newColumnId, newPosition } = moveTaskDto;
 
     return this.knex.transaction(async (trx) => {
-      const taskToMoveFromDb = await trx('tasks').where({ id: taskId }).forUpdate().first();
-      if (!taskToMoveFromDb) throw new NotFoundException(`Task with ID ${taskId} not found.`);
-      const taskToMove = toTaskRecord(taskToMoveFromDb);
-
-      await this.projectsService.ensureUserHasAccessToProject(taskToMove.project_id, user.id, trx);
-
+      const taskToMove = await trx('tasks').where({ id: taskId }).forUpdate().first();
+      if (!taskToMove) throw new NotFoundException(`Task with ID ${taskId} not found.`);
+      
       const targetColumn = await trx('columns').where({ id: newColumnId, project_id: taskToMove.project_id }).first();
-      if (!targetColumn) {
-        throw new NotFoundException(`Target column with ID ${newColumnId} not found or does not belong to the same project.`);
-      }
+      if (!targetColumn) throw new BadRequestException(`Target column with ID ${newColumnId} not found in this project.`);
 
       const oldColumnId = taskToMove.column_id;
       const oldPosition = taskToMove.position;
 
-      await trx('tasks')
-        .where({ column_id: oldColumnId })
-        .andWhere('position', '>', oldPosition)
-        .decrement('position');
+      await trx('tasks').where({ column_id: oldColumnId }).andWhere('position', '>', oldPosition).decrement('position');
+      await trx('tasks').where({ column_id: newColumnId }).andWhere('position', '>=', newPosition).increment('position');
 
-      await trx('tasks')
-        .where({ column_id: newColumnId })
-        .andWhere('position', '>=', newPosition)
-        .increment('position');
-
-      const [finalMovedDbTask] = await trx('tasks')
+      const [finalMovedTask] = await trx('tasks')
         .where({ id: taskId })
-        .update({
-          column_id: newColumnId,
-          position: newPosition,
-          updated_at: new Date(),
-        })
+        .update({ column_id: newColumnId, position: newPosition, updated_at: new Date() })
         .returning('*');
 
-      const finalMovedTask = toTaskRecord(finalMovedDbTask);
       this.eventsGateway.emitTaskMoved(finalMovedTask);
       return finalMovedTask;
     });
   }
 
   async addCommentToTask(taskId: string, createCommentDto: CreateCommentDto, author: UserRecord) {
-    const task = await this.findTaskById(taskId, author);
-    return this.commentsService.createComment(taskId, createCommentDto, author.id);
+    // Проверка прав доступа выполняется в Guard'e
+    const task = await this.knex('tasks').where({ id: taskId }).first();
+    if (!task) throw new NotFoundException(`Task with ID ${taskId} not found.`);
+    return this.commentsService.createComment(task.id, createCommentDto, author.id);
   }
 
   async getCommentsForTask(taskId: string, user: UserRecord) {
-    await this.findTaskById(taskId, user);
+    // Проверка прав доступа выполняется в Guard'e
+    const task = await this.knex('tasks').where({ id: taskId }).first();
+    if (!task) throw new NotFoundException(`Task with ID ${taskId} not found.`);
     return this.commentsService.getCommentsForTask(taskId);
+  }
+
+  async findTaskForPolicyCheck(taskId: string): Promise<TaskRecord | null> {
+    return this.knex('tasks').where({ id: taskId }).first();
   }
 
   async updateTaskPrefixesForProject(
     projectId: number,
     oldPrefix: string,
     newPrefix: string,
-    trx?: Knex.Transaction,
+    trx: Knex.Transaction,
   ): Promise<number> {
-    const db = trx || this.knex;
-
     const oldPrefixPattern = `${oldPrefix}-`;
     const newPrefixPattern = `${newPrefix}-`;
-
-    const result = await db.raw(
-      `UPDATE tasks
-       SET
-         human_readable_id = REPLACE(human_readable_id, ?, ?),
-         updated_at = ?
-       WHERE project_id = ? AND human_readable_id LIKE ?`,
-      [oldPrefixPattern, newPrefixPattern, new Date(), projectId, `${oldPrefixPattern}%`]
+    const result = await trx.raw(`
+        UPDATE tasks
+        SET human_readable_id = REPLACE(human_readable_id, ?, ?), updated_at = ?
+        WHERE project_id = ? AND human_readable_id LIKE ?`,
+        [oldPrefixPattern, newPrefixPattern, new Date(), projectId, `${oldPrefixPattern}%`]
     );
-
-    const updatedCount = result.rowCount || 0;
-
-    if (updatedCount > 0) {
-        this.logger.log(`Updated prefix for ${updatedCount} tasks in project ${projectId} from ${oldPrefix} to ${newPrefixPattern.slice(0, -1)}.`);
-    }
-
-    return updatedCount;
+    return result.rowCount || 0;
   }
 }

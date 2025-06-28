@@ -2,89 +2,77 @@
 
 ## 1. Внутренние зависимости (Коммуникация между модулями)
 
-Система строится как модульный монолит. Модули находятся в рамках одного приложения и могут взаимодействовать друг с другом напрямую через вызовы методов/функций.
+Система строится как модульный монолит. Модули взаимодействуют через DI-контейнер Nest.js.
 
 ```mermaid
 graph TD
     subgraph "Mutabor Backend (Модульный Монолит)"
-        TaskService -- "1 Проверить права доступа к задаче" --> ProjectService
-        TaskService -- "2 Получить данные исполнителя/автора" --> UserService
-        TaskService -- "3 Отправить запрос на декомпозицию" --> AIService
-        TaskService -- "4 Создать уведомление об @упоминании" --> NotificationService
-        TaskService -- "Manages comments" --> CommentsService
-        TaskService -- "Emits real-time events" --> RealtimeGateway # (Note: EventsGateway is the concrete class, RealtimeGateway for concept)
+        AuthService
+        ProfileController
+        ProjectsController
+        TasksController
+        NotificationsController
+        
+        ProjectsService
+        TasksService
+        CommentsService
+        NotificationsService
+        
+        PoliciesGuard
+        EventsGateway
 
-        ProjectService -- "Получить данные о владельце/участниках" --> UserService
+        subgraph "CASL (Authorization)"
+            PoliciesGuard -- "Проверяет права" --> ProjectsService
+            PoliciesGuard -- "Проверяет права" --> TasksService
+        end
 
-        NotificationService -- "Получить ID пользователя для уведомления" --> UserService
+        ProjectsController -- "Использует" --> ProjectsService
+        TasksController -- "Использует" --> TasksService
+        ProfileController -- "Использует" --> AuthService
+        NotificationsController -- "Использует" --> NotificationsService
+
+        TasksService -- "Проверяет валидность типа" --> ProjectsService
+        TasksService -- "Управляет комментариями" --> CommentsService
+        
+        CommentsService -- "Создает уведомления" --> NotificationsService
+        CommentsService -- "Отправляет события" --> EventsGateway
+
+        NotificationsService -- "Отправляет события" --> EventsGateway
+        
+        ProjectsController -- "Защищен" --> PoliciesGuard
+        TasksController -- "Защищен" --> PoliciesGuard
     end
 
     subgraph "Внешний мир"
       AI_Provider[External AI API]
+      subgraph "Frontend"
+        Browser
+      end
     end
 
-    AIService -- "API-вызов (HTTP/SDK)" --> AI_Provider
+    Browser -- "HTTP" --> ProjectsController
+    Browser -- "HTTP" --> TasksController
+    Browser -- "HTTP" --> ProfileController
+    Browser -- "HTTP" --> NotificationsController
+    Browser -- "WebSocket" --> EventsGateway
 
+    %% AIService -- "API-вызов" --> AI_Provider
 ```
 
-- **TaskService (Модуль Задач):** Ядро бизнес-логики.
-    - Зависит от **ProjectService** для проверки прав доступа пользователя к доске/задаче.
-    - Зависит от **UserService** для получения информации о пользователях (кто исполнитель, кто автор комментария).
-    - Зависит от **AIService** для делегирования всех AI-операций.
-    - Зависит от **NotificationService** для создания записей об уведомлениях, когда пользователя упоминают.
-    - Зависит от **CommentsService** для управления комментариями к задачам.
-    - Зависит от **RealtimeGateway** (EventsGateway) для рассылки событий об изменениях задач.
+- **`PoliciesGuard` (Гард Авторизации):** Центральный элемент проверки прав. Зависит от `ProjectsService` и `TasksService` для получения контекста (проекта, задачи) и определения роли пользователя.
+- **`ProjectsService` / `TasksService`:** Ядра бизнес-логики. Теперь они не содержат логику проверки прав, а просто предоставляют данные для `PoliciesGuard`.
+- **`CommentsService`:** Делегирует создание уведомлений об упоминаниях в `NotificationsService`.
+- **`NotificationsService`:** Новый, изолированный сервис. Отвечает за создание записей об уведомлениях в БД и отправку real-time событий через `EventsGateway`.
 
-- **ProjectService (Модуль Проектов):**
-    - Зависит от **UserService** для управления списком участников проекта.
+## 2. Новые компоненты (что создано)
 
-- **NotificationService (Модуль Уведомлений):**
-    - Зависит от **UserService** для валидации ID пользователя, которому адресовано уведомление.
-    - **Не зависит** от внешних сервисов. Его задача — только создать запись в базе данных.
+### Backend:
+- `ProfileController`: Эндпоинты для управления профилем (`/profile/me`, `/profile/change-password`).
+- `NotificationsService` & `NotificationsController`: CRUD и бизнес-логика для уведомлений.
+- `PoliciesGuard`: Глобальный гвард для проверки ролевой модели доступа.
+- `@CheckPolicies` & `PolicyHandler`: Декораторы и обработчики для декларативного описания правил доступа.
 
-- **AIService (Модуль-адаптер для AI):**
-    - **Изолирован** от бизнес-логики. Предоставляет простой интерфейс (например, `decomposeTask(text)`) для других модулей.
-    - Является **единственным** модулем, который знает о существовании внешнего AI API.
-
-## 2. Внешние API
-
-- **External AI Provider (Google Gemini / OpenAI API / etc.):**
-    - **Назначение:** Предоставление возможностей LLM для декомпозиции задач, саммари и других интеллектуальных функций.
-    - **Кто использует:** Только `AIService`.
-    - **Статус:** Единственная внешняя зависимость для MVP, критически важная для УТП.
-
-## 3. Существующие и новые модели данных
-
-- **Существующие модели:**
-    - `User`: Хранит `id`, `name`, `email`, `password_hash`.
-    - `Project`: Хранит `id`, `name`, `owner_id`.
-    - `ProjectMember`: Таблица-связка `project_id` и `user_id`.
-    - `Column`: Хранит `id`, `name`, `project_id`, `order`.
-    - `Task`: Хранит `id`, `title`, `description`, `column_id`, `assignee_id`.
-    - `Comment`: Хранит `id`, `text`, `author_id`, `task_id`.
-
-- **Новые модели:**
-    - `Notification`: Таблица для хранения уведомлений. Должна содержать:
-        - `id`: Уникальный идентификатор.
-        - `recipient_id`: FK на `User(id)`, кому адресовано.
-        - `text`: Содержание уведомления (например, "Вас упомянули в задаче X").
-        - `source_url`: Ссылка для перехода (например, `/projects/1/tasks/123`).
-        - `is_read`: boolean-флаг (прочитано/не прочитано).
-        - `created_at`: timestamp.
-
-## 4. Новые компоненты (что нужно создать)
-
-### Backend (Модульный Монолит):
-- `UserService`: Логика регистрации, аутентификации (email/пароль), управление профилями.
-- `ProjectService`: CRUD для досок, колонок, управление доступом и участниками.
-- `TaskService`: CRUD для задач и комментариев. Обработка @упоминаний.
-- `NotificationService`: CRUD для уведомлений. Логика пометки уведомлений как прочитанных.
-- `AIService` (Адаптер): Логика формирования промптов, вызов внешнего AI API, обработка ответов и ошибок.
-- `RealtimeGateway` (WebSocket): Модуль для управления WebSocket-соединениями и рассылки событий (`task_created`, `notification_new`, и т.д.) на клиент.
-
-### Frontend:
-- `AuthPage`: Компонент с формами регистрации и входа по email/паролю.
-- `BoardView`: Основной компонент-доска, обрабатывающий drag-n-drop и real-time обновления.
-- `TaskModal`: Модальное окно с полной информацией о задаче, включая комментарии.
-- `AIHelperButton`: UI-кнопка (например, с иконкой "✨") внутри `TaskModal`, которая инициирует вызовы AI-функций.
-- `NotificationBell`: Компонент в шапке приложения (хедере) с иконкой-колокольчиком, счетчиком непрочитанных уведомлений и выпадающим списком при клике.
+### Frontend (что потребуется создать):
+- `ProfilePage`: Страница для редактирования имени и смены пароля.
+- `NotificationBell`: Компонент с иконкой-колокольчиком, который слушает WebSocket-событие `notification:new`.
+- **Обработка ошибок 403 Forbidden:** UI должен корректно реагировать, если пользователь пытается выполнить действие, на которое у него нет прав (например, скрывать кнопки "Настройки" для `editor`).

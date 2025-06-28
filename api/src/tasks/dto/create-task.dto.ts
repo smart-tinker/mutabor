@@ -1,44 +1,44 @@
-import { IsString, IsNotEmpty, IsOptional, IsUUID, MaxLength, IsInt, IsArray, IsDateString } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsUUID, IsDateString, IsArray } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateTaskDto {
+  @ApiProperty({ description: 'The title of the task.', example: 'Implement login feature' })
   @IsString()
   @IsNotEmpty()
-  @MaxLength(255)
   title: string;
 
-  @IsString()
+  @ApiProperty({ description: 'A detailed description of the task.', required: false })
   @IsOptional()
-  @MaxLength(10000)
+  @IsString()
   description?: string;
 
+  @ApiProperty({ description: 'The ID of the column (status) this task belongs to.', example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' })
   @IsUUID()
-  @IsNotEmpty()
   columnId: string;
 
-  @IsInt()
-  @IsNotEmpty()
-  projectId: number; // To generate humanReadableId (e.g., PROJ-1) and for association
+  // projectId удален, так как он теперь будет в URL
 
+  @ApiProperty({ description: 'The ID of the user this task is assigned to.', required: false })
+  @IsOptional()
   @IsUUID()
-  @IsOptional() // Assignee can be optional
   assigneeId?: string;
 
-  // position will be handled by the service, typically added at the end of the column
-
+  @ApiProperty({ description: 'The due date for the task in ISO 8601 format.', required: false, example: '2024-12-31T23:59:59.000Z' })
   @IsOptional()
-  @IsDateString() // Changed from IsString
-  dueDate?: string; // ISO date string
+  @IsDateString()
+  dueDate?: string;
 
+  @ApiProperty({ description: 'The type of the task (e.g., "Bug", "Feature").', required: false, example: 'Feature' })
   @IsOptional()
   @IsString()
-  @MaxLength(255)
   type?: string;
 
+  @ApiProperty({ description: 'The priority of the task (e.g., "High", "Low").', required: false, example: 'High' })
   @IsOptional()
   @IsString()
-  @MaxLength(255)
   priority?: string;
 
+  @ApiProperty({ description: 'An array of tags for the task.', required: false, example: ['frontend', 'auth'] })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })

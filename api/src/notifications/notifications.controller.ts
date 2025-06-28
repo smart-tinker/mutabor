@@ -1,29 +1,30 @@
-import { Controller, Get, Patch, Param, Req, UseGuards, Post, ParseUUIDPipe, HttpCode, HttpStatus } from '@nestjs/common'; // Added HttpCode, HttpStatus
-import { NotificationsService } from './notifications.service';
+import { Controller, Get, Param, Patch, UseGuards, HttpCode, HttpStatus, ParseUUIDPipe } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { GetUser } from '../auth/decorators/get-user.decorator';
+import { NotificationsService } from './notifications.service';
+import { UserRecord } from 'src/types/db-records';
 
+@ApiBearerAuth()
+@ApiTags('Notifications')
 @UseGuards(JwtAuthGuard)
 @Controller('notifications')
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
   @Get()
-  async getUserNotifications(@Req() req) {
-    const user = req.user as any; // Replaced User with any
-    return this.notificationsService.getUserNotifications(user.id);
+  @ApiOperation({ summary: "Get the current user's notifications" })
+  async getMyNotifications(@GetUser('id') userId: string) {
+    return this.notificationsService.getNotificationsForUser(userId);
   }
 
   @Patch(':id/read')
-  @HttpCode(HttpStatus.OK) // Added HttpCode
-  async markNotificationAsRead(@Param('id', ParseUUIDPipe) id: string, @Req() req) {
-    const user = req.user as any; // Replaced User with any
-    return this.notificationsService.markNotificationAsRead(id, user.id);
-  }
-
-  @Post('mark-all-read') // Changed to POST as it's an action changing multiple states
-  @HttpCode(HttpStatus.OK) // Added HttpCode
-  async markAllNotificationsAsRead(@Req() req) {
-    const user = req.user as any; // Replaced User with any
-    return this.notificationsService.markAllNotificationsAsRead(user.id);
+  @ApiOperation({ summary: 'Mark a notification as read' })
+  @HttpCode(HttpStatus.OK)
+  async markAsRead(
+    @Param('id', ParseUUIDPipe) id: string,
+    @GetUser('id') userId: string,
+  ) {
+    return this.notificationsService.markAsRead(id, userId);
   }
 }

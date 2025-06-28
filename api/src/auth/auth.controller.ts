@@ -1,12 +1,8 @@
-import { Controller, Post, Body, HttpCode, UseGuards, Get, HttpStatus } from '@nestjs/common'; // Added HttpStatus
+import { Controller, Post, Body, HttpCode, UseGuards, Get, HttpStatus } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { GetUser } from './decorators/get-user.decorator';
-// Define a simple type for UserPayload for clarity, or import from a shared types file if available
-type UserPayload = { id: string; email: string; name: string; };
-
 
 @Controller('auth')
 export class AuthController {
@@ -19,29 +15,19 @@ export class AuthController {
   }
 
   @Post('register')
-  @HttpCode(HttpStatus.CREATED) // Added HttpCode
+  @HttpCode(HttpStatus.CREATED)
   async register(@Body() registerUserDto: RegisterUserDto) {
     return this.authService.register(registerUserDto);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Get('profile')
-  getProfile(@GetUser() user: UserPayload) {
-    return user;
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Get('profile/email')
-  getProfileEmail(@GetUser('email') email: string) {
-    return { email };
-  }
+  // ### ИЗМЕНЕНИЕ: Эндпоинты, связанные с профилем, удалены отсюда ###
+  // Они переехали в ProfileController для лучшей организации кода.
 
   @UseGuards(JwtAuthGuard)
   @Post('logout')
   @HttpCode(200)
   async logout() {
     // For stateless JWT, server-side logout primarily relies on client clearing the token.
-    // This endpoint is here for completeness and could be expanded if token blacklisting is implemented.
     return { message: 'Logged out successfully' };
   }
 }

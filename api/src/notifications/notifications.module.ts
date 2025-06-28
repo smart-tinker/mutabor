@@ -1,12 +1,18 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { NotificationsController } from './notifications.controller';
-import { EventsModule } from '../events/events.module'; // Import EventsModule
+import { EventsModule } from '../events/events.module';
+import { KnexModule } from '../knex/knex.module';
+import { ProjectsModule } from '../projects/projects.module';
 
 @Module({
-  imports: [EventsModule],
-  providers: [NotificationsService],
+  imports: [
+    KnexModule, 
+    EventsModule,
+    forwardRef(() => ProjectsModule) // Для получения данных о проекте
+  ],
   controllers: [NotificationsController],
-  exports: [NotificationsService], // Export for CommentsService
+  providers: [NotificationsService],
+  exports: [NotificationsService], // Экспортируем сервис для использования в других модулях
 })
 export class NotificationsModule {}

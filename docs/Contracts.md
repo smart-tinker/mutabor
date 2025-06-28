@@ -5,7 +5,8 @@
 ## 1. API Contract (OpenAPI / Swagger)
 
 -   **Назначение:** Формальный договор между Frontend и Backend.
--   **Расположение:** Генерируется автоматически и доступен по адресу `/api-docs` после запуска бэкенда.
+-   **Расположение:** Генерируется автоматически и доступен по адресу `/api/v1/api-docs` после запуска бэкенда.
+-   **Версионирование:** API использует версионирование через URL. Текущая версия: `v1`. Все эндпоинты доступны по префиксу `/api/v1`.
 
 ---
 
@@ -24,26 +25,46 @@ export class CreateProjectDto {
 // DTO для добавления участника в проект
 export class AddMemberDto {
   email: string;
-  role: string; // e.g., 'editor', 'viewer'
+  role: 'editor' | 'viewer'; // Владелец назначается при создании проекта
 }
 
 // DTO для обновления настроек проекта
 export class UpdateProjectSettingsDto {
-  name?: string; // Optional new name of the project
-  prefix?: string; // Optional new unique prefix for tasks (uppercase, alphanumeric, 2-10 chars)
-  statuses?: string[]; // Optional new list of task statuses
-  types?: string[]; // Optional new list of task types
+  name?: string;
+  prefix?: string;
+  // Полный список типов задач. Бэкенд синхронизирует таблицу `project_task_types` с этим списком.
+  types?: string[];
+}
+
+// DTO для создания колонки
+export class CreateColumnDto {
+  name: string;
+}
+
+// DTO для обновления одной колонки
+export class UpdateColumnDto {
+  name: string;
+}
+
+// DTO с полной информацией о проекте, возвращаемый клиенту
+export class ProjectDetailsDto {
+  id: number;
+  name: string;
+  prefix: string;
+  owner: { id: string; name: string; email: string; };
+  members: { id: string; name: string; email: string; role: string; }[];
+  columns: { id: string; name: string; position: number; tasks: TaskDto[] }[];
+  availableTaskTypes: string[];
 }
 ```
 
 ### Task & Comment DTOs
 ```typescript
-// DTO для создания задачи
+// DTO для создания задачи (projectId передается в URL)
 export class CreateTaskDto {
   title: string;
   description?: string;
   columnId: string;
-  projectId: number;
   assigneeId?: string;
   dueDate?: string; // ISO Date String
   type?: string;
@@ -74,7 +95,7 @@ export class CreateCommentDto {
 }
 ```
 
-### User DTOs
+### User & Profile DTOs
 ```typescript
 // DTO для регистрации
 export class RegisterUserDto {
@@ -88,6 +109,17 @@ export class LoginUserDto {
   email: string;
   password: string;
 }
+
+// DTO для обновления профиля
+export class UpdateProfileDto {
+    name?: string;
+}
+
+// DTO для смены пароля
+export class ChangePasswordDto {
+    oldPassword: string;
+    newPassword: string; // min 8 characters
+}
 ```
 
 ### Notification DTO
@@ -95,6 +127,7 @@ export class LoginUserDto {
 // DTO для уведомления, возвращаемый клиенту
 export class NotificationDto {
   id: string;
+  recipient_id: string;
   text: string;
   isRead: boolean;
   sourceUrl?: string | null;

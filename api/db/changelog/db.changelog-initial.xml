@@ -5,8 +5,10 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
                         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <!-- ... все предыдущие changeSet остаются без изменений ... -->
-    <changeSet id="1" author="mutabor-ai-agent">
+    <changeSet id="initial-schema-1" author="mutabor-ai-agent-consolidated">
+        <comment>Initial consolidated schema for Mutabor project</comment>
+
+        <!-- Create users table -->
         <createTable tableName="users">
             <column name="id" type="UUID"><constraints primaryKey="true" nullable="false"/></column>
             <column name="email" type="TEXT"><constraints unique="true" nullable="false"/></column>
@@ -15,6 +17,8 @@
             <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP"><constraints nullable="false"/></column>
             <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP"><constraints nullable="false"/></column>
         </createTable>
+
+        <!-- Create projects table -->
         <createTable tableName="projects">
             <column name="id" type="SERIAL"><constraints primaryKey="true" nullable="false"/></column>
             <column name="name" type="TEXT"><constraints nullable="false"/></column>
@@ -24,6 +28,31 @@
             <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP"><constraints nullable="false"/></column>
             <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP"><constraints nullable="false"/></column>
         </createTable>
+
+        <!-- Create project_members table -->
+        <createTable tableName="project_members">
+            <column name="project_id" type="INT"><constraints nullable="false" foreignKeyName="fk_projectmembers_project" references="projects(id)" deleteCascade="true"/></column>
+            <column name="user_id" type="UUID"><constraints nullable="false" foreignKeyName="fk_projectmembers_user" references="users(id)" deleteCascade="true"/></column>
+            <column name="role" type="TEXT"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addPrimaryKey tableName="project_members" columnNames="project_id, user_id" constraintName="pk_project_members"/>
+        <createIndex indexName="idx_project_members_user_id" tableName="project_members">
+            <column name="user_id"/>
+        </createIndex>
+
+        <!-- Create project_task_types table -->
+        <createTable tableName="project_task_types">
+            <column name="id" type="SERIAL"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="name" type="TEXT"><constraints nullable="false"/></column>
+            <column name="project_id" type="INT"><constraints nullable="false" foreignKeyName="fk_tasktypes_project" references="projects(id)" deleteCascade="true"/></column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint columnNames="name,project_id" constraintName="uq_project_task_types_name_project_id" tableName="project_task_types"/>
+        
+        <!-- Create columns table -->
         <createTable tableName="columns">
             <column name="id" type="UUID"><constraints primaryKey="true" nullable="false"/></column>
             <column name="name" type="TEXT"><constraints nullable="false"/></column>
@@ -33,6 +62,8 @@
             <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP"><constraints nullable="false"/></column>
         </createTable>
         <addUniqueConstraint columnNames="name,project_id" constraintName="uq_columns_name_project_id" tableName="columns"/>
+        
+        <!-- Create tasks table -->
         <createTable tableName="tasks">
             <column name="id" type="UUID"><constraints primaryKey="true" nullable="false"/></column>
             <column name="human_readable_id" type="TEXT"><constraints unique="true" nullable="false"/></column>
@@ -40,29 +71,34 @@
             <column name="title" type="TEXT"><constraints nullable="false"/></column>
             <column name="description" type="TEXT"><constraints nullable="true"/></column>
             <column name="position" type="INT"><constraints nullable="false"/></column>
+            <column name="type" type="VARCHAR(255)"><constraints nullable="true"/></column>
+            <column name="priority" type="VARCHAR(255)"><constraints nullable="true"/></column>
+            <column name="tags" type="TEXT[]"><constraints nullable="true"/></column>
             <column name="project_id" type="INT"><constraints nullable="false" foreignKeyName="fk_tasks_project" references="projects(id)" deleteCascade="true"/></column>
+
             <column name="column_id" type="UUID"><constraints nullable="false" foreignKeyName="fk_tasks_column" references="columns(id)" deleteCascade="true"/></column>
-            <column name="assignee_id" type="UUID"><constraints nullable="true"/></column>
+            <column name="assignee_id" type="UUID"><constraints nullable="true" foreignKeyName="fk_tasks_assignee" references="users(id)" onDelete="SET NULL"/></column>
             <column name="creator_id" type="UUID"><constraints nullable="false" foreignKeyName="fk_tasks_creator" references="users(id)" deleteCascade="false"/></column>
+            
             <column name="due_date" type="TIMESTAMP WITH TIME ZONE"><constraints nullable="true"/></column>
             <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP"><constraints nullable="false"/></column>
             <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP"><constraints nullable="false"/></column>
         </createTable>
         <addUniqueConstraint columnNames="project_id,task_number" constraintName="uq_tasks_project_id_task_number" tableName="tasks"/>
-    </changeSet>
-    <changeSet id="1.1" author="mutabor-ai-agent-fix">
-        <addForeignKeyConstraint baseColumnNames="assignee_id" baseTableName="tasks" constraintName="fk_tasks_assignee" referencedColumnNames="id" referencedTableName="users" onDelete="SET NULL"/>
-    </changeSet>
-
-    <changeSet id="2" author="mutabor-ai-agent">
+        <createIndex indexName="idx_tasks_column_id" tableName="tasks"><column name="column_id"/></createIndex>
+        <createIndex indexName="idx_tasks_assignee_id" tableName="tasks"><column name="assignee_id"/></createIndex>
+        
+        <!-- Create comments table -->
         <createTable tableName="comments">
             <column name="id" type="UUID"><constraints primaryKey="true" nullable="false"/></column>
             <column name="text" type="TEXT"><constraints nullable="false"/></column>
             <column name="task_id" type="UUID"><constraints nullable="false" foreignKeyName="fk_comments_task" references="tasks(id)" deleteCascade="true"/></column>
-            <column name="author_id" type="UUID"><constraints nullable="true"/></column> 
+            <column name="author_id" type="UUID"><constraints nullable="true" foreignKeyName="fk_comments_author" references="users(id)" onDelete="SET NULL"/></column>
             <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP"><constraints nullable="false"/></column>
             <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP"><constraints nullable="false"/></column>
         </createTable>
+
+        <!-- Create notifications table -->
         <createTable tableName="notifications">
             <column name="id" type="UUID"><constraints primaryKey="true" nullable="false"/></column>
             <column name="recipient_id" type="UUID"><constraints nullable="false" foreignKeyName="fk_notifications_recipient" references="users(id)" deleteCascade="true"/></column>
@@ -73,25 +109,22 @@
             <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP"><constraints nullable="false"/></column>
             <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP"><constraints nullable="false"/></column>
         </createTable>
+        <createIndex indexName="idx_notifications_recipient_id" tableName="notifications">
+            <column name="recipient_id"/>
+        </createIndex>
         
-        <!-- ИСПРАВЛЕНО ЗДЕСЬ -->
-        <createTable tableName="project_members">
-            <column name="project_id" type="INT"><constraints nullable="false" foreignKeyName="fk_projectmembers_project" references="projects(id)" deleteCascade="true"/></column>
-            <column name="user_id" type="UUID"><constraints nullable="false" foreignKeyName="fk_projectmembers_user" references="users(id)" deleteCascade="true"/></column>
-            <column name="role" type="TEXT"><constraints nullable="false"/></column>
+        <!-- Create ai_provider_settings table -->
+        <createTable tableName="ai_provider_settings">
+            <column name="id" type="SERIAL"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="project_id" type="INT"><constraints nullable="false" foreignKeyName="fk_aiproviders_project" references="projects(id)" deleteCascade="true" unique="true" uniqueConstraintName="uq_aiproviders_project_id"/></column>
+            <column name="provider_name" type="TEXT"><constraints nullable="false"/></column>
+            <column name="base_url" type="TEXT"><constraints nullable="false"/></column>
+            <column name="model_name" type="TEXT"><constraints nullable="true"/></column>
+            <column name="encrypted_api_key" type="TEXT"><constraints nullable="true"/></column>
+            <column name="encryption_key_version" type="INT" defaultValueNumeric="1"><constraints nullable="false"/></column>
             <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP"><constraints nullable="false"/></column>
             <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP"><constraints nullable="false"/></column>
-            <!-- Невалидная строка <constraints> отсюда УДАЛЕНА -->
         </createTable>
-        <!-- Вместо нее добавлена правильная команда <addPrimaryKey> -->
-        <addPrimaryKey
-            tableName="project_members"
-            columnNames="project_id, user_id"
-            constraintName="pk_project_members"/>
-    </changeSet>
-
-    <changeSet id="3" author="mutabor-ai-agent-fix-comments">
-        <addForeignKeyConstraint baseColumnNames="author_id" baseTableName="comments" constraintName="fk_comments_author" referencedColumnNames="id" referencedTableName="users" onDelete="SET NULL"/>
     </changeSet>
 
 </databaseChangeLog>

@@ -4,12 +4,14 @@ import { TasksController } from './tasks.controller';
 import { EventsModule } from '../events/events.module';
 import { CommentsModule } from '../comments/comments.module';
 import { ProjectsModule } from '../projects/projects.module';
+import { CaslModule } from '../casl/casl.module'; // Импорт CaslModule
 
 @Module({
   imports: [
     EventsModule,
     CommentsModule,
-    forwardRef(() => ProjectsModule), // Use forwardRef to resolve circular dependency
+    forwardRef(() => ProjectsModule),
+    forwardRef(() => CaslModule), // Добавляем CaslModule
   ],
   controllers: [TasksController],
   providers: [TasksService],
