@@ -1,8 +1,11 @@
 import { Controller, Get } from '@nestjs/common';
+import { ApiExcludeController } from '@nestjs/swagger';
 
+// ### ИЗМЕНЕНО: Скрываем этот контроллер из Swagger-документации
+@ApiExcludeController()
 @Controller()
 export class AppController {
-  constructor() {} // No AppService needed for a simple health check
+  constructor() {} 
 
   @Get('/health')
   getHealth(): { status: string; message: string } {

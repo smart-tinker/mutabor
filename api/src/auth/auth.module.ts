@@ -1,3 +1,4 @@
+// api/src/auth/auth.module.ts
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
@@ -9,10 +10,9 @@ import { ProfileController } from './profile.controller';
 
 @Module({
   imports: [
+    ConfigModule, // ### ДОБАВЛЕНО: Убедимся, что ConfigService доступен здесь
     PassportModule.register({ session: false }),
-    // Мы убираем registerAsync, так как стратегия теперь сама будет выбирать ключ
     JwtModule.register({}), 
-    ConfigModule,
   ],
   providers: [AuthService, JwtStrategy],
   controllers: [AuthController, ProfileController], 

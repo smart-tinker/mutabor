@@ -16,7 +16,9 @@ export class CreateTaskDto {
   @IsUUID()
   columnId: string;
 
-  // projectId удален, так как он теперь будет в URL
+  // projectId удален из DTO, так как он теперь передается через URL параметр
+  // @IsInt()
+  // projectId: number;
 
   @ApiProperty({ description: 'The ID of the user this task is assigned to.', required: false })
   @IsOptional()

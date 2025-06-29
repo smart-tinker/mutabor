@@ -1,4 +1,6 @@
+// api/src/projects/dto/project-details.dto.ts
 import { ApiProperty } from '@nestjs/swagger';
+import { TaskDto } from 'src/tasks/dto/task.dto';
 
 // Вспомогательные DTO для вложенных структур
 class ProjectOwnerDto {
@@ -26,18 +28,6 @@ class ProjectMemberDto {
   role: string;
 }
 
-// DTO для задач будет более полным, но для примера здесь только базовые поля.
-// Предполагается, что существует более полный TaskDto.
-class TaskSummaryDto {
-    id: string;
-    human_readable_id: string;
-    title: string;
-    position: number;
-    assignee_id: string | null;
-    type: string | null;
-    priority: string | null;
-}
-
 class ColumnWithTasksDto {
   @ApiProperty()
   id: string;
@@ -48,8 +38,8 @@ class ColumnWithTasksDto {
   @ApiProperty()
   position: number;
 
-  @ApiProperty({ type: [TaskSummaryDto] })
-  tasks: TaskSummaryDto[];
+  @ApiProperty({ type: () => [TaskDto] }) // Используем TaskDto из модуля tasks
+  tasks: TaskDto[];
 }
 
 // Основной DTO, который возвращается клиенту

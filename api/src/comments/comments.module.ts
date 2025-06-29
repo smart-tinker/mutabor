@@ -1,17 +1,11 @@
 // api/src/comments/comments.module.ts
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { CommentsService } from './comments.service';
-import { NotificationsModule } from '../notifications/notifications.module';
-import { EventsModule } from '../events/events.module';
 import { KnexModule } from '../knex/knex.module';
+import { EventsModule } from '../events/events.module';
 
 @Module({
-  imports: [
-    KnexModule,
-    // Эта связь является частью цикла, поэтому forwardRef здесь обязателен.
-    forwardRef(() => NotificationsModule), 
-    EventsModule
-  ],
+  imports: [KnexModule, EventsModule], // Убраны все лишние импорты
   providers: [CommentsService],
   exports: [CommentsService],
 })

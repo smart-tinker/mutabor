@@ -6,16 +6,16 @@ import { EventsModule } from '../events/events.module';
 import { CommentsModule } from '../comments/comments.module';
 import { ProjectsModule } from '../projects/projects.module';
 import { CaslModule } from '../casl/casl.module';
-import { KnexModule } from '../knex/knex.module'; // ### ДОБАВЛЕНО: Необходимый импорт
+import { KnexModule } from '../knex/knex.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
-    KnexModule, // TasksService использует Knex, этот импорт обязателен
+    KnexModule,
     EventsModule,
-    // Эта связь является частью цикла, поэтому forwardRef здесь обязателен.
-    forwardRef(() => CommentsModule),
-    // И эта связь является частью цикла (в обратную сторону).
-    forwardRef(() => ProjectsModule),
+    CommentsModule,
+    NotificationsModule,
+    forwardRef(() => ProjectsModule), // Цикл только с ProjectsModule, его и разрываем
     CaslModule,
   ],
   controllers: [TasksController],

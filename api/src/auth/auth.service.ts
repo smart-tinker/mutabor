@@ -1,3 +1,4 @@
+// api/src/auth/auth.service.ts
 import { Injectable, ConflictException, UnauthorizedException, Inject, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { RegisterUserDto } from './dto/register-user.dto';
@@ -8,13 +9,23 @@ import { KNEX_CONNECTION } from '../knex/knex.constants';
 import * as crypto from 'crypto';
 import { UserRecord } from '../types/db-records';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ConfigService } from '@nestjs/config'; // ### ДОБАВЛЕНО
 
 @Injectable()
 export class AuthService {
+  private readonly jwtSecret: string; // ### ДОБАВЛЕНО
+
   constructor(
     @Inject(KNEX_CONNECTION) private readonly knex: Knex,
-    private jwtService: JwtService,
-  ) {}
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService, // ### ДОБАВЛЕНО
+  ) {
+    // ### ИЗМЕНЕНИЕ: Получаем актуальный секретный ключ для подписи токенов
+    this.jwtSecret = this.configService.get<string>('JWT_SECRET_V1');
+    if (!this.jwtSecret) {
+      throw new Error('JWT_SECRET_V1 is not defined in environment variables');
+    }
+  }
 
   async validateUser(email: string, pass: string): Promise<UserRecord | null> {
     const user: UserRecord & { password_hash?: string } = await this.knex('users')
@@ -40,7 +51,8 @@ export class AuthService {
     }
     const payload = { email: user.email, sub: user.id, name: user.name };
     return {
-      access_token: this.jwtService.sign(payload),
+      // ### ИЗМЕНЕНИЕ: Используем конкретный секрет для подписи
+      access_token: this.jwtService.sign(payload, { secret: this.jwtSecret }),
     };
   }
 
@@ -67,11 +79,11 @@ export class AuthService {
 
     const payload = { email: insertedUser.email, sub: insertedUser.id, name: insertedUser.name };
     return {
-      access_token: this.jwtService.sign(payload),
+      // ### ИЗМЕНЕНИЕ: Используем конкретный секрет для подписи
+      access_token: this.jwtService.sign(payload, { secret: this.jwtSecret }),
     };
   }
 
-  // ### НОВЫЙ МЕТОД ###
   async updateProfile(userId: string, dto: UpdateProfileDto): Promise<Omit<UserRecord, 'password_hash'>> {
     const updatePayload: { name?: string; updated_at: Date } = {
         updated_at: new Date(),
@@ -80,8 +92,7 @@ export class AuthService {
     if (dto.name) {
         updatePayload.name = dto.name;
     }
-
-    // Если DTO пустое, просто вернем текущие данные без обновления
+    
     if (Object.keys(updatePayload).length === 1) {
         const currentUser = await this.knex('users').where({ id: userId }).select('id', 'email', 'name').first();
         if (!currentUser) throw new NotFoundException('User not found');
@@ -96,12 +107,10 @@ export class AuthService {
     return updatedUser;
   }
 
-  // ### НОВЫЙ МЕТОД ###
   async changePassword(userId: string, oldPass: string, newPass: string): Promise<void> {
     const user = await this.knex('users').where({ id: userId }).select('password_hash').first();
 
     if (!user) {
-      // Этого не должно произойти, если пользователь прошел через JwtAuthGuard, но проверка не помешает.
       throw new NotFoundException('User not found');
     }
 

@@ -6,10 +6,11 @@ import { UpdateProjectSettingsDto } from './dto/update-project-settings.dto';
 import { UpdateColumnDto } from './dto/update-column.dto';
 import { CreateColumnDto } from './dto/create-column.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { PoliciesGuard } from '../casl/policies.guard';
 import { CheckPolicies } from '../casl/check-policies.decorator';
 import { CanManageProjectSettingsPolicy, CanEditProjectContentPolicy } from '../casl/project-policies.handler';
+import { UserRecord } from 'src/types/db-records';
 
 @ApiBearerAuth()
 @ApiTags('Projects')
@@ -19,29 +20,30 @@ export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard) // Этот гвард не нужен, т.к. есть глобальный
   @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create a new project' })
   create(@Body() createProjectDto: CreateProjectDto, @Req() req) {
-    return this.projectsService.createProject(createProjectDto, req.user);
+    const user = req.user as UserRecord;
+    return this.projectsService.createProject(createProjectDto, user);
   }
 
   @Get()
-  @UseGuards(JwtAuthGuard) // Этот гвард не нужен, т.к. есть глобальный
+  @ApiOperation({ summary: 'Get all projects for the current user' })
   findAll(@Req() req) {
-    return this.projectsService.findAllProjectsForUser(req.user.id);
+    const user = req.user as UserRecord;
+    return this.projectsService.findAllProjectsForUser(user.id);
   }
 
-  // ### ИСПРАВЛЕНИЕ: Убрали 'new' из вызова декоратора ###
   @Get(':id')
-  @CheckPolicies(CanEditProjectContentPolicy)
+  @ApiOperation({ summary: 'Get full details of a project (board, tasks, members)' })
+  @CheckPolicies(CanEditProjectContentPolicy) // ### ИСПРАВЛЕНО: Убран 'new'
   findOne(@Param('id', ParseIntPipe) id: number) {
-    // Всю необходимую информацию гвард получит из параметров запроса
     return this.projectsService.getProjectDetails(id);
   }
   
-  // ### ИСПРАВЛЕНИЕ: Убрали 'new' из вызова декоратора ###
   @Put(':id/settings')
-  @CheckPolicies(CanManageProjectSettingsPolicy)
+  @ApiOperation({ summary: 'Update project settings (name, prefix, types)' })
+  @CheckPolicies(CanManageProjectSettingsPolicy) // ### ИСПРАВЛЕНО: Убран 'new'
   updateProjectSettings(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateProjectSettingsDto: UpdateProjectSettingsDto,
@@ -51,10 +53,10 @@ export class ProjectsController {
   
   // --- Columns CRUD ---
 
-  // ### ИСПРАВЛЕНИЕ: Убрали 'new' из вызова декоратора ###
   @Post(':projectId/columns')
+  @ApiOperation({ summary: 'Create a new column in a project' })
   @HttpCode(HttpStatus.CREATED)
-  @CheckPolicies(CanEditProjectContentPolicy)
+  @CheckPolicies(CanEditProjectContentPolicy) // ### ИСПРАВЛЕНО: Убран 'new'
   createColumn(
     @Param('projectId', ParseIntPipe) projectId: number,
     @Body() createColumnDto: CreateColumnDto,
@@ -62,10 +64,10 @@ export class ProjectsController {
     return this.projectsService.createColumn(projectId, createColumnDto);
   }
 
-  // ### ИСПРАВЛЕНИЕ: Убрали 'new' из вызова декоратора ###
   @Patch(':projectId/columns/:columnId')
+  @ApiOperation({ summary: 'Update a column\'s name' })
   @HttpCode(HttpStatus.OK)
-  @CheckPolicies(CanEditProjectContentPolicy)
+  @CheckPolicies(CanEditProjectContentPolicy) // ### ИСПРАВЛЕНО: Убран 'new'
   updateColumn(
     @Param('projectId', ParseIntPipe) projectId: number,
     @Param('columnId', ParseUUIDPipe) columnId: string,
@@ -74,10 +76,10 @@ export class ProjectsController {
     return this.projectsService.updateColumn(projectId, columnId, updateColumnDto);
   }
 
-  // ### ИСПРАВЛЕНИЕ: Убрали 'new' из вызова декоратора ###
   @Delete(':projectId/columns/:columnId')
+  @ApiOperation({ summary: 'Delete a column and move its tasks' })
   @HttpCode(HttpStatus.NO_CONTENT)
-  @CheckPolicies(CanEditProjectContentPolicy)
+  @CheckPolicies(CanEditProjectContentPolicy) // ### ИСПРАВЛЕНО: Убран 'new'
   deleteColumn(
     @Param('projectId', ParseIntPipe) projectId: number,
     @Param('columnId', ParseUUIDPipe) columnId: string,
@@ -87,9 +89,9 @@ export class ProjectsController {
 
   // --- Members ---
 
-  // ### ИСПРАВЛЕНИЕ: Убрали 'new' из вызова декоратора ###
   @Post(':projectId/members')
-  @CheckPolicies(CanManageProjectSettingsPolicy)
+  @ApiOperation({ summary: 'Add a new member to a project' })
+  @CheckPolicies(CanManageProjectSettingsPolicy) // ### ИСПРАВЛЕНО: Убран 'new'
   addMember(
     @Param('projectId', ParseIntPipe) projectId: number,
     @Body() addMemberDto: AddMemberDto,
@@ -97,9 +99,9 @@ export class ProjectsController {
     return this.projectsService.addMemberToProject(projectId, addMemberDto);
   }
 
-  // ### ИСПРАВЛЕНИЕ: Убрали 'new' из вызова декоратора ###
   @Get(':projectId/members')
-  @CheckPolicies(CanEditProjectContentPolicy)
+  @ApiOperation({ summary: 'Get all members of a project' })
+  @CheckPolicies(CanEditProjectContentPolicy) // ### ИСПРАВЛЕНО: Убран 'new'
   getMembers(
     @Param('projectId', ParseIntPipe) projectId: number,
   ) {

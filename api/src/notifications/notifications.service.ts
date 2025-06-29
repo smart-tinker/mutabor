@@ -1,6 +1,5 @@
 // api/src/notifications/notifications.service.ts
-
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { Knex } from 'knex';
 import { KNEX_CONNECTION } from '../knex/knex.constants';
 import * as crypto from 'crypto';
@@ -13,6 +12,7 @@ export class NotificationsService {
   constructor(
     @Inject(KNEX_CONNECTION) private readonly knex: Knex,
     private readonly eventsGateway: EventsGateway,
+    @Inject(forwardRef(() => ProjectsService))
     private readonly projectsService: ProjectsService,
   ) {}
 
@@ -40,7 +40,7 @@ export class NotificationsService {
   }
 
   async createMentionNotifications(comment: CommentRecord, taskTitle: string, projectId: number) {
-    const regex = /@([\w.-]+)/g; // Упрощено регулярное выражение
+    const regex = /@([\w.-]+)/g;
     let match;
     const mentionedNames = new Set<string>();
 
@@ -50,20 +50,14 @@ export class NotificationsService {
 
     if (mentionedNames.size === 0) return;
     
-    // ### ИСПРАВЛЕНИЕ: вызов getProjectMembers с одним аргументом ###
     const membersResult = await this.projectsService.getProjectMembers(projectId);
-    const members: UserRecord[] = membersResult.map(m => m.user as UserRecord);
+    const owner = await this.projectsService.getProjectOwner(projectId);
 
-    const ownerResult = await this.knex('projects').where({id: projectId}).select('owner_id').first();
-    const ownerInfo = await this.knex('users').where({id: ownerResult.owner_id}).select('id', 'name', 'email').first();
+    const allProjectUsers = [owner, ...membersResult.map(m => m.user)];
+    const uniqueUsers = Array.from(new Map(allProjectUsers.map(u => [u.id, u])).values());
     
-    // Собираем всех уникальных пользователей проекта
-    const allProjectUsersMap = new Map<string, UserRecord>();
-    allProjectUsersMap.set(ownerInfo.id, ownerInfo);
-    members.forEach(m => allProjectUsersMap.set(m.id, m));
-
-    const usersToNotify = Array.from(allProjectUsersMap.values()).filter(user => 
-        mentionedNames.has(user.name) && user.id !== comment.author_id
+    const usersToNotify = uniqueUsers.filter(user => 
+        user.name && mentionedNames.has(user.name) && user.id !== comment.author_id
     );
 
     if (usersToNotify.length === 0) return;

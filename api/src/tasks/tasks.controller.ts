@@ -18,10 +18,9 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
-  // ### ИСПРАВЛЕНИЕ: Убрали 'new' ###
   @Post('projects/:projectId/tasks')
   @ApiOperation({ summary: 'Create a new task in a project' })
-  @CheckPolicies(CanEditProjectContentPolicy)
+  @CheckPolicies(CanEditProjectContentPolicy) // ### ИСПРАВЛЕНО: Убран 'new'
   @HttpCode(HttpStatus.CREATED)
   create(
     @Param('projectId', ParseIntPipe) projectId: number,
@@ -32,46 +31,51 @@ export class TasksController {
     return this.tasksService.createTask(projectId, createTaskDto, user);
   }
 
-  // ### ИСПРАВЛЕНИЕ: Убрали 'new' ###
   @Get('tasks/:id')
   @ApiOperation({ summary: 'Get a task by its UUID' })
-  @CheckPolicies(CanEditProjectContentPolicy)
+  @CheckPolicies(CanEditProjectContentPolicy) // ### ИСПРАВЛЕНО: Убран 'new'
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.tasksService.findTaskById(id);
   }
 
-  // ### ИСПРАВЛЕНИЕ: Убрали 'new' ###
+  @Get('tasks/by-hid/:hid')
+  @ApiOperation({ summary: 'Get a task by its Human-Readable ID (e.g., MUT-1)' })
+  @CheckPolicies(CanEditProjectContentPolicy) // ### ИСПРАВЛЕНО: Убран 'new'
+  findOneByHid(@Param('hid') hid: string, @Req() req) {
+    const user = req.user as UserRecord;
+    return this.tasksService.findTaskByHumanId(hid, user);
+  }
+
   @Patch('tasks/:id')
   @ApiOperation({ summary: 'Update a task' })
-  @CheckPolicies(CanEditProjectContentPolicy)
+  @CheckPolicies(CanEditProjectContentPolicy) // ### ИСПРАВЛЕНО: Убран 'new'
   @HttpCode(HttpStatus.OK)
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() updateTaskDto: UpdateTaskDto) {
-    return this.tasksService.updateTask(id, updateTaskDto);
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() updateTaskDto: UpdateTaskDto, @Req() req) {
+    const user = req.user as UserRecord;
+    return this.tasksService.updateTask(id, updateTaskDto, user);
   }
 
-  // ### ИСПРАВЛЕНИЕ: Убрали 'new' ###
   @Patch('tasks/:id/move')
   @ApiOperation({ summary: 'Move a task between columns or positions' })
-  @CheckPolicies(CanEditProjectContentPolicy)
+  @CheckPolicies(CanEditProjectContentPolicy) // ### ИСПРАВЛЕНО: Убран 'new'
   @HttpCode(HttpStatus.OK)
-  move(@Param('id', ParseUUIDPipe) id: string, @Body() moveTaskDto: MoveTaskDto) {
-    return this.tasksService.moveTask(id, moveTaskDto);
+  move(@Param('id', ParseUUIDPipe) id: string, @Body() moveTaskDto: MoveTaskDto, @Req() req) {
+    const user = req.user as UserRecord;
+    return this.tasksService.moveTask(id, moveTaskDto, user);
   }
 
-  // ### ИСПРАВЛЕНИЕ: Убрали 'new' ###
   @Post('tasks/:taskId/comments')
   @ApiOperation({ summary: 'Add a comment to a task' })
-  @CheckPolicies(CanEditProjectContentPolicy)
+  @CheckPolicies(CanEditProjectContentPolicy) // ### ИСПРАВЛЕНО: Убран 'new'
   @HttpCode(HttpStatus.CREATED)
   createComment(@Param('taskId', ParseUUIDPipe) taskId: string, @Body() createCommentDto: CreateCommentDto, @Req() req) {
     const user = req.user as UserRecord;
     return this.tasksService.addCommentToTask(taskId, createCommentDto, user);
   }
 
-  // ### ИСПРАВЛЕНИЕ: Убрали 'new' ###
   @Get('tasks/:taskId/comments')
   @ApiOperation({ summary: 'Get all comments for a task' })
-  @CheckPolicies(CanEditProjectContentPolicy)
+  @CheckPolicies(CanEditProjectContentPolicy) // ### ИСПРАВЛЕНО: Убран 'new'
   getComments(@Param('taskId', ParseUUIDPipe) taskId: string) {
     return this.tasksService.getCommentsForTask(taskId);
   }

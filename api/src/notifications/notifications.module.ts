@@ -10,8 +10,8 @@ import { ProjectsModule } from '../projects/projects.module';
   imports: [
     KnexModule, 
     EventsModule,
-    // Эта связь является частью цикла, поэтому forwardRef здесь обязателен.
-    forwardRef(() => ProjectsModule)
+    // ProjectsModule нужен, чтобы получить всех участников проекта для @-упоминаний
+    forwardRef(() => ProjectsModule),
   ],
   controllers: [NotificationsController],
   providers: [NotificationsService],

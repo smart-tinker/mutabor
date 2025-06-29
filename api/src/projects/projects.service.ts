@@ -8,10 +8,9 @@ import { AddMemberDto } from './dto/add-member.dto';
 import { Knex } from 'knex';
 import { KNEX_CONNECTION } from '../knex/knex.constants';
 import * as crypto from 'crypto';
-import { ProjectRecord, UserRecord, ProjectMemberWithUser, ColumnRecord } from '../types/db-records';
+import { ProjectRecord, UserRecord, ProjectMemberWithUser, ColumnRecord, TaskRecord } from '../types/db-records';
 import { ProjectDetailsDto } from './dto/project-details.dto';
 import { TasksService } from '../tasks/tasks.service';
-// ### ИСПРАВЛЕНИЕ: Импортируем Role напрямую из его источника ###
 import { Role } from '../casl/roles.enum';
 
 const DEFAULT_PROJECT_COLUMNS = ['To Do', 'In Progress', 'Done'];
@@ -44,6 +43,18 @@ export class ProjectsService {
     }
 
     throw new ForbiddenException('You do not have permission to access this project.');
+  }
+  
+  async getProjectOwner(projectId: number): Promise<UserRecord> {
+    const project = await this.knex('projects').where({ id: projectId }).select('owner_id').first();
+    if (!project) {
+        throw new NotFoundException(`Project with ID ${projectId} not found.`);
+    }
+    const owner = await this.knex('users').where({ id: project.owner_id }).select('id', 'name', 'email', 'created_at', 'updated_at').first();
+    if (!owner) {
+        throw new NotFoundException(`Owner for project ID ${projectId} not found.`);
+    }
+    return owner;
   }
 
   async createProject(createProjectDto: CreateProjectDto, user: UserRecord): Promise<ProjectRecord> {
@@ -89,49 +100,35 @@ export class ProjectsService {
       throw new NotFoundException(`Project with ID ${projectId} not found.`);
     }
 
-    const [columnsDb, tasksDb, taskTypesDb, owner, members] = await Promise.all([
+    const [columnsDb, tasksDb, taskTypesDb, owner, membersResult] = await Promise.all([
       this.knex('columns').where({ project_id: projectId }).orderBy('position', 'asc'),
       this.knex('tasks').where({ project_id: projectId }).orderBy('position', 'asc'),
       this.knex('project_task_types').where({ project_id: projectId }).orderBy('id', 'asc'),
-      this.knex('users').where({ id: project.owner_id }).select('id', 'name', 'email').first(),
-      this.knex('project_members')
-        .join('users', 'project_members.user_id', 'users.id')
-        .where('project_members.project_id', projectId)
-        .select('users.id', 'users.name', 'users.email', 'project_members.role')
+      this.getProjectOwner(projectId),
+      this.getProjectMembers(projectId)
     ]);
+    
+    // ### ИСПРАВЛЕНИЕ: Мапим данные из структуры ProjectMemberWithUser в плоскую структуру ProjectMemberDto
+    const members = membersResult.map(m => ({
+      id: m.user.id,
+      name: m.user.name,
+      email: m.user.email,
+      role: m.role,
+    }));
 
     const columns = columnsDb.map(col => ({
-      id: col.id,
-      name: col.name,
-      position: col.position,
+      ...col, // id, name, position
       tasks: tasksDb
         .filter(task => task.column_id === col.id)
-        .map(task => ({
-          id: task.id,
-          human_readable_id: task.human_readable_id,
-          title: task.title,
-          position: task.position,
-          assignee_id: task.assignee_id,
-          type: task.type,
-          priority: task.priority,
-        })),
+        .map(task => ({ ...task })), // Возвращаем полный объект TaskDto
     }));
 
     return {
       id: project.id,
       name: project.name,
       prefix: project.task_prefix,
-      owner: {
-        id: owner.id,
-        name: owner.name,
-        email: owner.email,
-      },
-      members: members.map(m => ({
-        id: m.id,
-        name: m.name,
-        email: m.email,
-        role: m.role,
-      })),
+      owner,
+      members,
       columns,
       availableTaskTypes: taskTypesDb.map(t => t.name),
     };
@@ -143,6 +140,7 @@ export class ProjectsService {
   ): Promise<void> {
     return this.knex.transaction(async (trx) => {
       const project = await trx('projects').where({id: projectId}).first();
+      if (!project) throw new NotFoundException(`Project with ID ${projectId} not found.`);
 
       const updatePayload: Partial<Pick<ProjectRecord, 'name' | 'task_prefix'>> = {};
       if (settingsDto.name) updatePayload.name = settingsDto.name;
@@ -239,23 +237,46 @@ export class ProjectsService {
 
   async addMemberToProject(projectId: number, addMemberDto: AddMemberDto): Promise<ProjectMemberWithUser> {
     const project = await this.knex('projects').where({ id: projectId }).first();
+    if (!project) throw new NotFoundException(`Project with ID ${projectId} not found.`);
+
     const userToAdd = await this.knex('users').where({ email: addMemberDto.email }).first();
     if (!userToAdd) throw new NotFoundException(`User with email ${addMemberDto.email} not found.`);
     if (userToAdd.id === project.owner_id) throw new ConflictException('Cannot add the project owner as a member.');
+    
     const existingMembership = await this.knex('project_members').where({ project_id: projectId, user_id: userToAdd.id }).first();
     if (existingMembership) throw new ConflictException(`User ${addMemberDto.email} is already a member of this project.`);
+    
     const [newMember] = await this.knex('project_members').insert({ project_id: projectId, user_id: userToAdd.id, role: addMemberDto.role }).returning('*');
-    const { password_hash, ...userFields } = userToAdd;
-    return { ...newMember, user: userFields };
+    
+    return { ...newMember, user: userToAdd };
   }
   
-  async getProjectMembers(projectId: number): Promise<Array<{ role: string; user: Omit<UserRecord, 'password_hash'> }>> {
-    const members = await this.knex('project_members')
+  async getProjectMembers(projectId: number): Promise<ProjectMemberWithUser[]> {
+    const membersData = await this.knex('project_members')
       .join('users', 'project_members.user_id', '=', 'users.id')
       .where('project_members.project_id', projectId)
-      .select('project_members.role', 'users.id', 'users.name', 'users.email', 'users.created_at', 'users.updated_at')
+      .select(
+          'project_members.role', 
+          'users.id', 
+          'users.name', 
+          'users.email', 
+          'users.created_at', 
+          'users.updated_at'
+      )
       .orderBy('users.name', 'asc');
     
-    return members.map(m => ({ role: m.role, user: m }));
+    return membersData.map(m => ({
+        project_id: projectId,
+        user_id: m.id,
+        role: m.role,
+        user: {
+            id: m.id,
+            name: m.name,
+            email: m.email,
+            created_at: m.created_at,
+            updated_at: m.updated_at,
+            password_hash: '' // Exclude password hash
+        }
+    }));
   }
 }

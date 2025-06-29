@@ -9,9 +9,8 @@ import { CaslModule } from '../casl/casl.module';
 @Module({
   imports: [
     KnexModule,
-    // Эта связь является частью цикла, поэтому forwardRef здесь обязателен.
     forwardRef(() => TasksModule),
-    CaslModule, // CaslModule не участвует в этом цикле, forwardRef не нужен
+    CaslModule,
   ],
   controllers: [ProjectsController],
   providers: [ProjectsService],

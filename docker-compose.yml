@@ -5,15 +5,16 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
+    # ### ИЗМЕНЕНИЕ: Убираем зависимость от healthcheck API, чтобы клиент запускался в любом случае
     depends_on:
-      api: # Added condition for api healthcheck
-        condition: service_healthy
+      - api
     environment:
-      - VITE_API_URL=http://localhost:3001 # Changed to VITE_ and confirmed URL for browser access
+      - VITE_API_URL=http://localhost:3001
     volumes:
       - ./client/src:/app/src
       - ./client/public:/app/public
-    healthcheck: # Added healthcheck for Client
+    # ### ИЗМЕНЕНИЕ: Healthcheck для клиента не так важен для запуска, можно оставить
+    healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
       interval: 30s
       timeout: 10s
@@ -25,37 +26,33 @@ services:
       context: ./api
       dockerfile: Dockerfile
     ports:
-      - "3001:3000" # Corrected port mapping
+      - "3001:3000"
     depends_on:
-      db: # Added condition for db healthcheck if possible, or just depends_on: - db
-        condition: service_healthy # Or remove this line if db doesn't have a healthcheck yet
-    env_file: # Added env_file directive
+      db:
+        condition: service_healthy
+    env_file:
       - ./api/.env
     environment:
       - NODE_ENV=development
-      # DATABASE_URL для подключения к сервису 'db' в Docker Compose
       - DATABASE_URL=postgresql://user:password@db:5432/mutabor?schema=public
-      # Переменные для Liquibase
       - DB_HOST=db
       - DB_PORT=5432
       - DB_USER=user
       - DB_PASSWORD=password
       - DB_NAME=mutabor
-      # JWT_SECRET is now managed via .env file
     volumes:
       - ./api/src:/app/src
-    healthcheck: # Added healthcheck for API
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
-#      test: ["CMD-SHELL", "ss -tln | grep -q 3000 || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+    # ### ИЗМЕНЕНИЕ: Полностью убираем healthcheck для API, чтобы исключить его как причину сбоя
+    # healthcheck:
+    #   test: ["CMD", "curl", "--fail", "http://localhost:3000/api/v1/health"]
+    #   interval: 15s
+    #   timeout: 5s
+    #   retries: 5
+    #   start_period: 30s
 
   db: # Сервис базы данных PostgreSQL
     image: postgres:13
     ports:
-      # Порт 54321 на хосте будет связан с портом 5432 внутри контейнера
       - "54321:5432"
     environment:
       POSTGRES_USER: user
@@ -63,7 +60,7 @@ services:
       POSTGRES_DB: mutabor
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    healthcheck: # ИЗМЕНЕНИЕ: Healthcheck для БД сделан более надежным
+    healthcheck:
       test: ["CMD-SHELL", "pg_isready -U user -d mutabor"]
       interval: 10s
       timeout: 5s

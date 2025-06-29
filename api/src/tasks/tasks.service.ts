@@ -11,8 +11,8 @@ import { KNEX_CONNECTION } from '../knex/knex.constants';
 import * as crypto from 'crypto';
 import { TaskRecord, UserRecord, ProjectRecord } from '../types/db-records';
 import { ProjectsService } from '../projects/projects.service';
-// ### ИСПРАВЛЕНИЕ: Импортируем Role напрямую из его источника ###
 import { Role } from '../casl/roles.enum';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class TasksService {
@@ -20,10 +20,11 @@ export class TasksService {
 
   constructor(
     @Inject(KNEX_CONNECTION) private readonly knex: Knex,
-    @Inject(EventsGateway) private eventsGateway: EventsGateway,
-    private commentsService: CommentsService,
+    private readonly eventsGateway: EventsGateway,
+    private readonly commentsService: CommentsService,
+    private readonly notificationsService: NotificationsService,
     @Inject(forwardRef(() => ProjectsService))
-    private projectsService: ProjectsService,
+    private readonly projectsService: ProjectsService,
   ) {}
 
   async getTaskAndProjectForPermissionCheck(
@@ -90,17 +91,25 @@ export class TasksService {
     return task;
   }
 
-  async updateTask(taskId: string, updateTaskDto: UpdateTaskDto): Promise<TaskRecord> {
-    return this.knex.transaction(async (trx) => {
-        const task = await trx('tasks').where({ id: taskId }).first();
-        if (!task) throw new NotFoundException(`Task with ID ${taskId} not found.`);
+  async findTaskByHumanId(hid: string, user: UserRecord): Promise<TaskRecord> {
+    const task = await this.knex('tasks').where({ human_readable_id: hid }).first();
+    if (!task) {
+      throw new NotFoundException(`Task with ID ${hid} not found.`);
+    }
+    await this.projectsService.getProjectAndRole(task.project_id, user.id);
+    return task;
+  }
 
-        if (updateTaskDto.type && !(await this.projectsService.isTaskTypeValidForProject(task.project_id, updateTaskDto.type, trx))) {
+  async updateTask(taskId: string, updateTaskDto: UpdateTaskDto, user: UserRecord): Promise<TaskRecord> {
+    return this.knex.transaction(async (trx) => {
+        const { project } = await this.getTaskAndProjectForPermissionCheck(taskId, user.id);
+
+        if (updateTaskDto.type && !(await this.projectsService.isTaskTypeValidForProject(project.id, updateTaskDto.type, trx))) {
             throw new BadRequestException(`Task type '${updateTaskDto.type}' is not valid for this project.`);
         }
 
         const { title, description, assigneeId, dueDate, type, priority, tags } = updateTaskDto;
-        const updatePayload = {
+        const updatePayload: Partial<TaskRecord> = {
             ...(title !== undefined && { title }),
             ...(description !== undefined && { description }),
             ...(assigneeId !== undefined && { assignee_id: assigneeId }),
@@ -110,7 +119,10 @@ export class TasksService {
             ...(tags !== undefined && { tags }),
         };
 
-        if (Object.keys(updatePayload).length === 0) return task;
+        if (Object.keys(updatePayload).length === 0) {
+          const currentTask = await trx('tasks').where({ id: taskId }).first();
+          return currentTask;
+        }
 
         const [updatedTask] = await trx('tasks')
             .where({ id: taskId })
@@ -122,15 +134,16 @@ export class TasksService {
     });
   }
 
-  async moveTask(taskId: string, moveTaskDto: MoveTaskDto): Promise<TaskRecord> {
+  async moveTask(taskId: string, moveTaskDto: MoveTaskDto, user: UserRecord): Promise<TaskRecord> {
     const { newColumnId, newPosition } = moveTaskDto;
 
     return this.knex.transaction(async (trx) => {
-      const taskToMove = await trx('tasks').where({ id: taskId }).forUpdate().first();
-      if (!taskToMove) throw new NotFoundException(`Task with ID ${taskId} not found.`);
+      const { task: taskToMove } = await this.getTaskAndProjectForPermissionCheck(taskId, user.id);
       
       const targetColumn = await trx('columns').where({ id: newColumnId, project_id: taskToMove.project_id }).first();
       if (!targetColumn) throw new BadRequestException(`Target column with ID ${newColumnId} not found in this project.`);
+
+      await trx('tasks').where({ id: taskId }).forUpdate().first();
 
       const oldColumnId = taskToMove.column_id;
       const oldPosition = taskToMove.position;
@@ -149,14 +162,16 @@ export class TasksService {
   }
 
   async addCommentToTask(taskId: string, createCommentDto: CreateCommentDto, author: UserRecord) {
-    const task = await this.knex('tasks').where({ id: taskId }).first();
-    if (!task) throw new NotFoundException(`Task with ID ${taskId} not found.`);
-    return this.commentsService.createComment(task.id, createCommentDto, author.id);
+    const { task } = await this.getTaskAndProjectForPermissionCheck(taskId, author.id);
+    const newComment = await this.commentsService.createComment(task.id, createCommentDto, author.id);
+    
+    await this.notificationsService.createMentionNotifications(newComment, task.title, task.project_id);
+
+    return newComment;
   }
 
   async getCommentsForTask(taskId: string) {
-    const task = await this.knex('tasks').where({ id: taskId }).first();
-    if (!task) throw new NotFoundException(`Task with ID ${taskId} not found.`);
+    await this.findTaskById(taskId);
     return this.commentsService.getCommentsForTask(taskId);
   }
 

@@ -1,12 +1,11 @@
 import apiClient from './axiosInstance';
-import type { TaskDto } from './projectService'; // Import unified TaskDto
-
-// DTO for creating a task
+import type { TaskDto as FullTaskDto } from './projectService'; 
+// DTO для создания задачи
 export interface CreateTaskDto {
   title: string;
   description?: string;
   columnId: string;
-  projectId: number;
+  // projectId is now part of the URL, not the DTO body
   assigneeId?: string;
   dueDate?: string;
   type?: string;
@@ -18,13 +17,11 @@ export interface CreateTaskDto {
 export interface UpdateTaskDto {
   title?: string;
   description?: string | null;
-  columnId?: string;
   assigneeId?: string | null;
   dueDate?: string | null;
   type?: string | null;
   priority?: string | null;
   tags?: string[] | null;
-  position?: number;
 }
 
 export interface MoveTaskDto {
@@ -39,7 +36,6 @@ export interface CommentAuthorDto {
   email: string;
 }
 
-// Raw DTO from API
 export interface ApiCommentDto {
   id: string;
   text: string;
@@ -50,7 +46,6 @@ export interface ApiCommentDto {
   author?: CommentAuthorDto | null;
 }
 
-// Client-side DTO with Date objects
 export interface CommentDto {
   id: string;
   text: string;
@@ -65,7 +60,6 @@ export interface CreateCommentPayloadDto {
   text: string;
 }
 
-// Helper function to transform API comment DTO to client-side DTO
 export const transformCommentDto = (apiComment: ApiCommentDto): CommentDto => ({
   ...apiComment,
   taskId: apiComment.task_id,
@@ -75,18 +69,19 @@ export const transformCommentDto = (apiComment: ApiCommentDto): CommentDto => ({
 });
 
 export const taskService = {
-  createTask: async (data: CreateTaskDto): Promise<TaskDto> => {
-    const response = await apiClient.post<TaskDto>('/tasks', data);
+  // ### ИЗМЕНЕНО: projectId теперь передается в URL, а не в теле
+  createTask: async (projectId: number, data: Omit<CreateTaskDto, 'projectId'>): Promise<FullTaskDto> => {
+    const response = await apiClient.post<FullTaskDto>(`/projects/${projectId}/tasks`, data);
     return response.data;
   },
 
-  moveTask: async (taskId: string, data: MoveTaskDto): Promise<TaskDto> => {
-    const response = await apiClient.patch<TaskDto>(`/tasks/${taskId}/move`, data);
+  moveTask: async (taskId: string, data: MoveTaskDto): Promise<FullTaskDto> => {
+    const response = await apiClient.patch<FullTaskDto>(`/tasks/${taskId}/move`, data);
     return response.data;
   },
 
-  updateTask: async (taskId: string, data: UpdateTaskDto): Promise<TaskDto> => {
-    const response = await apiClient.patch<TaskDto>(`/tasks/${taskId}`, data);
+  updateTask: async (taskId: string, data: UpdateTaskDto): Promise<FullTaskDto> => {
+    const response = await apiClient.patch<FullTaskDto>(`/tasks/${taskId}`, data);
     return response.data;
   },
 
@@ -100,8 +95,9 @@ export const taskService = {
     return transformCommentDto(response.data);
   },
 
-  getTaskById: async (taskId: string): Promise<TaskDto> => {
-    const response = await apiClient.get<TaskDto>(`/tasks/by-hid/${taskId}`);
+  // ### ИЗМЕНЕНО: теперь вызывает правильный эндпоинт
+  getTaskById: async (humanReadableId: string): Promise<FullTaskDto> => {
+    const response = await apiClient.get<FullTaskDto>(`/tasks/by-hid/${humanReadableId}`);
     return response.data;
   },
 };

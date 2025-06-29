@@ -26,7 +26,7 @@ interface Column extends ProjectColumnDto {
   tasksList: TaskDto[];
 }
 
-interface BoardData extends Omit<FullProjectDto, 'columns' | 'tasks'> {
+interface BoardData extends Omit<FullProjectDto, 'columns'> {
   columns: Column[];
 }
 
@@ -206,17 +206,19 @@ const BoardPage: React.FC = () => {
     setIsCreatingTask(true);
     try {
       const tagsArray = formState.tags.split(',').map(tag => tag.trim()).filter(Boolean);
-      const taskData: CreateTaskDto = {
+      // ### ИЗМЕНЕНО: Создаем DTO без projectId, так как он передается в URL
+      const taskData: Omit<CreateTaskDto, 'projectId'> = {
         title: formState.title,
         description: formState.description,
         columnId: formState.columnId,
-        projectId: numericProjectId,
+        // projectId: numericProjectId, // Удалено из DTO
         dueDate: formState.dueDate || undefined,
         type: formState.type || undefined,
         priority: formState.priority || undefined,
         tags: tagsArray.length > 0 ? tagsArray : undefined,
       };
-      await taskService.createTask(taskData);
+      // ### ИЗМЕНЕНО: Передаем projectId как первый аргумент
+      await taskService.createTask(numericProjectId, taskData);
       handleModalClose();
     } catch (err) {
       console.error('Failed to create task:', err);
