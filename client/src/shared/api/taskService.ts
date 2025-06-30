@@ -95,9 +95,9 @@ export const taskService = {
     return transformCommentDto(response.data);
   },
 
-  // ### ИЗМЕНЕНО: теперь вызывает правильный эндпоинт
-  getTaskById: async (humanReadableId: string): Promise<FullTaskDto> => {
-    const response = await apiClient.get<FullTaskDto>(`/tasks/by-hid/${humanReadableId}`);
+  // ### ИЗМЕНЕНИЕ: Исправлен URL запроса. Убран сегмент /by-hid. ###
+  getTaskByHumanId: async (humanReadableId: string): Promise<FullTaskDto> => {
+    const response = await apiClient.get<FullTaskDto>(`/tasks/${humanReadableId}`);
     return response.data;
   },
 };

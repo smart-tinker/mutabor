@@ -5,34 +5,45 @@ import { ProjectRecord } from '../types/db-records';
 import { AuthenticatedUser } from 'src/auth/jwt.strategy';
 
 const mockUser: AuthenticatedUser = { id: 'user-1', email: 'test@example.com', name: 'Test User' };
-const mockProject: ProjectRecord = { id: 1, name: 'Test Project', task_prefix: 'TP', last_task_number: 0, owner_id: 'user-1', created_at: new Date(), updated_at: new Date() };
 
-// ### ИЗМЕНЕНИЕ: Полный и корректный мок Knex и транзакции ###
-const trxMock = {
-  insert: jest.fn().mockReturnThis(),
-  returning: jest.fn().mockResolvedValue([mockProject]),
-  where: jest.fn().mockReturnThis(),
-  select: jest.fn().mockReturnThis(),
-  first: jest.fn(),
-  // Добавляем мок для вызова trx('table_name')
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  (tableName: string) {
-    return this;
-  },
+// ### ИЗМЕНЕНИЕ: Умный мок, который возвращает переданные данные ###
+const projectsTrxMock = {
+  insert: jest.fn().mockImplementation((data) => ({
+    returning: jest.fn().mockResolvedValue([{
+      id: 1,
+      last_task_number: 0,
+      owner_id: mockUser.id,
+      created_at: new Date(),
+      updated_at: new Date(),
+      ...data, // Динамически добавляем данные из insert
+    }]),
+  })),
 };
-const mockKnex = {
-  transaction: jest.fn().mockImplementation(async (callback) => callback(trxMock)),
-  // Добавляем методы, которые могут быть вызваны напрямую на this.knex
-  where: jest.fn().mockReturnThis(),
-  join: jest.fn().mockReturnThis(),
-  select: jest.fn().mockReturnThis(),
-  first: jest.fn(),
-  orderBy: jest.fn(),
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  (tableName: string) {
-    return this;
-  },
+
+// Мок для вставок, которые ничего не возвращают (колонки, типы)
+const otherTrxMock = {
+  insert: jest.fn().mockResolvedValue(undefined),
 };
+
+const trxMock = jest.fn()
+  .mockImplementation((tableName) => {
+    // В зависимости от таблицы возвращаем разный мок
+    if (tableName === 'projects') {
+      return projectsTrxMock;
+    }
+    return otherTrxMock;
+  });
+
+const queryBuilderMock = {
+    where: jest.fn().mockReturnThis(),
+    join: jest.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
+    first: jest.fn(),
+    orderBy: jest.fn(),
+};
+
+const mockKnex = jest.fn(() => queryBuilderMock) as jest.Mock & { transaction: jest.Mock };
+mockKnex.transaction = jest.fn().mockImplementation(async (callback) => callback(trxMock));
 
 
 describe('ProjectsService', () => {
@@ -59,9 +70,13 @@ describe('ProjectsService', () => {
       const createDto = { name: 'New Test Project', prefix: 'NTP' };
       const project = await service.createProject(createDto, mockUser);
       
-      expect(project.name).toBe(createDto.name);
+      expect(project.name).toBe(createDto.name); // Теперь этот тест должен пройти
       expect(mockKnex.transaction).toHaveBeenCalled();
-      expect(trxMock.insert).toHaveBeenCalledTimes(3);
+      expect(trxMock).toHaveBeenCalledWith('projects');
+      expect(trxMock).toHaveBeenCalledWith('columns');
+      expect(trxMock).toHaveBeenCalledWith('project_task_types');
+      expect(projectsTrxMock.insert).toHaveBeenCalledTimes(1);
+      expect(otherTrxMock.insert).toHaveBeenCalledTimes(2);
     });
   });
 });

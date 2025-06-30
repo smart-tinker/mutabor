@@ -60,14 +60,18 @@ services:
       - ./api/.env
     environment:
       - NODE_ENV=test
-      # ### ИЗМЕНЕНИЕ: Используем основную БД, т.к. тесты должны работать в транзакциях ###
       - DATABASE_URL=postgresql://user:password@db:5432/mutabor?schema=public
       - DB_HOST=db
       - DB_PORT=5432
       - DB_USER=user
       - DB_PASSWORD=password
       - DB_NAME=mutabor
-    command: npm run test
+    # ### ИЗМЕНЕНИЕ: Самый простой и надежный способ ###
+    command: ["sh", "-c", "npm run migrate && npm run test:cov"]
+    volumes:
+      # Этот volume пробросит папку coverage из контейнера на хост.
+      # Папка будет принадлежать root.
+      - ./api/coverage:/usr/src/app/coverage
 
   db: # Сервис базы данных PostgreSQL
     image: postgres:13

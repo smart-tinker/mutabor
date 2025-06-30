@@ -244,7 +244,8 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, onClose
           </div>
         </>
         <div className={styles.modalActions}>
-          <Link to={`/task/${task.human_readable_id}`} className={`${styles.button} ${styles.buttonLink}`}>
+          {/* ### ИЗМЕНЕНИЕ: Ссылка теперь указывает на правильный маршрут /tasks/HID ### */}
+          <Link to={`/tasks/${task.human_readable_id}`} className={`${styles.button} ${styles.buttonLink}`}>
             Open in New Page
           </Link>
           <button onClick={onClose} className={`${styles.button} ${styles.closeButtonModal}`}>Close</button>

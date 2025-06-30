@@ -78,8 +78,9 @@ const AppContent: React.FC<AppContentProps> = ({ isAuthenticated, addTaskModalCo
             path="/projects/:projectId"
             element={isAuthenticated ? <BoardPage /> : <Navigate to="/login" />}
           />
+          {/* ### ИЗМЕНЕНИЕ: Маршрут изменен на /tasks/:taskHid ### */}
           <Route
-            path="/task/:taskId" // Новый маршрут для страницы задачи
+            path="/tasks/:taskHid" 
             element={isAuthenticated ? <TaskPage /> : <Navigate to="/login" />}
           />
           <Route

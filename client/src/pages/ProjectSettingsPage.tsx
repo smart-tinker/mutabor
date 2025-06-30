@@ -8,6 +8,7 @@ import styles from './ProjectSettingsPage.module.css';
 // import Input from '../shared/ui/Input/Input';
 
 const ProjectSettingsPage: React.FC = () => {
+  // ### ИЗМЕНЕНИЕ: Используем projectId, так как роут теперь /projects/:projectId/settings ###
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
 
@@ -80,12 +81,11 @@ const ProjectSettingsPage: React.FC = () => {
     if (projectName !== settings.name) payload.name = projectName;
     if (projectPrefix !== settings.prefix) payload.prefix = projectPrefix;
 
-    // Deep compare arrays to see if they actually changed
     if (JSON.stringify(statuses) !== JSON.stringify(settings.settings_statuses || [])) {
-        payload.statuses = statuses.filter(s => s.trim() !== ''); // Filter out empty strings
+        payload.statuses = statuses.filter(s => s.trim() !== '');
     }
     if (JSON.stringify(types) !== JSON.stringify(settings.settings_types || [])) {
-        payload.types = types.filter(t => t.trim() !== ''); // Filter out empty strings
+        payload.types = types.filter(t => t.trim() !== '');
     }
 
     if (Object.keys(payload).length === 0) {
@@ -96,12 +96,12 @@ const ProjectSettingsPage: React.FC = () => {
 
     try {
       const updatedSettings = await projectService.updateProjectSettings(numProjectId, payload);
-      setSettings(updatedSettings); // Update local state with response from server
+      setSettings(updatedSettings);
       setProjectName(updatedSettings.name);
       setProjectPrefix(updatedSettings.prefix);
       setStatuses(updatedSettings.settings_statuses || []);
       setTypes(updatedSettings.settings_types || []);
-      // Optionally, show a success message
+      
     } catch (err: any) {
       console.error('Failed to update project settings:', err);
       setError(err.response?.data?.message || 'Failed to save project settings.');
@@ -111,8 +111,8 @@ const ProjectSettingsPage: React.FC = () => {
   };
 
   if (isLoading) return <div className={styles.loading}>Loading project settings...</div>;
-  if (error && !settings) return <div className={styles.error}>{error}</div>; // Show only error if settings never loaded
-  if (!settings) return <div className={styles.error}>Project settings not found.</div>; // Should be covered by error state
+  if (error && !settings) return <div className={styles.error}>{error}</div>;
+  if (!settings) return <div className={styles.error}>Project settings not found.</div>;
 
   return (
     <div className={styles.settingsPage}>
@@ -123,7 +123,7 @@ const ProjectSettingsPage: React.FC = () => {
         <h2>General</h2>
         <div className={styles.formGroup}>
           <label htmlFor="projectName">Project Name</label>
-          <input // Replace with <Input /> if available
+          <input
             type="text"
             id="projectName"
             value={projectName}
@@ -133,7 +133,7 @@ const ProjectSettingsPage: React.FC = () => {
         </div>
         <div className={styles.formGroup}>
           <label htmlFor="projectPrefix">Task Prefix</label>
-          <input // Replace with <Input /> if available
+          <input
             type="text"
             id="projectPrefix"
             value={projectPrefix}
@@ -147,13 +147,13 @@ const ProjectSettingsPage: React.FC = () => {
         <div className={styles.listEditor}>
           {statuses.map((status, index) => (
             <div key={index} className={styles.listItem}>
-              <input // Replace with <Input /> if available
+              <input
                 type="text"
                 value={status}
                 onChange={(e) => handleListChange(statuses, setStatuses, index, e.target.value)}
                 placeholder="Status name"
               />
-              <button // Replace with <Button type="button" variant="danger" ... />
+              <button
                 type="button"
                 className={`${styles.button} ${styles.danger}`}
                 onClick={() => removeListItem(statuses, setStatuses, index)}
@@ -162,7 +162,7 @@ const ProjectSettingsPage: React.FC = () => {
               </button>
             </div>
           ))}
-          <button // Replace with <Button type="button" ... />
+          <button
             type="button"
             className={`${styles.button} ${styles.addListItemButton}`}
             onClick={() => addListItem(setStatuses)}
@@ -175,13 +175,13 @@ const ProjectSettingsPage: React.FC = () => {
         <div className={styles.listEditor}>
           {types.map((type, index) => (
             <div key={index} className={styles.listItem}>
-              <input // Replace with <Input /> if available
+              <input
                 type="text"
                 value={type}
                 onChange={(e) => handleListChange(types, setTypes, index, e.target.value)}
                 placeholder="Type name"
               />
-              <button // Replace with <Button type="button" variant="danger" ... />
+              <button
                 type="button"
                 className={`${styles.button} ${styles.danger}`}
                 onClick={() => removeListItem(types, setTypes, index)}
@@ -190,7 +190,7 @@ const ProjectSettingsPage: React.FC = () => {
               </button>
             </div>
           ))}
-          <button // Replace with <Button type="button" ... />
+          <button
             type="button"
             className={`${styles.button} ${styles.addListItemButton}`}
             onClick={() => addListItem(setTypes)}
@@ -199,7 +199,7 @@ const ProjectSettingsPage: React.FC = () => {
           </button>
         </div>
 
-        <button // Replace with <Button type="submit" ... />
+        <button
           type="submit"
           className={`${styles.button} ${styles.submitButton}`}
           disabled={isSaving}

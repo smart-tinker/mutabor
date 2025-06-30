@@ -3,7 +3,8 @@ module.exports = {
   rootDir: '.',
   testRegex: '.*\\.spec\\.ts$',
   transform: {
-    '^.+\\.(t|j)s$': 'ts-jest',
+    // ### ИЗМЕНЕНИЕ: Указываем, что ts-jest должен трансформировать только .ts файлы ###
+    '^.+\\.ts$': 'ts-jest',
   },
   collectCoverageFrom: ['**/*.(t|j)s'],
   coverageDirectory: './coverage',

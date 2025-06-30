@@ -32,17 +32,11 @@ export class TasksController {
     return this.tasksService.createTask(projectId, createTaskDto, user);
   }
 
-  @Get('tasks/:id')
-  @ApiOperation({ summary: 'Get a task by its UUID' })
-  // @CheckPolicies(CanEditProjectContentPolicy) // УДАЛЕНО
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.tasksService.findTaskById(id);
-  }
-
-  @Get('tasks/by-hid/:hid')
+  // ### ИЗМЕНЕНИЕ: Этот эндпоинт теперь ищет по HID, а не по UUID ###
+  @Get('tasks/:hid')
   @ApiOperation({ summary: 'Get a task by its Human-Readable ID (e.g., MUT-1)' })
   // @CheckPolicies(CanEditProjectContentPolicy) // УДАЛЕНО
-  findOneByHid(@Param('hid') hid: string) {
+  findOne(@Param('hid') hid: string) {
     return this.tasksService.findTaskByHumanId(hid);
   }
 

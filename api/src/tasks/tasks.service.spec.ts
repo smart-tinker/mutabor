@@ -20,29 +20,37 @@ const mockEventsGateway = { emitTaskCreated: jest.fn() };
 const mockCommentsService = { createComment: jest.fn() };
 const mockNotificationsService = { createMentionNotifications: jest.fn() };
 
-// ### ИЗМЕНЕНИЕ: Полный и корректный мок Knex и транзакции ###
-const trxMock = {
+// ### ИЗМЕНЕНИЕ: Более надежный и предсказуемый мок
+const trxMockInner = {
     where: jest.fn().mockReturnThis(),
-    first: jest.fn().mockResolvedValue({ id: 'col-1' }),
+    first: jest.fn(), // Мокируем его отдельно
     forUpdate: jest.fn().mockReturnThis(),
     increment: jest.fn().mockReturnThis(),
-    returning: jest.fn().mockResolvedValue([ { last_task_number: 1, task_prefix: 'TP' } ]),
-    count: jest.fn().mockResolvedValue({ count: '0' }),
+    count: jest.fn().mockReturnThis(),
+    returning: jest.fn(),
     insert: jest.fn().mockReturnThis(),
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    (tableName: string) {
-        return this;
-    },
 };
-const mockKnex = {
-    transaction: jest.fn().mockImplementation(async (callback) => callback(trxMock)),
-};
+
+const trxMock = jest.fn(() => trxMockInner);
+
+const mockKnex = jest.fn(() => ({})) as jest.Mock & { transaction: jest.Mock };
+mockKnex.transaction = jest.fn().mockImplementation(async (callback) => callback(trxMock));
+
 
 describe('TasksService', () => {
   let service: TasksService;
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    // ### ИЗМЕНЕНИЕ: Сбрасываем моки перед каждым тестом для изоляции
+    (trxMockInner.first as jest.Mock)
+      .mockResolvedValueOnce({ id: 'col-1' }) // Для поиска колонки
+      .mockResolvedValueOnce({ count: '0' }); // Для результата count
+
+    (trxMockInner.returning as jest.Mock)
+      .mockResolvedValueOnce([ { last_task_number: 1, task_prefix: 'TP' } ]) // Для project
+      .mockResolvedValueOnce([mockTask]); // для task
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TasksService,
@@ -65,14 +73,14 @@ describe('TasksService', () => {
   describe('createTask', () => {
     it('should successfully create a task', async () => {
       const createTaskDto = { title: 'New Task', columnId: 'col-1' };
-      (trxMock.returning as jest.Mock)
-        .mockResolvedValueOnce([ { last_task_number: 1, task_prefix: 'TP' } ])
-        .mockResolvedValueOnce([mockTask]);
 
       await service.createTask(1, createTaskDto, mockUser);
 
       expect(mockKnex.transaction).toHaveBeenCalled();
-      expect(trxMock.insert).toHaveBeenCalled();
+      expect(trxMock).toHaveBeenCalledWith('columns'); // Проверяем вызовы
+      expect(trxMock).toHaveBeenCalledWith('projects');
+      expect(trxMock).toHaveBeenCalledWith('tasks');
+      expect(trxMockInner.insert).toHaveBeenCalledTimes(1); 
       expect(mockEventsGateway.emitTaskCreated).toHaveBeenCalledWith(mockTask);
     });
   });

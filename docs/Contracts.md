@@ -5,8 +5,11 @@
 ## 1. API Contract (OpenAPI / Swagger)
 
 -   **Назначение:** Формальный договор между Frontend и Backend.
--   **Расположение:** Генерируется автоматически и доступен по адресу `/api/v1/api-docs` после запуска бэкенда.
+-   **Расположение:** Генерируется автоматически и доступен по адресу `/api-docs` после запуска бэкенда.
 -   **Версионирование:** API использует версионирование через URL. Текущая версия: `v1`. Все эндпоинты доступны по префиксу `/api/v1`.
+-   **Ключевые эндпоинты:**
+    -   `GET /api/v1/projects/{id}`: Получение проекта по его числовому ID.
+    -   `GET /api/v1/tasks/{hid}`: Получение задачи по ее человеко-читаемому ID (например, `PROJ-123`).
 
 ---
 
@@ -62,7 +65,8 @@ export class ProjectDetailsDto {
 
 ### Task & Comment DTOs
 ```typescript
-// DTO для создания задачи. projectId передается через URL: POST /projects/{projectId}/tasks
+// ### ИЗМЕНЕНИЕ: Уточнено, что projectId передается через URL.
+// DTO для создания задачи. projectId передается через URL: POST /api/v1/projects/{projectId}/tasks
 export class CreateTaskDto {
   title: string;
   description?: string;

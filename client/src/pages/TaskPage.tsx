@@ -7,7 +7,8 @@ import { CommentList, AddCommentForm } from '../features/Comments';
 import styles from './TaskPage.module.css';
 
 const TaskPage: React.FC = () => {
-  const { taskId } = useParams<{ taskId: string }>();
+  // ### ИЗМЕНЕНИЕ: Получаем taskHid из URL
+  const { taskHid } = useParams<{ taskHid: string }>();
   const [task, setTask] = useState<TaskDto | null>(null);
   const [comments, setComments] = useState<CommentDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -15,13 +16,15 @@ const TaskPage: React.FC = () => {
 
   useEffect(() => {
     const fetchTaskDetails = async () => {
-      if (!taskId) return;
+      if (!taskHid) return;
       setIsLoading(true);
       setError(null);
       try {
-        const taskData = await taskService.getTaskById(taskId);
+        // ### ИЗМЕНЕНИЕ: Вызываем правильный метод для получения задачи по HID
+        const taskData = await taskService.getTaskByHumanId(taskHid);
         setTask(taskData);
 
+        // ### ИЗМЕНЕНИЕ: Получаем комментарии после того, как получили задачу и ее UUID
         const commentsData = await taskService.getTaskComments(taskData.id);
         setComments(commentsData);
 
@@ -34,7 +37,7 @@ const TaskPage: React.FC = () => {
     };
 
     fetchTaskDetails();
-  }, [taskId]);
+  }, [taskHid]);
 
   const handleCommentAdded = (newComment: CommentDto) => {
     setComments(prevComments =>
