@@ -1,8 +1,8 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 
-// ### ИЗМЕНЕНО: Скрываем этот контроллер из Swagger-документации
 @ApiExcludeController()
+// ### ИЗМЕНЕНИЕ: Убираем префикс отсюда, так как он теперь не нужен ###
 @Controller()
 export class AppController {
   constructor() {} 

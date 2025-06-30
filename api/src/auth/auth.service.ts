@@ -9,23 +9,14 @@ import { KNEX_CONNECTION } from '../knex/knex.constants';
 import * as crypto from 'crypto';
 import { UserRecord } from '../types/db-records';
 import { UpdateProfileDto } from './dto/update-profile.dto';
-import { ConfigService } from '@nestjs/config'; // ### ДОБАВЛЕНО
 
 @Injectable()
 export class AuthService {
-  private readonly jwtSecret: string; // ### ДОБАВЛЕНО
-
   constructor(
     @Inject(KNEX_CONNECTION) private readonly knex: Knex,
     private readonly jwtService: JwtService,
-    private readonly configService: ConfigService, // ### ДОБАВЛЕНО
-  ) {
-    // ### ИЗМЕНЕНИЕ: Получаем актуальный секретный ключ для подписи токенов
-    this.jwtSecret = this.configService.get<string>('JWT_SECRET_V1');
-    if (!this.jwtSecret) {
-      throw new Error('JWT_SECRET_V1 is not defined in environment variables');
-    }
-  }
+    // ### ИЗМЕНЕНИЕ: ConfigService больше не нужен здесь напрямую ###
+  ) {}
 
   async validateUser(email: string, pass: string): Promise<UserRecord | null> {
     const user: UserRecord & { password_hash?: string } = await this.knex('users')
@@ -51,8 +42,8 @@ export class AuthService {
     }
     const payload = { email: user.email, sub: user.id, name: user.name };
     return {
-      // ### ИЗМЕНЕНИЕ: Используем конкретный секрет для подписи
-      access_token: this.jwtService.sign(payload, { secret: this.jwtSecret }),
+      // ### ИЗМЕНЕНИЕ: Просто используем JwtService, он уже настроен с секретом ###
+      access_token: this.jwtService.sign(payload),
     };
   }
 
@@ -79,8 +70,7 @@ export class AuthService {
 
     const payload = { email: insertedUser.email, sub: insertedUser.id, name: insertedUser.name };
     return {
-      // ### ИЗМЕНЕНИЕ: Используем конкретный секрет для подписи
-      access_token: this.jwtService.sign(payload, { secret: this.jwtSecret }),
+      access_token: this.jwtService.sign(payload),
     };
   }
 

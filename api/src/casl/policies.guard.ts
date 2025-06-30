@@ -6,6 +6,7 @@ import { PolicyHandlerClass } from './policy.interface';
 import { ProjectsService } from '../projects/projects.service';
 import { TasksService } from '../tasks/tasks.service';
 import { Role } from './roles.enum';
+import { AuthenticatedUser } from 'src/auth/jwt.strategy';
 
 @Injectable()
 export class PoliciesGuard implements CanActivate {
@@ -27,12 +28,13 @@ export class PoliciesGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest();
-    const user = request.user;
-    if (!user) return false;
+    const user = request.user as AuthenticatedUser;
+    if (!user) {
+      // Этого не должно произойти, если JwtAuthGuard стоит первым, но для надежности
+      throw new ForbiddenException('User not authenticated.');
+    }
 
-    // 1. Определяем роль пользователя в текущем контексте
     const projectIdParam = request.params.projectId || request.params.id;
-    // Для эндпоинтов задач, ID проекта может быть в теле или параметрах
     const taskId = request.params.taskId || (request.route.path.includes('/tasks/') ? request.params.id : null);
     
     let userRole: Role;
@@ -50,12 +52,11 @@ export class PoliciesGuard implements CanActivate {
         throw new NotFoundException('Required project or task context not found for permission check.');
       }
     } catch (error) {
-      // Если сервис бросает ошибку (например, проект не найден или нет доступа),
-      // гвард должен ее пробросить дальше.
+      // ### ИЗМЕНЕНИЕ: Просто пробрасываем ошибку дальше. ###
+      // Если сервис бросил Forbidden или NotFound, пусть они дойдут до GlobalExceptionFilter как есть.
       throw error;
     }
     
-    // 2. Выполняем все обработчики с полученной ролью
     const allPoliciesPassed = policyHandlers.every((Handler) => {
         const handler = new Handler();
         return handler.handle({ role: userRole });

@@ -1,5 +1,5 @@
 // api/src/projects/projects.service.ts
-import { Injectable, NotFoundException, ForbiddenException, ConflictException, Inject, forwardRef, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, ConflictException, Inject, Logger, BadRequestException } from '@nestjs/common';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectSettingsDto } from './dto/update-project-settings.dto';
 import { UpdateColumnDto } from './dto/update-column.dto';
@@ -10,8 +10,8 @@ import { KNEX_CONNECTION } from '../knex/knex.constants';
 import * as crypto from 'crypto';
 import { ProjectRecord, UserRecord, ProjectMemberWithUser, ColumnRecord, TaskRecord } from '../types/db-records';
 import { ProjectDetailsDto } from './dto/project-details.dto';
-import { TasksService } from '../tasks/tasks.service';
 import { Role } from '../casl/roles.enum';
+import { AuthenticatedUser } from 'src/auth/jwt.strategy';
 
 const DEFAULT_PROJECT_COLUMNS = ['To Do', 'In Progress', 'Done'];
 const DEFAULT_PROJECT_TYPES = ['Task', 'Bug', 'Feature'];
@@ -22,7 +22,6 @@ export class ProjectsService {
 
   constructor(
     @Inject(KNEX_CONNECTION) private readonly knex: Knex,
-    @Inject(forwardRef(() => TasksService)) private readonly tasksService: TasksService,
   ) {}
 
   async getProjectAndRole(projectId: number, userId: string, trx?: Knex.Transaction): Promise<{ project: ProjectRecord; userRole: Role }> {
@@ -57,7 +56,7 @@ export class ProjectsService {
     return owner;
   }
 
-  async createProject(createProjectDto: CreateProjectDto, user: UserRecord): Promise<ProjectRecord> {
+  async createProject(createProjectDto: CreateProjectDto, user: AuthenticatedUser): Promise<ProjectRecord> {
     return this.knex.transaction(async (trx) => {
       const [newProject] = await trx('projects')
         .insert({
@@ -108,7 +107,6 @@ export class ProjectsService {
       this.getProjectMembers(projectId)
     ]);
     
-    // ### ИСПРАВЛЕНИЕ: Мапим данные из структуры ProjectMemberWithUser в плоскую структуру ProjectMemberDto
     const members = membersResult.map(m => ({
       id: m.user.id,
       name: m.user.name,
@@ -117,10 +115,10 @@ export class ProjectsService {
     }));
 
     const columns = columnsDb.map(col => ({
-      ...col, // id, name, position
+      ...col,
       tasks: tasksDb
         .filter(task => task.column_id === col.id)
-        .map(task => ({ ...task })), // Возвращаем полный объект TaskDto
+        .map(task => ({ ...task })),
     }));
 
     return {
@@ -132,6 +130,23 @@ export class ProjectsService {
       columns,
       availableTaskTypes: taskTypesDb.map(t => t.name),
     };
+  }
+  
+  private async updateTaskPrefixesForProject(
+    projectId: number,
+    oldPrefix: string,
+    newPrefix: string,
+    trx: Knex.Transaction,
+  ): Promise<number> {
+    const oldPrefixPattern = `${oldPrefix}-`;
+    const newPrefixPattern = `${newPrefix}-`;
+    const result = await trx.raw(`
+        UPDATE tasks
+        SET human_readable_id = REPLACE(human_readable_id, ?, ?), updated_at = ?
+        WHERE project_id = ? AND human_readable_id LIKE ?`,
+        [oldPrefixPattern, newPrefixPattern, new Date(), projectId, `${oldPrefixPattern}%`]
+    );
+    return result.rowCount || 0;
   }
 
   async updateProjectSettings(
@@ -150,7 +165,7 @@ export class ProjectsService {
             const existing = await trx('projects').where({ task_prefix: newPrefix }).whereNot({ id: projectId }).first();
             if (existing) throw new ConflictException(`Project prefix '${newPrefix}' is already in use.`);
             updatePayload.task_prefix = newPrefix;
-            await this.tasksService.updateTaskPrefixesForProject(projectId, project.task_prefix, newPrefix, trx);
+            await this.updateTaskPrefixesForProject(projectId, project.task_prefix, newPrefix, trx);
         }
       }
       if (Object.keys(updatePayload).length > 0) {
@@ -275,7 +290,6 @@ export class ProjectsService {
             email: m.email,
             created_at: m.created_at,
             updated_at: m.updated_at,
-            password_hash: '' // Exclude password hash
         }
     }));
   }

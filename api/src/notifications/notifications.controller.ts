@@ -3,12 +3,12 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { NotificationsService } from './notifications.service';
-import { UserRecord } from 'src/types/db-records';
 
 @ApiBearerAuth()
 @ApiTags('Notifications')
 @UseGuards(JwtAuthGuard)
-@Controller('notifications')
+// ### ИЗМЕНЕНИЕ: Добавляем префикс /api/v1 ###
+@Controller('api/v1/notifications')
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 

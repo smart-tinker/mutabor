@@ -5,15 +5,14 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
-    # ### ИЗМЕНЕНИЕ: Убираем зависимость от healthcheck API, чтобы клиент запускался в любом случае
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     environment:
       - VITE_API_URL=http://localhost:3001
     volumes:
       - ./client/src:/app/src
       - ./client/public:/app/public
-    # ### ИЗМЕНЕНИЕ: Healthcheck для клиента не так важен для запуска, можно оставить
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
       interval: 30s
@@ -26,13 +25,14 @@ services:
       context: ./api
       dockerfile: Dockerfile
     ports:
-      - "3001:3000"
+      - "3001:3001"
     depends_on:
       db:
         condition: service_healthy
     env_file:
       - ./api/.env
     environment:
+      - PORT=3001
       - NODE_ENV=development
       - DATABASE_URL=postgresql://user:password@db:5432/mutabor?schema=public
       - DB_HOST=db
@@ -42,13 +42,32 @@ services:
       - DB_NAME=mutabor
     volumes:
       - ./api/src:/app/src
-    # ### ИЗМЕНЕНИЕ: Полностью убираем healthcheck для API, чтобы исключить его как причину сбоя
-    # healthcheck:
-    #   test: ["CMD", "curl", "--fail", "http://localhost:3000/api/v1/health"]
-    #   interval: 15s
-    #   timeout: 5s
-    #   retries: 5
-    #   start_period: 30s
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:3001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  api-test:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.test
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - ./api/.env
+    environment:
+      - NODE_ENV=test
+      # ### ИЗМЕНЕНИЕ: Используем основную БД, т.к. тесты должны работать в транзакциях ###
+      - DATABASE_URL=postgresql://user:password@db:5432/mutabor?schema=public
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=user
+      - DB_PASSWORD=password
+      - DB_NAME=mutabor
+    command: npm run test
 
   db: # Сервис базы данных PostgreSQL
     image: postgres:13

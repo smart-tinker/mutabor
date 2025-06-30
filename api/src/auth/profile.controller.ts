@@ -10,7 +10,8 @@ import { AuthService } from './auth.service';
 @ApiBearerAuth()
 @ApiTags('Profile')
 @UseGuards(JwtAuthGuard)
-@Controller('profile')
+// ### ИЗМЕНЕНИЕ: Добавляем префикс /api/v1 ###
+@Controller('api/v1/profile')
 export class ProfileController {
   constructor(private authService: AuthService) {}
 
@@ -18,7 +19,6 @@ export class ProfileController {
   @ApiOperation({ summary: 'Get current user profile' })
   @ApiResponse({ status: 200, description: 'Returns the current user profile.' })
   getProfile(@GetUser() user: Omit<UserRecord, 'password_hash'>) {
-    // The @GetUser decorator already provides the user payload without the password hash
     return user;
   }
 

@@ -14,6 +14,8 @@ vi.mock('../pages/DashboardPage', () => ({ default: () => <div>DashboardPageMock
 vi.mock('../pages/RegistrationPage', () => ({ default: () => <div>RegistrationPageMock</div>}));
 vi.mock('../pages/LoginPage', () => ({ default: () => <div>LoginPageMock</div>}));
 vi.mock('../pages/LandingPage', () => ({ default: () => <div>LandingPageMock</div>}));
+// ### ИЗМЕНЕНИЕ: Добавляем мок для ProjectSettingsPage ###
+vi.mock('../pages/ProjectSettingsPage', () => ({ default: () => <div>ProjectSettingsPageMock</div>}));
 vi.mock('../widgets/Header/Header', () => ({ default: () => <header>HeaderMock</header>}));
 vi.mock('../shared/contexts/ThemeContext', () => ({
   ThemeProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,

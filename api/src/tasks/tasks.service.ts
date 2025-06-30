@@ -13,6 +13,7 @@ import { TaskRecord, UserRecord, ProjectRecord } from '../types/db-records';
 import { ProjectsService } from '../projects/projects.service';
 import { Role } from '../casl/roles.enum';
 import { NotificationsService } from '../notifications/notifications.service';
+import { AuthenticatedUser } from 'src/auth/jwt.strategy';
 
 @Injectable()
 export class TasksService {
@@ -23,7 +24,7 @@ export class TasksService {
     private readonly eventsGateway: EventsGateway,
     private readonly commentsService: CommentsService,
     private readonly notificationsService: NotificationsService,
-    @Inject(forwardRef(() => ProjectsService))
+    // ### ИЗМЕНЕНИЕ: Убираем forwardRef, он больше не нужен ###
     private readonly projectsService: ProjectsService,
   ) {}
 
@@ -40,7 +41,7 @@ export class TasksService {
     return { task, project, userRole };
   }
 
-  async createTask(projectId: number, createTaskDto: CreateTaskDto, user: UserRecord): Promise<TaskRecord> {
+  async createTask(projectId: number, createTaskDto: CreateTaskDto, user: AuthenticatedUser): Promise<TaskRecord> {
     const { title, description, columnId, assigneeId, dueDate, type, priority, tags } = createTaskDto;
 
     return this.knex.transaction(async (trx) => {
@@ -91,16 +92,15 @@ export class TasksService {
     return task;
   }
 
-  async findTaskByHumanId(hid: string, user: UserRecord): Promise<TaskRecord> {
+  async findTaskByHumanId(hid: string): Promise<TaskRecord> {
     const task = await this.knex('tasks').where({ human_readable_id: hid }).first();
     if (!task) {
       throw new NotFoundException(`Task with ID ${hid} not found.`);
     }
-    await this.projectsService.getProjectAndRole(task.project_id, user.id);
     return task;
   }
 
-  async updateTask(taskId: string, updateTaskDto: UpdateTaskDto, user: UserRecord): Promise<TaskRecord> {
+  async updateTask(taskId: string, updateTaskDto: UpdateTaskDto, user: AuthenticatedUser): Promise<TaskRecord> {
     return this.knex.transaction(async (trx) => {
         const { project } = await this.getTaskAndProjectForPermissionCheck(taskId, user.id);
 
@@ -134,7 +134,7 @@ export class TasksService {
     });
   }
 
-  async moveTask(taskId: string, moveTaskDto: MoveTaskDto, user: UserRecord): Promise<TaskRecord> {
+  async moveTask(taskId: string, moveTaskDto: MoveTaskDto, user: AuthenticatedUser): Promise<TaskRecord> {
     const { newColumnId, newPosition } = moveTaskDto;
 
     return this.knex.transaction(async (trx) => {
@@ -161,7 +161,7 @@ export class TasksService {
     });
   }
 
-  async addCommentToTask(taskId: string, createCommentDto: CreateCommentDto, author: UserRecord) {
+  async addCommentToTask(taskId: string, createCommentDto: CreateCommentDto, author: AuthenticatedUser) {
     const { task } = await this.getTaskAndProjectForPermissionCheck(taskId, author.id);
     const newComment = await this.commentsService.createComment(task.id, createCommentDto, author.id);
     
@@ -173,22 +173,5 @@ export class TasksService {
   async getCommentsForTask(taskId: string) {
     await this.findTaskById(taskId);
     return this.commentsService.getCommentsForTask(taskId);
-  }
-
-  async updateTaskPrefixesForProject(
-    projectId: number,
-    oldPrefix: string,
-    newPrefix: string,
-    trx: Knex.Transaction,
-  ): Promise<number> {
-    const oldPrefixPattern = `${oldPrefix}-`;
-    const newPrefixPattern = `${newPrefix}-`;
-    const result = await trx.raw(`
-        UPDATE tasks
-        SET human_readable_id = REPLACE(human_readable_id, ?, ?), updated_at = ?
-        WHERE project_id = ? AND human_readable_id LIKE ?`,
-        [oldPrefixPattern, newPrefixPattern, new Date(), projectId, `${oldPrefixPattern}%`]
-    );
-    return result.rowCount || 0;
   }
 }

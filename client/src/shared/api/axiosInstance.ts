@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// ### ИЗМЕНЕНИЕ: Возвращаем префикс /api/v1 в базовый URL клиента ###
+const API_BASE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/v1`;
 
 // Create an Axios instance
 const axiosInstance = axios.create({
@@ -29,7 +30,7 @@ axiosInstance.interceptors.response.use(
   },
   (error) => {
     // Any status codes that falls outside the range of 2xx cause this function to trigger
-    // ИЗМЕНЕНИЕ: Реализована логика автоматического выхода при ошибке 401
+    // Реализована логика автоматического выхода при ошибке 401
     if (error.response && error.response.status === 401) {
       // Проверяем, что мы не на странице логина, чтобы избежать цикла редиректов
       if (window.location.pathname !== '/login') {

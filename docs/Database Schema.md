@@ -1,6 +1,6 @@
 # Database Schema: Mutabor
 
-Note: This project uses PostgreSQL, managed via Docker, as the database platform. The schema is managed via Knex.js migrations.
+Note: This project uses PostgreSQL, managed via Docker, as the database platform. The schema is managed via Liquibase migrations defined in `api/db/changelog/`.
 
 ## 1. ERD (Entity-Relationship Diagram)
 
@@ -36,7 +36,6 @@ erDiagram
     project_task_types {
         int id PK "SERIAL"
         string name "UK(name, project_id)"
-        string color nullable
         int project_id FK
     }
 

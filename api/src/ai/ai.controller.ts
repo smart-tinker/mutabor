@@ -6,13 +6,13 @@ import { AssistRequestDto } from './dto/assist-request.dto';
 import { UpdateAiSettingsDto } from './dto/update-ai-settings.dto';
 import { PoliciesGuard } from '../casl/policies.guard';
 import { CheckPolicies } from '../casl/check-policies.decorator';
-import { CanManageProjectSettingsPolicy, CanEditProjectContentPolicy } from '../casl/project-policies.handler';
-import { UserRecord } from 'src/types/db-records';
+import { CanManageProjectSettingsPolicy } from '../casl/project-policies.handler';
 
 @ApiBearerAuth()
 @ApiTags('AI')
 @UseGuards(JwtAuthGuard, PoliciesGuard)
-@Controller()
+// ### ИЗМЕНЕНИЕ: Добавляем префикс /api/v1 ###
+@Controller('api/v1')
 export class AiController {
   constructor(private readonly aiService: AiService) {}
 

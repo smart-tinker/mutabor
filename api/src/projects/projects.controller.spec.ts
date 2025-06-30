@@ -1,66 +1,97 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProjectsController } from './projects.controller';
 import { ProjectsService } from './projects.service';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
+import * as request from 'supertest';
+import { KnexModule } from '../knex/knex.module';
+import { ConfigModule } from '@nestjs/config';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { ProjectRecord, UserRecord } from '../types/db-records';
+import { Knex } from 'knex';
+import { KNEX_CONNECTION } from '../knex/knex.constants';
+import * as crypto from 'crypto';
 
-const mockUser: UserRecord = { id: 'user-1', email: 'test@example.com', name: 'Test User', created_at: new Date(), updated_at: new Date() };
-const mockProject: ProjectRecord = { id: 1, name: 'Test Project', task_prefix: 'TP', last_task_number: 0, owner_id: 'user-1', created_at: new Date(), updated_at: new Date(), settings_statuses: null, settings_types: null };
+describe('ProjectsController (e2e)', () => {
+  let app: INestApplication;
+  let knex: Knex;
+  let createdProjectId: number;
 
-// Mock ProjectsService
-const mockProjectsService = {
-  createProject: jest.fn().mockResolvedValue(mockProject),
-  findAllProjectsForUser: jest.fn().mockResolvedValue([mockProject]),
-  findProjectById: jest.fn().mockResolvedValue(mockProject),
-};
+  const mockUser = {
+    id: crypto.randomUUID(), // ### ИЗМЕНЕНИЕ: Используем валидный UUID ###
+    email: 'e2e-test@example.com',
+    name: 'E2E Test User',
+  };
 
-describe('ProjectsController', () => {
-  let controller: ProjectsController;
-  let service: ProjectsService;
-
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [ProjectsController],
-      providers: [
-        { provide: ProjectsService, useValue: mockProjectsService },
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [
+        ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env.test' }),
+        KnexModule,
+        // Импортируем модули, от которых зависит ProjectsModule
       ],
+      controllers: [ProjectsController],
+      providers: [ProjectsService],
     })
     .overrideGuard(JwtAuthGuard)
-    .useValue({ canActivate: jest.fn(() => true) })
+    .useValue({
+      canActivate: (context) => {
+        const req = context.switchToHttp().getRequest();
+        req.user = mockUser;
+        return true;
+      },
+    })
     .compile();
 
-    controller = module.get<ProjectsController>(ProjectsController);
-    service = module.get<ProjectsService>(ProjectsService);
+    app = moduleFixture.createNestApplication();
+    app.useGlobalPipes(new ValidationPipe());
+    await app.init();
+    
+    knex = app.get(KNEX_CONNECTION);
+    // Очистка и подготовка БД перед тестами
+    await knex('project_members').del();
+    await knex('tasks').del();
+    await knex('columns').del();
+    await knex('projects').del();
+    await knex('users').where('email', mockUser.email).del();
+    await knex('users').insert({ ...mockUser, password_hash: 'test-hash' });
   });
 
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
+  afterAll(async () => {
+    await knex.destroy();
+    await app.close();
   });
 
-  const mockReq = { user: mockUser };
+  it('POST /api/v1/projects - should create a new project', async () => {
+    const createProjectDto = { name: 'E2E Project', prefix: 'E2E' };
+    
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/projects')
+      .send(createProjectDto)
+      .expect(201);
 
-  describe('create', () => {
-    it('should call service.createProject and return a project', async () => {
-      const createDto = { name: 'New Project', prefix: 'NP' };
-      const result = await controller.create(createDto, mockReq);
-      expect(service.createProject).toHaveBeenCalledWith(createDto, mockUser);
-      expect(result).toEqual(mockProject);
-    });
+    expect(response.body.name).toEqual(createProjectDto.name);
+    expect(response.body.owner_id).toEqual(mockUser.id);
+    createdProjectId = response.body.id; // Сохраняем для следующих тестов
   });
 
-  describe('findAll', () => {
-    it('should call service.findAllProjectsForUser and return projects', async () => {
-      const result = await controller.findAll(mockReq);
-      expect(service.findAllProjectsForUser).toHaveBeenCalledWith(mockUser);
-      expect(result).toEqual([mockProject]);
-    });
+  it('GET /api/v1/projects/:id - should get the created project details', async () => {
+    expect(createdProjectId).toBeDefined();
+
+    const response = await request(app.getHttpServer())
+      .get(`/api/v1/projects/${createdProjectId}`)
+      .expect(200);
+
+    expect(response.body.id).toEqual(createdProjectId);
+    expect(response.body.owner.id).toEqual(mockUser.id);
+    expect(response.body.columns).toHaveLength(3); // Проверяем колонки по умолчанию
   });
 
-  describe('findOne', () => {
-    it('should call service.findProjectById and return a project', async () => {
-      const result = await controller.findOne(mockProject.id, mockReq);
-      expect(service.findProjectById).toHaveBeenCalledWith(mockProject.id, mockUser);
-      expect(result).toEqual(mockProject);
-    });
+  it('GET /api/v1/projects - should list the created project for the user', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/projects')
+      .expect(200);
+
+    expect(Array.isArray(response.body)).toBe(true);
+    expect(response.body.length).toBeGreaterThan(0);
+    expect(response.body.some(p => p.id === createdProjectId)).toBe(true);
   });
 });

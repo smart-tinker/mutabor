@@ -1,0 +1,32 @@
+# Dockerfile для запуска тестов (включая devDependencies)
+
+FROM node:20-bullseye-slim
+
+# Устанавливаем системные зависимости, необходимые для Liquibase
+RUN apt-get update && apt-get install -y \
+    curl \
+    default-jre-headless \
+    unzip \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Устанавливаем Liquibase
+RUN mkdir -p /usr/local/liquibase \
+    && curl -L https://github.com/liquibase/liquibase/releases/download/v4.28.0/liquibase-4.28.0.zip -o liquibase.zip \
+    && unzip liquibase.zip -d /usr/local/liquibase \
+    && rm liquibase.zip
+ENV PATH="/usr/local/liquibase:${PATH}"
+
+WORKDIR /usr/src/app
+
+# Копируем package.json и package-lock.json
+COPY package*.json ./
+
+# Устанавливаем ВСЕ зависимости
+RUN npm install
+
+# Копируем остальной код
+COPY . .
+
+# Команда для запуска тестов
+# NestJS использует ts-jest, который компилирует TS на лету, поэтому билд не нужен
+CMD ["npm", "run", "test"]

@@ -15,7 +15,8 @@ import { NotificationsModule } from '../notifications/notifications.module';
     EventsModule,
     CommentsModule,
     NotificationsModule,
-    forwardRef(() => ProjectsModule), // Цикл только с ProjectsModule, его и разрываем
+    // ### ИЗМЕНЕНИЕ: Убираем forwardRef, так как цикл больше не нужен ###
+    ProjectsModule,
     CaslModule,
   ],
   controllers: [TasksController],

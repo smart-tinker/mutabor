@@ -32,6 +32,8 @@ export class AddMemberDto {
 export class UpdateProjectSettingsDto {
   name?: string;
   prefix?: string;
+  // Полный список колонок (статусов). Бэкенд обновит их имена и порядок.
+  statuses?: string[];
   // Полный список типов задач. Бэкенд синхронизирует таблицу `project_task_types` с этим списком.
   types?: string[];
 }
@@ -60,7 +62,7 @@ export class ProjectDetailsDto {
 
 ### Task & Comment DTOs
 ```typescript
-// DTO для создания задачи (projectId передается в URL)
+// DTO для создания задачи. projectId передается через URL: POST /projects/{projectId}/tasks
 export class CreateTaskDto {
   title: string;
   description?: string;

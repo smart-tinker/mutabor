@@ -26,8 +26,8 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // Префикс для всех API-роутов
-  app.setGlobalPrefix('api/v1');
+  // ### ИЗМЕНЕНИЕ: Убираем глобальный префикс. Префиксы будут заданы в каждом контроллере. ###
+  // app.setGlobalPrefix('api/v1');
 
   // Настройка Swagger для документирования API
   const config = new DocumentBuilder()
@@ -37,12 +37,14 @@ async function bootstrap() {
     .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api-docs', app, document);
+  const swaggerPath = 'api-docs';
+  SwaggerModule.setup(swaggerPath, app, document);
   
-  const port = process.env.PORT || 3000; // ### ИЗМЕНЕНИЕ: порт по умолчанию 3000, как в Docker
+  const port = process.env.PORT || 3001;
   await app.listen(port, '0.0.0.0');
   
-  console.log(`Application is running on: ${await app.getUrl()}`);
-  console.log(`Swagger documentation is available at: /api-docs`); // ### ИЗМЕНЕНИЕ: Убран localhost для универсальности
+  const appUrl = await app.getUrl();
+  console.log(`Application is running on: ${appUrl}`);
+  console.log(`Swagger documentation is available at: ${appUrl}/${swaggerPath}`);
 }
 bootstrap();

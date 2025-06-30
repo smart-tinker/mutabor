@@ -7,15 +7,16 @@ import { UpdateColumnDto } from './dto/update-column.dto';
 import { CreateColumnDto } from './dto/create-column.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { PoliciesGuard } from '../casl/policies.guard';
-import { CheckPolicies } from '../casl/check-policies.decorator';
-import { CanManageProjectSettingsPolicy, CanEditProjectContentPolicy } from '../casl/project-policies.handler';
-import { UserRecord } from 'src/types/db-records';
+// import { PoliciesGuard } from '../casl/policies.guard'; // УДАЛЕНО
+// import { CheckPolicies } from '../casl/check-policies.decorator'; // УДАЛЕНО
+// import { CanManageProjectSettingsPolicy, CanEditProjectContentPolicy } from '../casl/project-policies.handler'; // УДАЛЕНО
+import { AuthenticatedUser } from 'src/auth/jwt.strategy';
 
 @ApiBearerAuth()
 @ApiTags('Projects')
-@UseGuards(JwtAuthGuard, PoliciesGuard)
-@Controller('projects')
+// ### ИЗМЕНЕНИЕ: Убираем PoliciesGuard, оставляем только JwtAuthGuard ###
+@UseGuards(JwtAuthGuard)
+@Controller('api/v1/projects')
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
@@ -23,27 +24,27 @@ export class ProjectsController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new project' })
   create(@Body() createProjectDto: CreateProjectDto, @Req() req) {
-    const user = req.user as UserRecord;
+    const user = req.user as AuthenticatedUser;
     return this.projectsService.createProject(createProjectDto, user);
   }
 
   @Get()
   @ApiOperation({ summary: 'Get all projects for the current user' })
   findAll(@Req() req) {
-    const user = req.user as UserRecord;
+    const user = req.user as AuthenticatedUser;
     return this.projectsService.findAllProjectsForUser(user.id);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get full details of a project (board, tasks, members)' })
-  @CheckPolicies(CanEditProjectContentPolicy) // ### ИСПРАВЛЕНО: Убран 'new'
+  // @CheckPolicies(CanEditProjectContentPolicy) // УДАЛЕНО
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.projectsService.getProjectDetails(id);
   }
   
   @Put(':id/settings')
   @ApiOperation({ summary: 'Update project settings (name, prefix, types)' })
-  @CheckPolicies(CanManageProjectSettingsPolicy) // ### ИСПРАВЛЕНО: Убран 'new'
+  // @CheckPolicies(CanManageProjectSettingsPolicy) // УДАЛЕНО
   updateProjectSettings(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateProjectSettingsDto: UpdateProjectSettingsDto,
@@ -56,7 +57,7 @@ export class ProjectsController {
   @Post(':projectId/columns')
   @ApiOperation({ summary: 'Create a new column in a project' })
   @HttpCode(HttpStatus.CREATED)
-  @CheckPolicies(CanEditProjectContentPolicy) // ### ИСПРАВЛЕНО: Убран 'new'
+  // @CheckPolicies(CanEditProjectContentPolicy) // УДАЛЕНО
   createColumn(
     @Param('projectId', ParseIntPipe) projectId: number,
     @Body() createColumnDto: CreateColumnDto,
@@ -67,7 +68,7 @@ export class ProjectsController {
   @Patch(':projectId/columns/:columnId')
   @ApiOperation({ summary: 'Update a column\'s name' })
   @HttpCode(HttpStatus.OK)
-  @CheckPolicies(CanEditProjectContentPolicy) // ### ИСПРАВЛЕНО: Убран 'new'
+  // @CheckPolicies(CanEditProjectContentPolicy) // УДАЛЕНО
   updateColumn(
     @Param('projectId', ParseIntPipe) projectId: number,
     @Param('columnId', ParseUUIDPipe) columnId: string,
@@ -79,7 +80,7 @@ export class ProjectsController {
   @Delete(':projectId/columns/:columnId')
   @ApiOperation({ summary: 'Delete a column and move its tasks' })
   @HttpCode(HttpStatus.NO_CONTENT)
-  @CheckPolicies(CanEditProjectContentPolicy) // ### ИСПРАВЛЕНО: Убран 'new'
+  // @CheckPolicies(CanEditProjectContentPolicy) // УДАЛЕНО
   deleteColumn(
     @Param('projectId', ParseIntPipe) projectId: number,
     @Param('columnId', ParseUUIDPipe) columnId: string,
@@ -91,7 +92,7 @@ export class ProjectsController {
 
   @Post(':projectId/members')
   @ApiOperation({ summary: 'Add a new member to a project' })
-  @CheckPolicies(CanManageProjectSettingsPolicy) // ### ИСПРАВЛЕНО: Убран 'new'
+  // @CheckPolicies(CanManageProjectSettingsPolicy) // УДАЛЕНО
   addMember(
     @Param('projectId', ParseIntPipe) projectId: number,
     @Body() addMemberDto: AddMemberDto,
@@ -101,7 +102,7 @@ export class ProjectsController {
 
   @Get(':projectId/members')
   @ApiOperation({ summary: 'Get all members of a project' })
-  @CheckPolicies(CanEditProjectContentPolicy) // ### ИСПРАВЛЕНО: Убран 'new'
+  // @CheckPolicies(CanEditProjectContentPolicy) // УДАЛЕНО
   getMembers(
     @Param('projectId', ParseIntPipe) projectId: number,
   ) {
