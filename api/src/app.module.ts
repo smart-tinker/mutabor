@@ -10,8 +10,7 @@ import { EventsModule } from './events/events.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AppController } from './app.controller';
 import { CommentsModule } from './comments/comments.module';
-// AI-модуль не импортируется глобально, т.к. он исключен из сборки
-// import { AiModule } from './ai/ai.module';
+import { PoliciesGuard } from './casl/policies.guard';
 
 @Module({
   imports: [
@@ -24,13 +23,11 @@ import { CommentsModule } from './comments/comments.module';
     ProjectsModule,
     TasksModule,
     CommentsModule,
-    CaslModule, // Оставляем, т.к. может понадобиться в будущем
+    CaslModule,
     EventsModule,
     NotificationsModule,
-    // AiModule, // Не включаем в сборку по умолчанию
   ],
   controllers: [AppController],
-  // ### ИЗМЕНЕНИЕ: Глобальный PoliciesGuard полностью убран. ###
-  providers: [],
+  providers: [PoliciesGuard],
 })
 export class AppModule {}

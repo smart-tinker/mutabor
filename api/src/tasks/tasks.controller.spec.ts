@@ -4,8 +4,11 @@ import { TasksService } from './tasks.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TaskRecord } from '../types/db-records';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
+import { PoliciesGuard } from '../casl/policies.guard';
+import { ProjectsService } from '../projects/projects.service';
 
-const mockUser: AuthenticatedUser = { id: 'user-1', email: 'test@example.com', name: 'Test User' };
+// ### ИЗМЕНЕНИЕ: Добавлено поле role ###
+const mockUser: AuthenticatedUser = { id: 'user-1', email: 'test@example.com', name: 'Test User', role: 'user' };
 const mockTask: TaskRecord = { id: 'task-1', human_readable_id: 'TP-1', task_number: 1, title: 'Test Task', description: null, position: 0, project_id: 1, column_id: 'col-1', assignee_id: null, creator_id: 'user-1', due_date: null, created_at: new Date(), updated_at: new Date(), type: null, priority: null, tags: null };
 
 const mockTasksService = {
@@ -17,6 +20,10 @@ const mockTasksService = {
   getCommentsForTask: jest.fn(),
 };
 
+const mockProjectsService = {
+  getUserRoleForProject: jest.fn().mockResolvedValue('owner'),
+};
+
 describe('TasksController', () => {
   let controller: TasksController;
   let service: TasksService;
@@ -24,7 +31,11 @@ describe('TasksController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [TasksController],
-      providers: [{ provide: TasksService, useValue: mockTasksService }],
+      providers: [
+        PoliciesGuard,
+        { provide: TasksService, useValue: mockTasksService },
+        { provide: ProjectsService, useValue: mockProjectsService },
+      ],
     })
     .overrideGuard(JwtAuthGuard)
     .useValue({ canActivate: (context) => {
@@ -33,6 +44,8 @@ describe('TasksController', () => {
         return true;
       } 
     })
+    .overrideGuard(PoliciesGuard)
+    .useValue({ canActivate: () => true })
     .compile();
 
     controller = module.get<TasksController>(TasksController);
@@ -53,7 +66,6 @@ describe('TasksController', () => {
     });
   });
 
-  // ### ИЗМЕНЕНИЕ: Тест теперь соответствует новому методу findOne(hid) ###
   describe('findOne', () => {
     it('should call service.findTaskByHumanId and return a task', async () => {
       await controller.findOne(mockTask.human_readable_id);

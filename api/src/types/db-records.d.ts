@@ -5,6 +5,7 @@ export type UserRecord = {
   email: string;
   name: string | null;
   password_hash: string;
+  role: 'admin' | 'user'; // ### НОВОЕ: Добавлено поле роли
   created_at: Date;
   updated_at: Date;
 };
@@ -12,7 +13,6 @@ export type UserRecord = {
 export type ProjectRecord = {
   id: number;
   name: string;
-  // ### ИЗМЕНЕНИЕ: Добавлено недостающее поле ###
   task_prefix: string;
   last_task_number: number;
   owner_id: string;
@@ -26,7 +26,6 @@ export type ProjectMemberRecord = {
   role: 'owner' | 'editor' | 'viewer';
 };
 
-// Добавлен недостающий тип
 export type ProjectMemberWithUser = ProjectMemberRecord & {
   user: Pick<UserRecord, 'id' | 'name' | 'email' | 'created_at' | 'updated_at'>;
 };
@@ -66,7 +65,6 @@ export type CommentRecord = {
   author_id: string | null;
   created_at: Date;
   updated_at: Date;
-  // Добавлено недостающее поле author, которое должно загружаться через JOIN
   author?: Pick<UserRecord, 'id' | 'name' | 'email'>;
 };
 

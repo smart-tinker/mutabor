@@ -24,21 +24,16 @@ export class TasksService {
     private readonly eventsGateway: EventsGateway,
     private readonly commentsService: CommentsService,
     private readonly notificationsService: NotificationsService,
-    // ### ИЗМЕНЕНИЕ: Убираем forwardRef, он больше не нужен ###
     private readonly projectsService: ProjectsService,
   ) {}
 
-  async getTaskAndProjectForPermissionCheck(
-    taskId: string,
-    userId: string,
-  ): Promise<{ task: TaskRecord; project: ProjectRecord; userRole: Role }> {
-    const task = await this.knex('tasks').where({ id: taskId }).first();
+  // ### ИЗМЕНЕНИЕ: Метод для гварда. Просто возвращает роль или null.
+  async getUserRoleForTask(taskId: string, userId: string): Promise<Role | null> {
+    const task = await this.knex('tasks').where({ id: taskId }).select('project_id').first();
     if (!task) {
       throw new NotFoundException(`Task with ID ${taskId} not found.`);
     }
-
-    const { project, userRole } = await this.projectsService.getProjectAndRole(task.project_id, userId);
-    return { task, project, userRole };
+    return this.projectsService.getUserRoleForProject(task.project_id, userId);
   }
 
   async createTask(projectId: number, createTaskDto: CreateTaskDto, user: AuthenticatedUser): Promise<TaskRecord> {
@@ -102,9 +97,11 @@ export class TasksService {
 
   async updateTask(taskId: string, updateTaskDto: UpdateTaskDto, user: AuthenticatedUser): Promise<TaskRecord> {
     return this.knex.transaction(async (trx) => {
-        const { project } = await this.getTaskAndProjectForPermissionCheck(taskId, user.id);
+        // ### ИЗМЕНЕНИЕ: Убрана проверка прав, теперь это делает гвард
+        const task = await trx('tasks').where({ id: taskId }).first();
+        if (!task) throw new NotFoundException(`Task with ID ${taskId} not found.`);
 
-        if (updateTaskDto.type && !(await this.projectsService.isTaskTypeValidForProject(project.id, updateTaskDto.type, trx))) {
+        if (updateTaskDto.type && !(await this.projectsService.isTaskTypeValidForProject(task.project_id, updateTaskDto.type, trx))) {
             throw new BadRequestException(`Task type '${updateTaskDto.type}' is not valid for this project.`);
         }
 
@@ -120,8 +117,7 @@ export class TasksService {
         };
 
         if (Object.keys(updatePayload).length === 0) {
-          const currentTask = await trx('tasks').where({ id: taskId }).first();
-          return currentTask;
+          return task;
         }
 
         const [updatedTask] = await trx('tasks')
@@ -138,7 +134,9 @@ export class TasksService {
     const { newColumnId, newPosition } = moveTaskDto;
 
     return this.knex.transaction(async (trx) => {
-      const { task: taskToMove } = await this.getTaskAndProjectForPermissionCheck(taskId, user.id);
+      // ### ИЗМЕНЕНИЕ: Убрана проверка прав, теперь это делает гвард
+      const taskToMove = await trx('tasks').where({ id: taskId }).first();
+      if (!taskToMove) throw new NotFoundException(`Task with ID ${taskId} not found.`);
       
       const targetColumn = await trx('columns').where({ id: newColumnId, project_id: taskToMove.project_id }).first();
       if (!targetColumn) throw new BadRequestException(`Target column with ID ${newColumnId} not found in this project.`);
@@ -162,7 +160,8 @@ export class TasksService {
   }
 
   async addCommentToTask(taskId: string, createCommentDto: CreateCommentDto, author: AuthenticatedUser) {
-    const { task } = await this.getTaskAndProjectForPermissionCheck(taskId, author.id);
+    // ### ИЗМЕНЕНИЕ: Убрана проверка прав, теперь это делает гвард
+    const task = await this.findTaskById(taskId);
     const newComment = await this.commentsService.createComment(task.id, createCommentDto, author.id);
     
     await this.notificationsService.createMentionNotifications(newComment, task.title, task.project_id);
@@ -171,6 +170,8 @@ export class TasksService {
   }
 
   async getCommentsForTask(taskId: string) {
+    // ### ИЗМЕНЕНИЕ: Убрана проверка прав, теперь это делает гвард
+    // Проверка на существование задачи осталась, что корректно
     await this.findTaskById(taskId);
     return this.commentsService.getCommentsForTask(taskId);
   }

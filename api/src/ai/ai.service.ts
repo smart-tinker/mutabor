@@ -72,7 +72,8 @@ export class AiService {
     const task = await this.knex('tasks').where({ id: dto.contextId }).first();
     if (!task) throw new NotFoundException(`Task with ID ${dto.contextId} not found.`);
 
-    const { userRole } = await this.projectsService.getProjectAndRole(task.project_id, user.id);
+    // ### ИЗМЕНЕНИЕ: Исправлено имя метода с getProjectAndRole на getUserRoleForProject
+    const userRole = await this.projectsService.getUserRoleForProject(task.project_id, user.id);
     if (userRole !== Role.Owner && userRole !== Role.Editor) {
         throw new ForbiddenException('You do not have permission to perform AI actions in this project.');
     }
@@ -153,7 +154,6 @@ export class AiService {
     }
   }
 
-  // ### ИЗМЕНЕНИЕ: Добавляем return, чтобы исправить ошибку компиляции ###
   private getDecompositionPrompt(title: string, description?: string): string { return ''; }
   private getBranchNamePrompt(title: string): string { return ''; }
   private async generateText(client: OpenAI, modelName: string, prompt: string): Promise<string> { return Promise.resolve(''); }

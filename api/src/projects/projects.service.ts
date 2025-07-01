@@ -24,7 +24,7 @@ export class ProjectsService {
     @Inject(KNEX_CONNECTION) private readonly knex: Knex,
   ) {}
 
-  async getProjectAndRole(projectId: number, userId: string, trx?: Knex.Transaction): Promise<{ project: ProjectRecord; userRole: Role }> {
+  async getUserRoleForProject(projectId: number, userId: string, trx?: Knex.Transaction): Promise<Role | null> {
     const db = trx || this.knex;
     const project = await db('projects').where({ id: projectId }).first();
     if (!project) {
@@ -32,16 +32,15 @@ export class ProjectsService {
     }
 
     if (project.owner_id === userId) {
-        return { project, userRole: Role.Owner };
+        return Role.Owner;
     }
 
     const membership = await db('project_members').where({ project_id: projectId, user_id: userId }).first();
     if (membership) {
-        const role = Object.values(Role).includes(membership.role as Role) ? membership.role as Role : Role.Viewer;
-        return { project, userRole: role };
+        return membership.role as Role;
     }
 
-    throw new ForbiddenException('You do not have permission to access this project.');
+    return null;
   }
   
   async getProjectOwner(projectId: number): Promise<UserRecord> {

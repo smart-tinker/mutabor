@@ -6,7 +6,6 @@ import { UserRecord } from '../types/db-records';
 import { ProjectsService } from '../projects/projects.service';
 
 const mockKnex = {
-  // ... mock knex methods if needed
 };
 
 const mockEventsGateway = { emitNotificationNew: jest.fn() };
@@ -15,8 +14,8 @@ const mockProjectsService = { getProjectMembers: jest.fn(), getProjectOwner: jes
 describe('NotificationsService', () => {
   let service: NotificationsService;
 
-  // ### ИЗМЕНЕНИЕ: Добавляем password_hash в мок ###
-  const mockUser: UserRecord = { id: 'user1', email: 'user1@example.com', name: 'User One', created_at: new Date(), updated_at: new Date(), password_hash: 'hash' };
+  // ### ИЗМЕНЕНИЕ: Добавлено поле role ###
+  const mockUser: UserRecord = { id: 'user1', email: 'user1@example.com', name: 'User One', created_at: new Date(), updated_at: new Date(), password_hash: 'hash', role: 'user' };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({

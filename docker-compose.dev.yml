@@ -15,12 +15,8 @@ services:
     volumes:
       - ./client:/app
       - /app/node_modules
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+    # ### ИЗМЕНЕНИЕ: Секция healthcheck удалена для dev-режима клиента ###
+    # Это уберет "unhealthy" статус, который нерелевантен для Vite dev server.
 
   api:
     build:
@@ -47,8 +43,6 @@ services:
     volumes:
       - ./api:/app
       - /app/node_modules
-      # ### ИЗМЕНЕНИЕ: Изолируем папку dist внутри контейнера ###
-      # Это предотвратит ее появление на хосте и конфликты с другими инструментами.
       - /app/dist
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:3001/health"]

@@ -12,13 +12,14 @@ describe('NotificationsController', () => {
   let app: INestApplication;
   let serviceMock: Partial<NotificationsService>;
 
-  const mockUser: AuthenticatedUser = { id: 'user1', email: 'test@example.com', name: 'Test User' };
+  const mockUser: AuthenticatedUser = { id: 'user1', email: 'test@example.com', name: 'Test User', role: 'user' };
 
   beforeAll(async () => {
-    // ### ИЗМЕНЕНИЕ: Мокаем только существующие методы ###
     serviceMock = {
       getNotificationsForUser: jest.fn().mockResolvedValue([]),
       markAsRead: jest.fn().mockImplementation((id: string, userId: string): Promise<NotificationRecord> => Promise.resolve({ id, recipient_id: userId, is_read: true, text: 'Notification ' + id, created_at: new Date(), updated_at: new Date(), source_url: null, task_id: null })),
+      // ### НОВЫЙ МОК ###
+      markAllAsReadForUser: jest.fn().mockResolvedValue({ updatedCount: 5 }),
     };
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -66,6 +67,19 @@ describe('NotificationsController', () => {
           expect(res.body.is_read).toBe(true);
           expect(serviceMock.markAsRead).toHaveBeenCalledWith(notificationId, mockUser.id);
       });
+    });
+  });
+  
+  // ### НОВЫЙ ТЕСТ ###
+  describe('POST /notifications/mark-all-read', () => {
+    it('should mark all notifications as read', async () => {
+      return request(app.getHttpServer())
+        .post('/api/v1/notifications/mark-all-read')
+        .expect(200)
+        .expect(res => {
+          expect(res.body.message).toContain('5 notifications marked as read.');
+          expect(serviceMock.markAllAsReadForUser).toHaveBeenCalledWith(mockUser.id);
+        });
     });
   });
 });

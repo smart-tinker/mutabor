@@ -8,11 +8,15 @@ import { CreateColumnDto } from './dto/create-column.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AuthenticatedUser } from 'src/auth/jwt.strategy';
+// ### ИЗМЕНЕНИЕ: Импортируем гвард, декоратор и политики ###
+import { PoliciesGuard } from '../casl/policies.guard';
+import { CheckPolicies } from '../casl/check-policies.decorator';
+import { CanEditProjectContentPolicy, CanManageProjectSettingsPolicy, CanViewProjectPolicy } from '../casl/project-policies.handler';
 
 @ApiBearerAuth()
 @ApiTags('Projects')
-// ### ИЗМЕНЕНИЕ: PoliciesGuard убран, осталась только проверка аутентификации. ###
-@UseGuards(JwtAuthGuard)
+// ### ИЗМЕНЕНИЕ: Добавляем PoliciesGuard вторым после JwtAuthGuard ###
+@UseGuards(JwtAuthGuard, PoliciesGuard)
 @Controller('api/v1/projects')
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
@@ -33,15 +37,15 @@ export class ProjectsController {
   }
 
   @Get(':id')
+  @CheckPolicies(CanViewProjectPolicy)
   @ApiOperation({ summary: 'Get full details of a project (board, tasks, members)' })
-  // Права доступа к проекту проверяются внутри сервиса
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.projectsService.getProjectDetails(id);
   }
   
   @Put(':id/settings')
+  @CheckPolicies(CanManageProjectSettingsPolicy)
   @ApiOperation({ summary: 'Update project settings (name, prefix, types)' })
-  // Права доступа к проекту проверяются внутри сервиса
   updateProjectSettings(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateProjectSettingsDto: UpdateProjectSettingsDto,
@@ -52,9 +56,9 @@ export class ProjectsController {
   // --- Columns CRUD ---
 
   @Post(':projectId/columns')
+  @CheckPolicies(CanEditProjectContentPolicy)
   @ApiOperation({ summary: 'Create a new column in a project' })
   @HttpCode(HttpStatus.CREATED)
-  // Права доступа к проекту проверяются внутри сервиса
   createColumn(
     @Param('projectId', ParseIntPipe) projectId: number,
     @Body() createColumnDto: CreateColumnDto,
@@ -63,9 +67,9 @@ export class ProjectsController {
   }
 
   @Patch(':projectId/columns/:columnId')
+  @CheckPolicies(CanEditProjectContentPolicy)
   @ApiOperation({ summary: 'Update a column\'s name' })
   @HttpCode(HttpStatus.OK)
-  // Права доступа к проекту проверяются внутри сервиса
   updateColumn(
     @Param('projectId', ParseIntPipe) projectId: number,
     @Param('columnId', ParseUUIDPipe) columnId: string,
@@ -75,9 +79,9 @@ export class ProjectsController {
   }
 
   @Delete(':projectId/columns/:columnId')
+  @CheckPolicies(CanEditProjectContentPolicy)
   @ApiOperation({ summary: 'Delete a column and move its tasks' })
   @HttpCode(HttpStatus.NO_CONTENT)
-  // Права доступа к проекту проверяются внутри сервиса
   deleteColumn(
     @Param('projectId', ParseIntPipe) projectId: number,
     @Param('columnId', ParseUUIDPipe) columnId: string,
@@ -88,8 +92,8 @@ export class ProjectsController {
   // --- Members ---
 
   @Post(':projectId/members')
+  @CheckPolicies(CanManageProjectSettingsPolicy) // Только владелец может добавлять
   @ApiOperation({ summary: 'Add a new member to a project' })
-  // Права доступа к проекту проверяются внутри сервиса
   addMember(
     @Param('projectId', ParseIntPipe) projectId: number,
     @Body() addMemberDto: AddMemberDto,
@@ -98,8 +102,8 @@ export class ProjectsController {
   }
 
   @Get(':projectId/members')
+  @CheckPolicies(CanViewProjectPolicy)
   @ApiOperation({ summary: 'Get all members of a project' })
-  // Права доступа к проекту проверяются внутри сервиса
   getMembers(
     @Param('projectId', ParseIntPipe) projectId: number,
   ) {

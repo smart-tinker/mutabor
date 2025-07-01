@@ -1,14 +1,12 @@
 # Dockerfile для запуска тестов
 FROM node:20-bullseye-slim
 
-# Устанавливаем системные зависимости
 RUN apt-get update && apt-get install -y \
     curl \
     default-jre-headless \
     unzip \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Устанавливаем Liquibase и даем ему права на исполнение
 RUN mkdir -p /usr/local/liquibase \
     && curl -L https://github.com/liquibase/liquibase/releases/download/v4.28.0/liquibase-4.28.0.zip -o liquibase.zip \
     && unzip liquibase.zip -d /usr/local/liquibase \
@@ -18,12 +16,10 @@ ENV PATH="/usr/local/liquibase:${PATH}"
 
 WORKDIR /app
 
-# Устанавливаем ВСЕ зависимости
 COPY package*.json ./
 RUN npm install
 
-# Копируем остальной код
 COPY . .
 
-# ### ИЗМЕНЕНИЕ: Явно передаем параметры в команду liquibase ###
-CMD ["sh", "-c", "liquibase --url=\"jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}\" --username=\"${DB_USER}\" --password=\"${DB_PASSWORD}\" update && npm run test:cov"]
+# ### ИЗМЕНЕНИЕ: Добавлен запуск `npm run seed` после миграций
+CMD ["sh", "-c", "liquibase --url=\"jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}\" --username=\"${DB_USER}\" --password=\"${DB_PASSWORD}\" update && npm run seed && npm run test:cov"]

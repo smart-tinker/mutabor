@@ -1,14 +1,13 @@
 # api/Dockerfile.dev
 FROM node:20-bullseye-slim
 
-# Устанавливаем системные зависимости для Liquibase
 RUN apt-get update && apt-get install -y \
     curl \
     default-jre-headless \
     unzip \
+    procps \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Устанавливаем Liquibase
 RUN mkdir -p /usr/local/liquibase \
     && curl -L https://github.com/liquibase/liquibase/releases/download/v4.28.0/liquibase-4.28.0.zip -o liquibase.zip \
     && unzip liquibase.zip -d /usr/local/liquibase \
@@ -18,14 +17,10 @@ ENV PATH="/usr/local/liquibase:${PATH}"
 
 WORKDIR /app
 
-# Копируем package.json и устанавливаем ВСЕ зависимости, включая devDependencies
 COPY package*.json ./
 RUN npm install
 
-# Копируем остальной код.
-# Он будет обновляться через volume mount.
 COPY . .
 
-# ### ИЗМЕНЕНИЕ: Явно передаем параметры в команду liquibase ###
-# Запускаем миграции и dev-сервер в watch-режиме
-CMD ["sh", "-c", "liquibase --url=\"jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}\" --username=\"${DB_USER}\" --password=\"${DB_PASSWORD}\" update && npm run start:dev"]
+# ### ИЗМЕНЕНИЕ: Добавлен запуск `npm run seed` после миграций
+CMD ["sh", "-c", "liquibase --url=\"jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}\" --username=\"${DB_USER}\" --password=\"${DB_PASSWORD}\" update && npm run seed && npm run start:dev"]

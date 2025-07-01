@@ -9,6 +9,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Knex } from 'knex';
 import { KNEX_CONNECTION } from '../knex/knex.constants';
 import * as crypto from 'crypto';
+import { PoliciesGuard } from '../casl/policies.guard';
+import { TasksService } from '../tasks/tasks.service';
 
 describe('ProjectsController (e2e)', () => {
   let app: INestApplication;
@@ -16,20 +18,28 @@ describe('ProjectsController (e2e)', () => {
   let createdProjectId: number;
 
   const mockUser = {
-    id: crypto.randomUUID(), // ### ИЗМЕНЕНИЕ: Используем валидный UUID ###
+    id: crypto.randomUUID(),
     email: 'e2e-test@example.com',
     name: 'E2E Test User',
   };
 
+  const mockTasksService = {
+    getUserRoleForTask: jest.fn().mockResolvedValue('owner'),
+  };
+  
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env.test' }),
         KnexModule,
-        // Импортируем модули, от которых зависит ProjectsModule
       ],
       controllers: [ProjectsController],
-      providers: [ProjectsService],
+      providers: [
+        // ### ИЗМЕНЕНИЕ: Добавляем все нужные провайдеры
+        ProjectsService,
+        PoliciesGuard,
+        { provide: TasksService, useValue: mockTasksService },
+      ],
     })
     .overrideGuard(JwtAuthGuard)
     .useValue({
@@ -39,6 +49,9 @@ describe('ProjectsController (e2e)', () => {
         return true;
       },
     })
+    // ### ИЗМЕНЕНИЕ: Мокируем PoliciesGuard, чтобы не проверять реальную логику прав в e2e тестах контроллера
+    .overrideGuard(PoliciesGuard)
+    .useValue({ canActivate: () => true })
     .compile();
 
     app = moduleFixture.createNestApplication();
@@ -46,7 +59,6 @@ describe('ProjectsController (e2e)', () => {
     await app.init();
     
     knex = app.get(KNEX_CONNECTION);
-    // Очистка и подготовка БД перед тестами
     await knex('project_members').del();
     await knex('tasks').del();
     await knex('columns').del();
@@ -56,8 +68,12 @@ describe('ProjectsController (e2e)', () => {
   });
 
   afterAll(async () => {
-    await knex.destroy();
-    await app.close();
+    if (knex) {
+      await knex.destroy();
+    }
+    if (app) {
+      await app.close();
+    }
   });
 
   it('POST /api/v1/projects - should create a new project', async () => {
@@ -70,7 +86,7 @@ describe('ProjectsController (e2e)', () => {
 
     expect(response.body.name).toEqual(createProjectDto.name);
     expect(response.body.owner_id).toEqual(mockUser.id);
-    createdProjectId = response.body.id; // Сохраняем для следующих тестов
+    createdProjectId = response.body.id;
   });
 
   it('GET /api/v1/projects/:id - should get the created project details', async () => {
@@ -82,7 +98,7 @@ describe('ProjectsController (e2e)', () => {
 
     expect(response.body.id).toEqual(createdProjectId);
     expect(response.body.owner.id).toEqual(mockUser.id);
-    expect(response.body.columns).toHaveLength(3); // Проверяем колонки по умолчанию
+    expect(response.body.columns).toHaveLength(3);
   });
 
   it('GET /api/v1/projects - should list the created project for the user', async () => {

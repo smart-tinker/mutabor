@@ -10,7 +10,6 @@ const mockKnex = {
   select: jest.fn().mockReturnThis(),
   first: jest.fn(),
   insert: jest.fn().mockReturnThis(),
-  // ### ИЗМЕНЕНИЕ: returning возвращает массив с объектом ###
   returning: jest.fn().mockResolvedValue([{ id: 'comment-uuid', text: 'Test comment', task_id: 'task1', author_id: 'user1' }]),
   orderBy: jest.fn().mockReturnThis(),
   whereIn: jest.fn().mockReturnThis(),
@@ -25,8 +24,8 @@ describe('CommentsService', () => {
   let service: CommentsService;
   const eventsGatewayMock = { emitCommentCreated: jest.fn() };
 
-  // ### ИЗМЕНЕНИЕ: Добавляем password_hash в мок ###
-  const mockUser: UserRecord = { id: 'user1', name: 'User One', email: 'user1@example.com', password_hash: 'hash', created_at: new Date(), updated_at: new Date() };
+  // ### ИЗМЕНЕНИЕ: Добавлено поле role ###
+  const mockUser: UserRecord = { id: 'user1', name: 'User One', email: 'user1@example.com', password_hash: 'hash', role: 'user', created_at: new Date(), updated_at: new Date() };
   const mockTaskData = { id: 'task1', project_id: 1 };
   
   beforeEach(async () => {

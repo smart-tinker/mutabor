@@ -1,5 +1,5 @@
 // api/src/notifications/notifications.service.ts
-import { Injectable, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Inject, forwardRef, NotFoundException } from '@nestjs/common';
 import { Knex } from 'knex';
 import { KNEX_CONNECTION } from '../knex/knex.constants';
 import * as crypto from 'crypto';
@@ -84,9 +84,22 @@ export class NotificationsService {
       .update({ is_read: true, updated_at: new Date() })
       .returning('*');
     
-    if (notification) {
-      this.eventsGateway.emitNotificationRead(notification);
+    if (!notification) {
+      throw new NotFoundException(`Notification with ID ${notificationId} not found or you don't have permission to access it.`);
     }
+
+    this.eventsGateway.emitNotificationRead(notification);
     return notification;
+  }
+
+  // ### НОВЫЙ МЕТОД ###
+  async markAllAsReadForUser(userId: string): Promise<{ updatedCount: number }> {
+    const result = await this.knex('notifications')
+      .where({ recipient_id: userId, is_read: false })
+      .update({ is_read: true, updated_at: new Date() });
+    
+    // В будущем здесь можно добавить отправку события через WebSocket,
+    // чтобы обновить UI на всех устройствах пользователя.
+    return { updatedCount: result };
   }
 }
