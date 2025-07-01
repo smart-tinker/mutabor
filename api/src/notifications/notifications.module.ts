@@ -5,6 +5,7 @@ import { NotificationsController } from './notifications.controller';
 import { EventsModule } from '../events/events.module';
 import { KnexModule } from '../knex/knex.module';
 import { ProjectsModule } from '../projects/projects.module';
+import { NotificationOwnerGuard } from './guards/notification-owner.guard'; // ### НОВОЕ: Импортируем гвард
 
 @Module({
   imports: [
@@ -14,7 +15,7 @@ import { ProjectsModule } from '../projects/projects.module';
     forwardRef(() => ProjectsModule),
   ],
   controllers: [NotificationsController],
-  providers: [NotificationsService],
+  providers: [NotificationsService, NotificationOwnerGuard], // ### НОВОЕ: Добавляем гвард в провайдеры
   exports: [NotificationsService],
 })
 export class NotificationsModule {}

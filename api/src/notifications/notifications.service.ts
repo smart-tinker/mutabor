@@ -92,14 +92,22 @@ export class NotificationsService {
     return notification;
   }
 
-  // ### НОВЫЙ МЕТОД ###
   async markAllAsReadForUser(userId: string): Promise<{ updatedCount: number }> {
-    const result = await this.knex('notifications')
+    const updatedNotifications = await this.knex('notifications')
       .where({ recipient_id: userId, is_read: false })
-      .update({ is_read: true, updated_at: new Date() });
+      .update({ is_read: true, updated_at: new Date() })
+      .returning('*'); // ### ИЗМЕНЕНИЕ: Возвращаем обновленные записи
+
+    const updatedCount = updatedNotifications.length;
+
+    if (updatedCount > 0) {
+      // ### НОВОЕ: Отправляем каждое обновленное уведомление через WebSocket
+      // Это позволит UI обновить статус каждого элемента в списке.
+      for (const notification of updatedNotifications) {
+        this.eventsGateway.emitNotificationRead(notification);
+      }
+    }
     
-    // В будущем здесь можно добавить отправку события через WebSocket,
-    // чтобы обновить UI на всех устройствах пользователя.
-    return { updatedCount: result };
+    return { updatedCount };
   }
 }

@@ -1,17 +1,15 @@
 // api/src/tasks/tasks.module.ts
-import { Module, Global } from '@nestjs/common'; // ### ИЗМЕНЕНИЕ: Импортируем Global
+import { Module, forwardRef } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { TasksController } from './tasks.controller';
 import { EventsModule } from '../events/events.module';
 import { CommentsModule } from '../comments/comments.module';
-// ### ИЗМЕНЕНИЕ: ProjectsModule больше не нужен в импортах, т.к. он теперь глобальный
-// import { ProjectsModule } from '../projects/projects.module';
 import { CaslModule } from '../casl/casl.module';
 import { KnexModule } from '../knex/knex.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { ProjectsModule } from '../projects/projects.module'; // ### НОВОЕ: Импортируем ProjectsModule
 
-// ### ИЗМЕНЕНИЕ: Добавляем декоратор @Global()
-@Global()
+// ### ИЗМЕНЕНИЕ: Убираем декоратор @Global() ###
 @Module({
   imports: [
     KnexModule,
@@ -19,6 +17,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     CommentsModule,
     NotificationsModule,
     CaslModule,
+    forwardRef(() => ProjectsModule), // ### НОВОЕ: Используем forwardRef для разрыва цикла
   ],
   controllers: [TasksController],
   providers: [TasksService],

@@ -155,8 +155,14 @@ describe('TasksService', () => {
       mockQueryBuilder.decrement.mockResolvedValue(1);
       mockQueryBuilder.increment.mockResolvedValue(1);
       
-      // ### ИЗМЕНЕНИЕ: Упрощаем мок для `update().returning()`
-      const finalMovedTask = { ...taskToMove, ...moveDto };
+      // ### ИЗМЕНЕНИЕ: Исправлена конструкция мок-объекта ###
+      // Раньше: { ...taskToMove, ...moveDto } -> создавало поля column_id и newColumnId
+      // Теперь: Явно обновляем поля column_id и position в возвращаемом моке
+      const finalMovedTask = { 
+        ...taskToMove, 
+        column_id: moveDto.newColumnId,
+        position: moveDto.newPosition,
+      };
       mockQueryBuilder.returning.mockResolvedValue([finalMovedTask]);
 
       const result = await service.moveTask(taskId, moveDto, mockUser);

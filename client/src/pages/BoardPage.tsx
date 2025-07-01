@@ -80,6 +80,7 @@ const BoardPage: React.FC = () => {
   
   const [formState, dispatch] = useReducer(formReducer, initialFormState);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null); // ### НОВОЕ: Состояние для ошибки формы
 
   const numericProjectId = projectId ? parseInt(projectId, 10) : null;
 
@@ -194,35 +195,34 @@ const BoardPage: React.FC = () => {
 
   const handleModalClose = () => {
     dispatch({ type: 'RESET' });
+    setFormError(null); // ### НОВОЕ: Сбрасываем ошибку при закрытии
     closeGlobalAddTaskModal();
   };
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null); // ### НОВОЕ: Сбрасываем ошибку перед отправкой
     if (!formState.title.trim() || !formState.columnId || numericProjectId === null) {
-      alert('Please ensure Title and Column are filled.');
+      setFormError('Please ensure Title and Column are filled.'); // ### ИЗМЕНЕНИЕ: Вместо alert()
       return;
     }
     setIsCreatingTask(true);
     try {
       const tagsArray = formState.tags.split(',').map(tag => tag.trim()).filter(Boolean);
-      // ### ИЗМЕНЕНО: Создаем DTO без projectId, так как он передается в URL
       const taskData: Omit<CreateTaskDto, 'projectId'> = {
         title: formState.title,
         description: formState.description,
         columnId: formState.columnId,
-        // projectId: numericProjectId, // Удалено из DTO
         dueDate: formState.dueDate || undefined,
         type: formState.type || undefined,
         priority: formState.priority || undefined,
         tags: tagsArray.length > 0 ? tagsArray : undefined,
       };
-      // ### ИЗМЕНЕНО: Передаем projectId как первый аргумент
       await taskService.createTask(numericProjectId, taskData);
       handleModalClose();
-    } catch (err) {
+    } catch (err: any) { // ### ИЗМЕНЕНИЕ: Обрабатываем ошибку API
       console.error('Failed to create task:', err);
-      alert('Failed to create task.');
+      setFormError(err.response?.data?.message || 'Failed to create task.');
     } finally {
       setIsCreatingTask(false);
     }
@@ -300,7 +300,8 @@ const BoardPage: React.FC = () => {
       await taskService.moveTask(activeId, { newColumnId, newPosition });
     } catch (err) {
       console.error('Failed to move task:', err);
-      alert('Failed to move task. Reverting changes.');
+      // ### ИЗМЕНЕНИЕ: Вместо alert() просто выводим ошибку в консоль и перезагружаем данные
+      setError('Failed to save task position. Reverting changes.');
       fetchBoardData();
     }
   };
@@ -334,6 +335,9 @@ const BoardPage: React.FC = () => {
               title="Add New Task"
             >
               <form onSubmit={handleCreateTask} className={styles.form}>
+                {/* ### НОВОЕ: Отображение ошибки формы ### */}
+                {formError && <p style={{ color: 'red', marginBottom: '10px' }}>{formError}</p>}
+                
                 <div>
                   <label htmlFor="taskTitle" className={styles.formLabel}>Task Title:</label>
                   <input id="taskTitle" type="text" value={formState.title} onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'title', payload: e.target.value })} required className={styles.formInput} />

@@ -1,3 +1,4 @@
+// api/src/tasks/tasks.controller.ts
 import { Controller, Post, Body, Get, Param, Patch, UseGuards, Req, HttpCode, HttpStatus, ParseIntPipe, ParseUUIDPipe } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
@@ -7,15 +8,13 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateCommentDto } from '../comments/dto/create-comment.dto';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-// ### ИЗМЕНЕНИЕ: Импортируем гвард, декоратор и политики ###
-import { PoliciesGuard } from '../casl/policies.guard';
 import { CheckPolicies } from '../casl/check-policies.decorator';
 import { CanEditProjectContentPolicy, CanViewProjectPolicy } from '../casl/project-policies.handler';
 
 @ApiBearerAuth()
 @ApiTags('Tasks & Comments')
-// ### ИЗМЕНЕНИЕ: Добавляем PoliciesGuard вторым после JwtAuthGuard ###
-@UseGuards(JwtAuthGuard, PoliciesGuard)
+// ### ИЗМЕНЕНИЕ: Убираем PoliciesGuard, так как он теперь глобальный
+@UseGuards(JwtAuthGuard)
 @Controller('api/v1')
 export class TasksController {
   constructor(private readonly tasksService: TasksService) {}

@@ -7,6 +7,7 @@ import * as request from 'supertest';
 import * as crypto from 'crypto';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { NotificationRecord } from '../types/db-records';
+import { NotificationOwnerGuard } from './guards/notification-owner.guard'; // ### НОВОЕ: Импортируем гвард
 
 describe('NotificationsController', () => {
   let app: INestApplication;
@@ -18,7 +19,6 @@ describe('NotificationsController', () => {
     serviceMock = {
       getNotificationsForUser: jest.fn().mockResolvedValue([]),
       markAsRead: jest.fn().mockImplementation((id: string, userId: string): Promise<NotificationRecord> => Promise.resolve({ id, recipient_id: userId, is_read: true, text: 'Notification ' + id, created_at: new Date(), updated_at: new Date(), source_url: null, task_id: null })),
-      // ### НОВЫЙ МОК ###
       markAllAsReadForUser: jest.fn().mockResolvedValue({ updatedCount: 5 }),
     };
 
@@ -33,6 +33,9 @@ describe('NotificationsController', () => {
         return true;
       }
     })
+    // ### НОВОЕ: Отключаем NotificationOwnerGuard для тестов этого контроллера ###
+    .overrideGuard(NotificationOwnerGuard)
+    .useValue({ canActivate: () => true })
     .compile();
 
     app = moduleFixture.createNestApplication();
@@ -70,7 +73,6 @@ describe('NotificationsController', () => {
     });
   });
   
-  // ### НОВЫЙ ТЕСТ ###
   describe('POST /notifications/mark-all-read', () => {
     it('should mark all notifications as read', async () => {
       return request(app.getHttpServer())

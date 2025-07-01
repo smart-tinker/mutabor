@@ -1,22 +1,22 @@
+// api/src/projects/projects.controller.ts
 import { Controller, Post, Body, Get, Param, UseGuards, Req, ParseIntPipe, HttpCode, HttpStatus, Put, Patch, ParseUUIDPipe, Delete } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { AddMemberDto } from './dto/add-member.dto';
 import { UpdateProjectSettingsDto } from './dto/update-project-settings.dto';
-import { UpdateColumnDto } from './dto/update-column.dto';
 import { CreateColumnDto } from './dto/create-column.dto';
+import { UpdateColumnDto } from './dto/update-column.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AuthenticatedUser } from 'src/auth/jwt.strategy';
-// ### ИЗМЕНЕНИЕ: Импортируем гвард, декоратор и политики ###
-import { PoliciesGuard } from '../casl/policies.guard';
 import { CheckPolicies } from '../casl/check-policies.decorator';
 import { CanEditProjectContentPolicy, CanManageProjectSettingsPolicy, CanViewProjectPolicy } from '../casl/project-policies.handler';
+import { ProjectSettingsDto } from './dto/project-settings.dto';
 
 @ApiBearerAuth()
 @ApiTags('Projects')
-// ### ИЗМЕНЕНИЕ: Добавляем PoliciesGuard вторым после JwtAuthGuard ###
-@UseGuards(JwtAuthGuard, PoliciesGuard)
+// ### ИЗМЕНЕНИЕ: Убираем PoliciesGuard, так как он теперь глобальный
+@UseGuards(JwtAuthGuard)
 @Controller('api/v1/projects')
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
@@ -41,6 +41,16 @@ export class ProjectsController {
   @ApiOperation({ summary: 'Get full details of a project (board, tasks, members)' })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.projectsService.getProjectDetails(id);
+  }
+
+  @Get(':id/settings')
+  @CheckPolicies(CanManageProjectSettingsPolicy)
+  @ApiOperation({ summary: 'Get project settings (name, prefix, types, statuses)' })
+  @ApiResponse({ status: 200, description: 'Returns project settings.', type: ProjectSettingsDto })
+  getProjectSettings(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<ProjectSettingsDto> {
+    return this.projectsService.getProjectSettings(id);
   }
   
   @Put(':id/settings')

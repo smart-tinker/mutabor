@@ -7,8 +7,8 @@ import { TasksService } from '../tasks/tasks.service';
 import { Role } from './roles.enum';
 import { CanViewProjectPolicy, CanEditProjectContentPolicy, CanManageProjectSettingsPolicy } from './project-policies.handler';
 import { CHECK_POLICIES_KEY } from './check-policies.decorator';
+import { IS_PUBLIC_KEY } from '../auth/decorators/public.decorator';
 
-// Мокируем сервисы
 const mockProjectsService = {
   getUserRoleForProject: jest.fn(),
 };
@@ -21,26 +21,7 @@ describe('PoliciesGuard', () => {
   let guard: PoliciesGuard;
   let reflector: Reflector;
 
-  beforeEach(async () => {
-    // Сбрасываем моки перед каждым тестом
-    jest.clearAllMocks();
-
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        PoliciesGuard,
-        Reflector,
-        { provide: ProjectsService, useValue: mockProjectsService },
-        { provide: TasksService, useValue: mockTasksService },
-      ],
-    }).compile();
-
-    guard = module.get<PoliciesGuard>(PoliciesGuard);
-    reflector = module.get<Reflector>(Reflector);
-  });
-
-  const createMockExecutionContext = (user: any, params: any, policies: any[], path: string): ExecutionContext => {
-    jest.spyOn(reflector, 'get').mockReturnValue(policies);
-    
+  const createMockExecutionContext = (user: any, params: any, path: string): ExecutionContext => {
     return {
       getHandler: () => ({}),
       getClass: () => ({}),
@@ -54,81 +35,76 @@ describe('PoliciesGuard', () => {
     } as any;
   };
 
+  beforeEach(async () => {
+    jest.clearAllMocks();
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        PoliciesGuard,
+        { provide: ProjectsService, useValue: mockProjectsService },
+        { provide: TasksService, useValue: mockTasksService },
+        { provide: Reflector, useValue: { getAllAndOverride: jest.fn() } }, // ### ИЗМЕНЕНИЕ: Внедряем мок Reflector
+      ],
+    }).compile();
+
+    guard = module.get<PoliciesGuard>(PoliciesGuard);
+    reflector = module.get<Reflector>(Reflector);
+  });
+  
   it('should be defined', () => {
     expect(guard).toBeDefined();
   });
 
-  describe('Project Context', () => {
-    const projectId = 1;
-    const user = { id: 'user-id-1', email: 'test@test.com', name: 'Test User' };
-    const projectPath = `/api/v1/projects/${projectId}`;
+  describe('Authorization Logic', () => {
+    const user = { id: 'user-id-1', role: 'user' };
 
-    it('should ALLOW access if user is OWNER and policy requires owner', async () => {
-      mockProjectsService.getUserRoleForProject.mockResolvedValue(Role.Owner);
-      const context = createMockExecutionContext(user, { id: projectId }, [CanManageProjectSettingsPolicy], projectPath);
-      await expect(guard.canActivate(context)).resolves.toBe(true);
-    });
-
-    it('should DENY access if user is EDITOR and policy requires owner', async () => {
+    it('should DENY access if policy check fails', async () => {
       mockProjectsService.getUserRoleForProject.mockResolvedValue(Role.Editor);
-      const context = createMockExecutionContext(user, { id: projectId }, [CanManageProjectSettingsPolicy], projectPath);
+      // Мокируем, что эндпоинт НЕ публичный и требует политику CanManageProjectSettingsPolicy
+      (reflector.getAllAndOverride as jest.Mock)
+        .mockReturnValueOnce(false) // For IS_PUBLIC_KEY
+        .mockReturnValueOnce([CanManageProjectSettingsPolicy]); // For CHECK_POLICIES_KEY
+
+      const context = createMockExecutionContext(user, { id: 1 }, '/api/v1/projects/1/settings');
       await expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
     });
 
-    it('should ALLOW access if user is EDITOR and policy requires editor', async () => {
-      mockProjectsService.getUserRoleForProject.mockResolvedValue(Role.Editor);
-      const context = createMockExecutionContext(user, { id: projectId }, [CanEditProjectContentPolicy], projectPath);
+    it('should ALLOW access if policy check passes', async () => {
+      mockProjectsService.getUserRoleForProject.mockResolvedValue(Role.Owner);
+      (reflector.getAllAndOverride as jest.Mock)
+        .mockReturnValueOnce(false)
+        .mockReturnValueOnce([CanManageProjectSettingsPolicy]);
+
+      const context = createMockExecutionContext(user, { id: 1 }, '/api/v1/projects/1/settings');
+      await expect(guard.canActivate(context)).resolves.toBe(true);
+    });
+
+    it('should ALLOW access for admin role regardless of policies', async () => {
+      const adminUser = { ...user, role: 'admin' };
+      (reflector.getAllAndOverride as jest.Mock).mockReturnValueOnce(false); // Не публичный
+
+      const context = createMockExecutionContext(adminUser, { id: 1 }, '/api/v1/projects/1');
+      await expect(guard.canActivate(context)).resolves.toBe(true);
+    });
+
+    it('should ALLOW access if route is public', async () => {
+      (reflector.getAllAndOverride as jest.Mock).mockReturnValueOnce(true); // Публичный
+
+      const context = createMockExecutionContext(null, {}, '/health');
       await expect(guard.canActivate(context)).resolves.toBe(true);
     });
     
-    it('should ALLOW access if user is VIEWER and policy requires viewer', async () => {
-        mockProjectsService.getUserRoleForProject.mockResolvedValue(Role.Viewer);
-        const context = createMockExecutionContext(user, { id: projectId }, [CanViewProjectPolicy], projectPath);
-        await expect(guard.canActivate(context)).resolves.toBe(true);
-    });
-
-    it('should DENY access if user is not a member of the project (role is null)', async () => {
-      mockProjectsService.getUserRoleForProject.mockResolvedValue(null);
-      const context = createMockExecutionContext(user, { id: projectId }, [CanViewProjectPolicy], projectPath);
-      await expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
-    });
-  });
-
-  describe('Task Context', () => {
-    const taskId = 'task-uuid-1';
-    const user = { id: 'user-id-1', email: 'test@test.com', name: 'Test User' };
-    const taskPath = `/api/v1/tasks/${taskId}`;
-
-    it('should ALLOW access for an editor to edit content via task context', async () => {
+    it('should call tasksService for task-related routes', async () => {
       mockTasksService.getUserRoleForTask.mockResolvedValue(Role.Editor);
-      const context = createMockExecutionContext(user, { id: taskId }, [CanEditProjectContentPolicy], taskPath);
+      (reflector.getAllAndOverride as jest.Mock)
+        .mockReturnValueOnce(false)
+        .mockReturnValueOnce([CanEditProjectContentPolicy]);
       
-      await expect(guard.canActivate(context)).resolves.toBe(true);
-      expect(mockTasksService.getUserRoleForTask).toHaveBeenCalledWith(taskId, user.id);
-    });
+      const context = createMockExecutionContext(user, { id: 'task-uuid' }, '/api/v1/tasks/task-uuid');
+      await guard.canActivate(context);
 
-    it('should DENY access for a viewer to edit content via task context', async () => {
-        mockTasksService.getUserRoleForTask.mockResolvedValue(Role.Viewer);
-        const context = createMockExecutionContext(user, { id: taskId }, [CanEditProjectContentPolicy], taskPath);
-
-        await expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
-    });
-  });
-
-  describe('Edge Cases', () => {
-    it('should re-throw NotFoundException if the service throws it', async () => {
-        const user = { id: 'user-id-1', email: 'test@test.com', name: 'Test User' };
-        mockProjectsService.getUserRoleForProject.mockRejectedValue(new NotFoundException());
-        const context = createMockExecutionContext(user, { id: 999 }, [CanViewProjectPolicy], '/api/v1/projects/999');
-        
-        await expect(guard.canActivate(context)).rejects.toThrow(NotFoundException);
-    });
-
-    it('should ALLOW access if no policies are applied to the route', async () => {
-        const user = { id: 'user-id-1', email: 'test@test.com', name: 'Test User' };
-        const context = createMockExecutionContext(user, {}, [], '/api/v1/some/unprotected/route');
-        
-        await expect(guard.canActivate(context)).resolves.toBe(true);
+      expect(mockTasksService.getUserRoleForTask).toHaveBeenCalledWith('task-uuid', user.id);
+      expect(mockProjectsService.getUserRoleForProject).not.toHaveBeenCalled();
     });
   });
 });

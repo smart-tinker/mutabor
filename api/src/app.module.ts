@@ -11,12 +11,14 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { AppController } from './app.controller';
 import { CommentsModule } from './comments/comments.module';
 import { PoliciesGuard } from './casl/policies.guard';
+import { APP_GUARD } from '@nestjs/core';
+import { JwtAuthGuard } from './auth/guards/jwt-auth.guard'; // ### НОВОЕ: Импортируем JwtAuthGuard
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      envFilePath: process.env.NODE_ENV === 'test' ? '.env.test' : (process.env.NODE_ENV === 'development' ? '.env.dev' : '.env'),
     }),
     KnexModule,
     AuthModule,
@@ -28,6 +30,16 @@ import { PoliciesGuard } from './casl/policies.guard';
     NotificationsModule,
   ],
   controllers: [AppController],
-  providers: [PoliciesGuard],
+  // ### ИЗМЕНЕНИЕ: Регистрируем оба гварда глобально. Порядок важен! ###
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard, // JwtAuthGuard должен идти первым
+    },
+    {
+      provide: APP_GUARD,
+      useClass: PoliciesGuard,
+    },
+  ],
 })
 export class AppModule {}

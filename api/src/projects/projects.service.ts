@@ -1,5 +1,5 @@
 // api/src/projects/projects.service.ts
-import { Injectable, NotFoundException, ForbiddenException, ConflictException, Inject, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, Inject, Logger, BadRequestException } from '@nestjs/common';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectSettingsDto } from './dto/update-project-settings.dto';
 import { UpdateColumnDto } from './dto/update-column.dto';
@@ -8,11 +8,13 @@ import { AddMemberDto } from './dto/add-member.dto';
 import { Knex } from 'knex';
 import { KNEX_CONNECTION } from '../knex/knex.constants';
 import * as crypto from 'crypto';
-import { ProjectRecord, UserRecord, ProjectMemberWithUser, ColumnRecord, TaskRecord } from '../types/db-records';
+import { ProjectRecord, UserRecord, ProjectMemberWithUser, ColumnRecord } from '../types/db-records';
 import { ProjectDetailsDto } from './dto/project-details.dto';
 import { Role } from '../casl/roles.enum';
 import { AuthenticatedUser } from 'src/auth/jwt.strategy';
+import { ProjectSettingsDto } from './dto/project-settings.dto';
 
+// ### НОВОЕ: Выносим "магические" строки в константы ###
 const DEFAULT_PROJECT_COLUMNS = ['To Do', 'In Progress', 'Done'];
 const DEFAULT_PROJECT_TYPES = ['Task', 'Bug', 'Feature'];
 
@@ -64,12 +66,14 @@ export class ProjectsService {
           owner_id: user.id,
         })
         .returning('*');
-
+      
+      // ### ИЗМЕНЕНИЕ: Используем константы ###
       const defaultColumns = DEFAULT_PROJECT_COLUMNS.map((name, index) => ({
         id: crypto.randomUUID(), name, position: index, project_id: newProject.id,
       }));
       await trx('columns').insert(defaultColumns);
 
+      // ### ИЗМЕНЕНИЕ: Используем константы ###
       const defaultTypes = DEFAULT_PROJECT_TYPES.map(name => ({
         name, project_id: newProject.id,
       }));
@@ -131,6 +135,31 @@ export class ProjectsService {
     };
   }
   
+  async getProjectSettings(projectId: number): Promise<ProjectSettingsDto> {
+    const project = await this.knex('projects').where({ id: projectId }).first();
+    if (!project) {
+        throw new NotFoundException(`Project with ID ${projectId} not found.`);
+    }
+
+    const statuses = await this.knex('columns')
+        .where({ project_id: projectId })
+        .orderBy('position', 'asc')
+        .select('name');
+
+    const types = await this.knex('project_task_types')
+        .where({ project_id: projectId })
+        .orderBy('name', 'asc')
+        .select('name');
+
+    return {
+        id: project.id,
+        name: project.name,
+        prefix: project.task_prefix,
+        settings_statuses: statuses.map(s => s.name),
+        settings_types: types.map(t => t.name),
+    };
+  }
+
   private async updateTaskPrefixesForProject(
     projectId: number,
     oldPrefix: string,
