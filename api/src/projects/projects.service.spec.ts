@@ -12,10 +12,10 @@ const mockUser: AuthenticatedUser = { id: 'user-1', email: 'test@example.com', n
 describe('ProjectsService', () => {
   let service: ProjectsService;
   let knex; 
-  let knexFn;
   let mockMethods;
 
   beforeEach(async () => {
+    // ### ИЗМЕНЕНИЕ: Упрощаем мок Knex, делая его более универсальным
     mockMethods = {
       where: jest.fn().mockReturnThis(),
       whereNot: jest.fn().mockReturnThis(),
@@ -30,13 +30,15 @@ describe('ProjectsService', () => {
       orderBy: jest.fn().mockReturnThis(),
       max: jest.fn().mockReturnThis(),
     };
-    knexFn = jest.fn(() => mockMethods);
+    
+    const knexFn = jest.fn(() => mockMethods);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProjectsService,
         { 
           provide: KNEX_CONNECTION, 
+          // Используем assign, чтобы добавить `transaction` к функции мока
           useValue: Object.assign(knexFn, {
             transaction: jest.fn().mockImplementation(async (callback) => callback(knexFn)),
           }),
@@ -45,7 +47,7 @@ describe('ProjectsService', () => {
     }).compile();
 
     service = module.get<ProjectsService>(ProjectsService);
-    knex = module.get(KNEX_CONNECTION);
+    knex = module.get(KNEX_CONNECTION); // Получаем мок для дальнейшей настройки
     jest.clearAllMocks();
   });
 
@@ -100,17 +102,17 @@ describe('ProjectsService', () => {
         const mockTaskTypes = [{ name: 'Bug' }, { name: 'Feature' }];
 
         // ### ИЗМЕНЕНИЕ: Управляем моками для каждого вызова ###
-        mockMethods.first.mockResolvedValue(mockProject);
+        // 1. Моки для Promise.all
+        mockMethods.first.mockResolvedValueOnce(mockProject); // для getProjectDetails
+        // orderBy возвращает `this`, поэтому просто мокируем `mockResolvedValue` для конечного вызова
+        mockMethods.orderBy
+            .mockResolvedValueOnce(mockColumns) // для columnsDb
+            .mockResolvedValueOnce(mockTasks)   // для tasksDb
+            .mockResolvedValueOnce(mockTaskTypes); // для taskTypesDb
+
+        // 2. Моки для вызовов внутри getProjectDetails
         jest.spyOn(service, 'getProjectOwner').mockResolvedValue(mockOwner);
         jest.spyOn(service, 'getProjectMembers').mockResolvedValue(mockMembers);
-        
-        (knexFn as jest.Mock)
-          .mockImplementation((table: string) => {
-            if (table === 'columns') return { orderBy: jest.fn().mockResolvedValue(mockColumns) };
-            if (table === 'tasks') return { orderBy: jest.fn().mockResolvedValue(mockTasks) };
-            if (table === 'project_task_types') return { orderBy: jest.fn().mockResolvedValue(mockTaskTypes) };
-            return mockMethods;
-          });
         
         const result = await service.getProjectDetails(projectId);
 

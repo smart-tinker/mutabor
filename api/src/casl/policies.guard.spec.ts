@@ -43,7 +43,14 @@ describe('PoliciesGuard', () => {
         PoliciesGuard,
         { provide: ProjectsService, useValue: mockProjectsService },
         { provide: TasksService, useValue: mockTasksService },
-        { provide: Reflector, useValue: { getAllAndOverride: jest.fn() } }, // ### ИЗМЕНЕНИЕ: Внедряем мок Reflector
+        // ### ИЗМЕНЕНИЕ: Мок Reflector теперь включает метод 'get' ###
+        { 
+          provide: Reflector, 
+          useValue: { 
+            getAllAndOverride: jest.fn(),
+            get: jest.fn(), // Добавляем недостающий метод
+          } 
+        },
       ],
     }).compile();
 
@@ -60,10 +67,10 @@ describe('PoliciesGuard', () => {
 
     it('should DENY access if policy check fails', async () => {
       mockProjectsService.getUserRoleForProject.mockResolvedValue(Role.Editor);
-      // Мокируем, что эндпоинт НЕ публичный и требует политику CanManageProjectSettingsPolicy
-      (reflector.getAllAndOverride as jest.Mock)
-        .mockReturnValueOnce(false) // For IS_PUBLIC_KEY
-        .mockReturnValueOnce([CanManageProjectSettingsPolicy]); // For CHECK_POLICIES_KEY
+      // Мокируем, что эндпоинт НЕ публичный
+      (reflector.getAllAndOverride as jest.Mock).mockReturnValueOnce(false); // For IS_PUBLIC_KEY
+      // Мокируем, что эндпоинт требует политику CanManageProjectSettingsPolicy
+      (reflector.get as jest.Mock).mockReturnValue([CanManageProjectSettingsPolicy]); // For CHECK_POLICIES_KEY
 
       const context = createMockExecutionContext(user, { id: 1 }, '/api/v1/projects/1/settings');
       await expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
@@ -71,9 +78,8 @@ describe('PoliciesGuard', () => {
 
     it('should ALLOW access if policy check passes', async () => {
       mockProjectsService.getUserRoleForProject.mockResolvedValue(Role.Owner);
-      (reflector.getAllAndOverride as jest.Mock)
-        .mockReturnValueOnce(false)
-        .mockReturnValueOnce([CanManageProjectSettingsPolicy]);
+      (reflector.getAllAndOverride as jest.Mock).mockReturnValueOnce(false);
+      (reflector.get as jest.Mock).mockReturnValue([CanManageProjectSettingsPolicy]);
 
       const context = createMockExecutionContext(user, { id: 1 }, '/api/v1/projects/1/settings');
       await expect(guard.canActivate(context)).resolves.toBe(true);
@@ -96,9 +102,8 @@ describe('PoliciesGuard', () => {
     
     it('should call tasksService for task-related routes', async () => {
       mockTasksService.getUserRoleForTask.mockResolvedValue(Role.Editor);
-      (reflector.getAllAndOverride as jest.Mock)
-        .mockReturnValueOnce(false)
-        .mockReturnValueOnce([CanEditProjectContentPolicy]);
+      (reflector.getAllAndOverride as jest.Mock).mockReturnValueOnce(false);
+      (reflector.get as jest.Mock).mockReturnValue([CanEditProjectContentPolicy]);
       
       const context = createMockExecutionContext(user, { id: 'task-uuid' }, '/api/v1/tasks/task-uuid');
       await guard.canActivate(context);
