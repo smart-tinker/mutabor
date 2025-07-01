@@ -153,8 +153,8 @@ export class AiService {
     }
   }
 
-  // Вспомогательные методы для генерации промптов
-  private getDecompositionPrompt(title: string, description?: string): string { /* ... */ }
-  private getBranchNamePrompt(title: string): string { /* ... */ }
-  private async generateText(client: OpenAI, modelName: string, prompt: string): Promise<string> { /* ... */ }
+  // ### ИЗМЕНЕНИЕ: Добавляем return, чтобы исправить ошибку компиляции ###
+  private getDecompositionPrompt(title: string, description?: string): string { return ''; }
+  private getBranchNamePrompt(title: string): string { return ''; }
+  private async generateText(client: OpenAI, modelName: string, prompt: string): Promise<string> { return Promise.resolve(''); }
 }

@@ -1,8 +1,18 @@
 // api/knexfile.js
 
-// Загружаем переменные из .env файла. Это важно для локальной разработки без Docker.
-// В Docker-окружении переменные будут предоставлены через docker-compose.yml.
-require('dotenv').config({ path: './.env' });
+// Загружаем переменные из .env файла в зависимости от окружения.
+// Это важно для локальной разработки без Docker.
+// В Docker-окружении эти переменные будут предоставлены через docker compose.
+const env = process.env.NODE_ENV || 'development';
+if (env === 'development') {
+    require('dotenv').config({ path: './.env.dev' });
+} else if (env === 'test') {
+    require('dotenv').config({ path: './.env.test' });
+} else {
+    // For production or any other case, it might use .env
+    require('dotenv').config({ path: './.env' });
+}
+
 
 /**
  * @type { Object.<string, import("knex").Knex.Config> }
@@ -10,41 +20,6 @@ require('dotenv').config({ path: './.env' });
 module.exports = {
   // --- Конфигурация для разработки ---
   development: {
-    client: 'pg',
-    connection: process.env.DATABASE_URL || {
-      host: process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.DB_PORT || '54321', 10),
-      database: process.env.DB_NAME || 'mutabor',
-      user: process.env.DB_USER || 'user',
-      password: process.env.DB_PASSWORD || 'password',
-    },
-    pool: {
-      min: 2,
-      max: 10,
-    },
-    seeds: {
-      directory: './db/seeds',
-    },
-  },
-
-  // ### ИЗМЕНЕНИЕ: Конфигурация для тестов ###
-  test: {
-    client: 'pg',
-    connection: process.env.DATABASE_URL || {
-      host: process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.DB_PORT || '54321', 10),
-      database: process.env.DB_NAME || 'mutabor',
-      user: process.env.DB_USER || 'user',
-      password: process.env.DB_PASSWORD || 'password',
-    },
-    pool: {
-      min: 2,
-      max: 10,
-    },
-  },
-
-  // --- Конфигурация для Staging ---
-  staging: {
     client: 'pg',
     connection: process.env.DATABASE_URL,
     pool: {
@@ -56,13 +31,22 @@ module.exports = {
     },
   },
 
+  // --- Конфигурация для тестов ---
+  test: {
+    client: 'pg',
+    connection: process.env.DATABASE_URL,
+    pool: {
+      min: 2,
+      max: 10,
+    },
+  },
+
   // --- Конфигурация для Production ---
   production: {
     client: 'pg',
-    connection: {
-      connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false }, // Настройте в зависимости от вашего хостинга
-    },
+    // ### ИЗМЕНЕНИЕ: Упрощена конфигурация для Production, убрана ненужная для Docker опция SSL.
+    // Теперь все окружения используют единый подход через DATABASE_URL.
+    connection: process.env.DATABASE_URL,
     pool: {
       min: 2,
       max: 10,

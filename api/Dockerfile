@@ -35,10 +35,11 @@ RUN npm install --omit=dev
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/knexfile.js ./knexfile.js
 COPY --from=builder /app/db ./db
+# liquibase.properties больше не нужен в финальном образе, но пусть будет на всякий случай
 COPY --from=builder /app/liquibase.properties ./liquibase.properties
 
 EXPOSE 3001
 
-# ### ИЗМЕНЕНИЕ: Теперь команда просто запускает liquibase напрямую ###
-# Он сам подхватит конфигурацию из liquibase.properties
-CMD ["sh", "-c", "liquibase update && node dist/main.js"]
+# ### ИЗМЕНЕНИЕ: Явно передаем параметры в команду liquibase ###
+# Это гарантирует, что переменные окружения будут подставлены корректно.
+CMD ["sh", "-c", "liquibase --url=\"jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}\" --username=\"${DB_USER}\" --password=\"${DB_PASSWORD}\" update && node dist/main.js"]

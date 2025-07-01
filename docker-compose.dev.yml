@@ -2,28 +2,30 @@ services:
   client:
     build:
       context: ./client
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: mutabor_dev_client
     ports:
       - "8080:3000"
     depends_on:
       api:
-        condition: service_healthy
+        condition: service_started
     environment:
       - VITE_API_URL=http://localhost:8081
+      - CHOKIDAR_USEPOLLING=true
     volumes:
       - ./client:/app
+      - /app/node_modules
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 30s
 
   api:
     build:
       context: ./api
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: mutabor_dev_api
     ports:
       - "8081:3001"
@@ -35,20 +37,25 @@ services:
     environment:
       - PORT=3001
       - NODE_ENV=development
-      - DATABASE_URL=postgresql://user:password@db_dev:5432/mutabor_dev?schema=public
       - DB_HOST=db_dev
       - DB_PORT=5432
       - DB_USER=user
       - DB_PASSWORD=password
       - DB_NAME=mutabor_dev
+      - DATABASE_URL=postgresql://user:password@db_dev:5432/mutabor_dev?schema=public
+      - CHOKIDAR_USEPOLLING=true
     volumes:
       - ./api:/app
+      - /app/node_modules
+      # ### ИЗМЕНЕНИЕ: Изолируем папку dist внутри контейнера ###
+      # Это предотвратит ее появление на хосте и конфликты с другими инструментами.
+      - /app/dist
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:3001/health"]
       interval: 15s
       timeout: 5s
       retries: 5
-      start_period: 30s
+      start_period: 45s
 
   db_dev:
     image: postgres:13
@@ -66,7 +73,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 5s
+      start_period: 10s
 
 volumes:
   postgres_dev_data:

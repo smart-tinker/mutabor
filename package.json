@@ -7,12 +7,14 @@
   ],
   "scripts": {
     "prod:up": "docker compose --project-name mutabor-prod -f docker-compose.yml up -d --build",
-    "prod:down": "docker compose --project-name mutabor-prod -f docker-compose.yml down -v --remove-orphans",
+    "prod:down": "docker compose --project-name mutabor-prod -f docker-compose.yml down",
+    "prod:clean": "docker compose --project-name mutabor-prod -f docker-compose.yml down -v --remove-orphans",
     "prod:logs": "docker compose --project-name mutabor-prod -f docker-compose.yml logs -f",
     "dev:up": "docker compose --project-name mutabor-dev -f docker-compose.dev.yml up -d --build",
-    "dev:down": "docker compose --project-name mutabor-dev -f docker-compose.dev.yml down -v --remove-orphans",
+    "dev:down": "docker compose --project-name mutabor-dev -f docker-compose.dev.yml down",
+    "dev:clean": "docker compose --project-name mutabor-dev -f docker-compose.dev.yml down -v --remove-orphans",
     "dev:logs": "docker compose --project-name mutabor-dev -f docker-compose.dev.yml logs -f",
-    "test:api": "docker compose --project-name mutabor-test -f docker-compose.test.yml up -d && (docker compose --project-name mutabor-test -f docker-compose.test.yml run --rm api-test || true) && docker compose --project-name mutabor-test -f docker-compose.test.yml down -v --remove-orphans",
+    "test:api": "docker compose --project-name mutabor-test -f docker-compose.test.yml up --build --exit-code-from api-test && docker compose --project-name mutabor-test -f docker-compose.test.yml down -v --remove-orphans",
     "test:client": "npm test -w client",
     "test:all": "npm run test:api && npm run test:client"
   }
