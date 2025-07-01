@@ -12,10 +12,10 @@ import { AuthenticatedUser } from 'src/auth/jwt.strategy';
 import { CheckPolicies } from '../casl/check-policies.decorator';
 import { CanEditProjectContentPolicy, CanManageProjectSettingsPolicy, CanViewProjectPolicy } from '../casl/project-policies.handler';
 import { ProjectSettingsDto } from './dto/project-settings.dto';
+import { UpdateMemberDto } from './dto/update-member.dto'; // ### НОВОЕ: Импортируем DTO
 
 @ApiBearerAuth()
 @ApiTags('Projects')
-// ### ИЗМЕНЕНИЕ: Убираем PoliciesGuard, так как он теперь глобальный
 @UseGuards(JwtAuthGuard)
 @Controller('api/v1/projects')
 export class ProjectsController {
@@ -102,7 +102,7 @@ export class ProjectsController {
   // --- Members ---
 
   @Post(':projectId/members')
-  @CheckPolicies(CanManageProjectSettingsPolicy) // Только владелец может добавлять
+  @CheckPolicies(CanManageProjectSettingsPolicy)
   @ApiOperation({ summary: 'Add a new member to a project' })
   addMember(
     @Param('projectId', ParseIntPipe) projectId: number,
@@ -117,6 +117,32 @@ export class ProjectsController {
   getMembers(
     @Param('projectId', ParseIntPipe) projectId: number,
   ) {
-    return this.projectsService.getProjectMembers(projectId);
+    // ### ИЗМЕНЕНИЕ: Теперь возвращаем и владельца, и участников одним списком
+    return this.projectsService.getAllProjectParticipants(projectId);
+  }
+
+  // ### НОВЫЙ ЭНДПОИНТ ###
+  @Patch(':projectId/members/:userId')
+  @CheckPolicies(CanManageProjectSettingsPolicy)
+  @ApiOperation({ summary: 'Update a project member\'s role' })
+  @HttpCode(HttpStatus.OK)
+  updateMember(
+    @Param('projectId', ParseIntPipe) projectId: number,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body() updateMemberDto: UpdateMemberDto,
+  ) {
+    return this.projectsService.updateProjectMember(projectId, userId, updateMemberDto);
+  }
+
+  // ### НОВЫЙ ЭНДПОИНТ ###
+  @Delete(':projectId/members/:userId')
+  @CheckPolicies(CanManageProjectSettingsPolicy)
+  @ApiOperation({ summary: 'Remove a member from a project' })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  removeMember(
+    @Param('projectId', ParseIntPipe) projectId: number,
+    @Param('userId', ParseUUIDPipe) userId: string,
+  ) {
+    return this.projectsService.removeMemberFromProject(projectId, userId);
   }
 }

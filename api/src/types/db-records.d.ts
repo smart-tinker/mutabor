@@ -5,9 +5,17 @@ export type UserRecord = {
   email: string;
   name: string | null;
   password_hash: string;
-  role: 'admin' | 'user'; // ### НОВОЕ: Добавлено поле роли
+  role: 'admin' | 'user';
   created_at: Date;
   updated_at: Date;
+};
+
+// ### НОВОЕ: Тип для объединенного списка участников ###
+export type AllParticipants = {
+  id: string;
+  name: string | null;
+  email: string;
+  role: string; // 'owner', 'editor', 'viewer'
 };
 
 export type ProjectRecord = {

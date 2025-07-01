@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useReducer } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   DndContext,
   closestCorners,
@@ -17,8 +17,8 @@ import type { CreateTaskDto } from '../shared/api/taskService';
 import { socket, joinProjectRoom, leaveProjectRoom } from '../shared/lib/socket';
 import { Modal } from '../shared/ui/Modal';
 import styles from './BoardPage.module.css';
+import pageStyles from './PageStyles.module.css'; // ### НОВОЕ: Стили для общих элементов страницы
 import ColumnLane from '../features/ColumnLane/ColumnLane';
-import { ManageProjectMembersModal } from '../features/ProjectMembers';
 import { TaskDetailModal } from '../features/TaskDetailModal';
 import { useAddTaskModal } from '../shared/contexts/AddTaskModalContext';
 
@@ -75,12 +75,11 @@ const BoardPage: React.FC = () => {
 
   const { isModalOpen: isAddTaskModalOpen, closeModal: closeGlobalAddTaskModal } = useAddTaskModal();
 
-  const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<TaskDto | null>(null);
   
   const [formState, dispatch] = useReducer(formReducer, initialFormState);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null); // ### НОВОЕ: Состояние для ошибки формы
+  const [formError, setFormError] = useState<string | null>(null);
 
   const numericProjectId = projectId ? parseInt(projectId, 10) : null;
 
@@ -134,31 +133,22 @@ const BoardPage: React.FC = () => {
       socket.once('connect', onConnect);
       if (socket.connected) onConnect();
 
-      const handleTaskEvent = (task: TaskDto, type: 'created' | 'updated' | 'moved') => {
+      const handleTaskEvent = (task: TaskDto) => {
         setBoardData((prev) => {
           if (!prev || task.project_id !== numericProjectId) return prev;
       
           let newColumns = JSON.parse(JSON.stringify(prev.columns)) as Column[];
       
-          // Remove task from its old position in all cases (except creation)
-          if (type !== 'created') {
-            newColumns = newColumns.map(col => ({
-              ...col,
-              tasksList: col.tasksList.filter(t => t.id !== task.id)
-            }));
-          }
+          // Remove task from its old position in all cases
+          newColumns = newColumns.map(col => ({
+            ...col,
+            tasksList: col.tasksList.filter(t => t.id !== task.id)
+          }));
       
           // Add/Update task in its new/current column
           const targetColumnIndex = newColumns.findIndex(col => col.id === task.column_id);
           if (targetColumnIndex !== -1) {
-            const taskExists = newColumns[targetColumnIndex].tasksList.some(t => t.id === task.id);
-            if (!taskExists) {
-              newColumns[targetColumnIndex].tasksList.push(task);
-            } else {
-              // If it's an update, replace the existing task
-              const taskIndex = newColumns[targetColumnIndex].tasksList.findIndex(t => t.id === task.id);
-              newColumns[targetColumnIndex].tasksList[taskIndex] = task;
-            }
+            newColumns[targetColumnIndex].tasksList.push(task);
             // Always sort the tasks in the affected column
             newColumns[targetColumnIndex].tasksList.sort((a, b) => a.position - b.position);
           }
@@ -167,19 +157,15 @@ const BoardPage: React.FC = () => {
         });
       };
       
-      const handleTaskCreated = (newTask: TaskDto) => handleTaskEvent(newTask, 'created');
-      const handleTaskMoved = (movedTask: TaskDto) => handleTaskEvent(movedTask, 'moved');
-      const handleTaskUpdated = (updatedTask: TaskDto) => handleTaskEvent(updatedTask, 'updated');
-
-      socket.on('task:created', handleTaskCreated);
-      socket.on('task:moved', handleTaskMoved);
-      socket.on('task:updated', handleTaskUpdated);
+      socket.on('task:created', handleTaskEvent);
+      socket.on('task:moved', handleTaskEvent);
+      socket.on('task:updated', handleTaskEvent);
 
       return () => {
         socket.off('connect', onConnect);
-        socket.off('task:created', handleTaskCreated);
-        socket.off('task:moved', handleTaskMoved);
-        socket.off('task:updated', handleTaskUpdated);
+        socket.off('task:created', handleTaskEvent);
+        socket.off('task:moved', handleTaskEvent);
+        socket.off('task:updated', handleTaskEvent);
         if (projectId) leaveProjectRoom(projectId);
       };
     }
@@ -195,15 +181,15 @@ const BoardPage: React.FC = () => {
 
   const handleModalClose = () => {
     dispatch({ type: 'RESET' });
-    setFormError(null); // ### НОВОЕ: Сбрасываем ошибку при закрытии
+    setFormError(null);
     closeGlobalAddTaskModal();
   };
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormError(null); // ### НОВОЕ: Сбрасываем ошибку перед отправкой
+    setFormError(null);
     if (!formState.title.trim() || !formState.columnId || numericProjectId === null) {
-      setFormError('Please ensure Title and Column are filled.'); // ### ИЗМЕНЕНИЕ: Вместо alert()
+      setFormError('Please ensure Title and Column are filled.');
       return;
     }
     setIsCreatingTask(true);
@@ -220,7 +206,7 @@ const BoardPage: React.FC = () => {
       };
       await taskService.createTask(numericProjectId, taskData);
       handleModalClose();
-    } catch (err: any) { // ### ИЗМЕНЕНИЕ: Обрабатываем ошибку API
+    } catch (err: any) {
       console.error('Failed to create task:', err);
       setFormError(err.response?.data?.message || 'Failed to create task.');
     } finally {
@@ -300,7 +286,6 @@ const BoardPage: React.FC = () => {
       await taskService.moveTask(activeId, { newColumnId, newPosition });
     } catch (err) {
       console.error('Failed to move task:', err);
-      // ### ИЗМЕНЕНИЕ: Вместо alert() просто выводим ошибку в консоль и перезагружаем данные
       setError('Failed to save task position. Reverting changes.');
       fetchBoardData();
     }
@@ -320,14 +305,12 @@ const BoardPage: React.FC = () => {
         onDragEnd={handleDragEnd}
       >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '10px' }}>
+          {/* ### ИЗМЕНЕНИЕ: Заменена кнопка "Manage Members" на "Settings" ### */}
+          <div className={pageStyles.pageHeader} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h1>{boardData.name}{boardData.task_prefix ? ` (${boardData.task_prefix})` : ''}</h1>
-            <button
-              onClick={() => setIsMembersModalOpen(true)}
-              style={{ padding: '8px 15px', cursor: 'pointer' }}
-            >
-              Manage Members
-            </button>
+            <Link to={`/projects/${numericProjectId}/settings`} className="button secondary">
+                Project Settings ⚙️
+            </Link>
           </div>
             <Modal
               isOpen={isAddTaskModalOpen}
@@ -335,7 +318,6 @@ const BoardPage: React.FC = () => {
               title="Add New Task"
             >
               <form onSubmit={handleCreateTask} className={styles.form}>
-                {/* ### НОВОЕ: Отображение ошибки формы ### */}
                 {formError && <p style={{ color: 'red', marginBottom: '10px' }}>{formError}</p>}
                 
                 <div>
@@ -384,13 +366,6 @@ const BoardPage: React.FC = () => {
           </div>
         </div>
       </DndContext>
-      {numericProjectId !== null && (
-        <ManageProjectMembersModal
-            projectId={numericProjectId}
-            isOpen={isMembersModalOpen}
-            onClose={() => setIsMembersModalOpen(false)}
-        />
-      )}
       {selectedTask && numericProjectId !== null && (
         <TaskDetailModal
           task={selectedTask}

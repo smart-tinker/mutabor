@@ -14,8 +14,8 @@ const mockUser: AuthenticatedUser = { id: 'user-1', email: 'test@example.com', n
 describe('TasksService', () => {
   let service: TasksService;
   let knex;
-  let mockProjectsService;
-  let mockEventsGateway;
+  let mockProjectsService: ProjectsService;
+  let mockEventsGateway: EventsGateway;
 
   const mockQueryBuilder = {
     where: jest.fn().mockReturnThis(),
@@ -23,6 +23,7 @@ describe('TasksService', () => {
     first: jest.fn(),
     insert: jest.fn().mockReturnThis(),
     returning: jest.fn(),
+    select: jest.fn().mockReturnThis(),
     count: jest.fn().mockReturnValue({
       first: jest.fn(),
     }),
@@ -71,12 +72,35 @@ describe('TasksService', () => {
 
     service = module.get<TasksService>(TasksService);
     knex = module.get(KNEX_CONNECTION);
+    // ### ИЗМЕНЕНИЕ: Исправлено получение мока сервиса ###
     mockProjectsService = module.get<ProjectsService>(ProjectsService);
     mockEventsGateway = module.get<EventsGateway>(EventsGateway);
   });
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  describe('getProjectIdByHumanId', () => {
+    it('should return project ID for a given human-readable ID', async () => {
+      const hid = 'TP-1';
+      const expectedProjectId = 123;
+      mockQueryBuilder.first.mockResolvedValue({ project_id: expectedProjectId });
+  
+      const projectId = await service.getProjectIdByHumanId(hid);
+  
+      expect(projectId).toBe(expectedProjectId);
+      expect(mockKnexFn).toHaveBeenCalledWith('tasks');
+      expect(mockQueryBuilder.where).toHaveBeenCalledWith({ human_readable_id: hid });
+      expect(mockQueryBuilder.select).toHaveBeenCalledWith('project_id');
+    });
+  
+    it('should throw NotFoundException if task with HID is not found', async () => {
+      const hid = 'TP-999';
+      mockQueryBuilder.first.mockResolvedValue(null);
+  
+      await expect(service.getProjectIdByHumanId(hid)).rejects.toThrow(NotFoundException);
+    });
   });
 
   describe('createTask', () => {
@@ -110,7 +134,7 @@ describe('TasksService', () => {
     });
 
     it('should throw BadRequestException if task type is invalid', async () => {
-      mockProjectsService.isTaskTypeValidForProject.mockResolvedValue(false);
+      (mockProjectsService.isTaskTypeValidForProject as jest.Mock).mockResolvedValue(false);
       mockQueryBuilder.first.mockResolvedValueOnce(mockColumn);
       const dtoWithInvalidType = { ...createTaskDto, type: 'InvalidType' };
       await expect(service.createTask(projectId, dtoWithInvalidType, mockUser)).rejects.toThrow(BadRequestException);
@@ -155,9 +179,6 @@ describe('TasksService', () => {
       mockQueryBuilder.decrement.mockResolvedValue(1);
       mockQueryBuilder.increment.mockResolvedValue(1);
       
-      // ### ИЗМЕНЕНИЕ: Исправлена конструкция мок-объекта ###
-      // Раньше: { ...taskToMove, ...moveDto } -> создавало поля column_id и newColumnId
-      // Теперь: Явно обновляем поля column_id и position в возвращаемом моке
       const finalMovedTask = { 
         ...taskToMove, 
         column_id: moveDto.newColumnId,

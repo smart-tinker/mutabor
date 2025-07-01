@@ -31,6 +31,11 @@ export class AddMemberDto {
   role: 'editor' | 'viewer'; // Владелец назначается при создании проекта
 }
 
+// ### НОВЫЙ DTO для обновления роли участника
+export class UpdateMemberDto {
+  role: 'editor' | 'viewer';
+}
+
 // DTO для обновления настроек проекта
 export class UpdateProjectSettingsDto {
   name?: string;
@@ -65,7 +70,6 @@ export class ProjectDetailsDto {
 
 ### Task & Comment DTOs
 ```typescript
-// ### ИЗМЕНЕНИЕ: Уточнено, что projectId передается через URL.
 // DTO для создания задачи. projectId передается через URL: POST /api/v1/projects/{projectId}/tasks
 export class CreateTaskDto {
   title: string;

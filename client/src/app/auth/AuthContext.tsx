@@ -1,27 +1,23 @@
-import { createContext, useState, useContext, useEffect } from 'react';
-import type { ReactNode } from 'react';
-import jwtDecode from 'jwt-decode'; // Import jwt-decode
+import { createContext, useState, useContext, useEffect, useCallback, ReactNode } from 'react';
+import jwtDecode from 'jwt-decode';
 
-// Define the user structure based on typical JWT payload
 export interface AuthenticatedUser {
-  id: string; // Usually 'sub' or a custom claim like 'userId'
-  email: string; // Usually 'email'
-  name?: string; // Optional, usually 'name'
-  // Add other fields you expect in your JWT, e.g., roles
+  id: string; 
+  email: string; 
+  name?: string; 
 }
 
 interface DecodedJwtPayload {
-  sub: string; // Standard subject claim, often used for user ID
+  sub: string;
   email: string;
   name?: string;
   iat?: number;
   exp?: number;
-  // Add other claims as per your JWT structure
 }
 
 interface AuthContextType {
   authToken: string | null;
-  user: AuthenticatedUser | null; // Add user to context
+  user: AuthenticatedUser | null;
   isAuthenticated: boolean;
   login: (token: string) => void;
   logout: () => void;
@@ -32,27 +28,46 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [authToken, setAuthToken] = useState<string | null>(null);
-  const [user, setUser] = useState<AuthenticatedUser | null>(null); // State for user
+  const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // ### ИЗМЕНЕНИЕ: Функция logout обернута в useCallback ###
+  // Это гарантирует, что функция не будет пересоздаваться при каждом рендере,
+  // что важно для использования в dependency array в useEffect.
+  const logout = useCallback(() => {
+    localStorage.removeItem('authToken');
+    setAuthToken(null);
+    setUser(null);
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem('authToken');
     if (token) {
       try {
         const decoded = jwtDecode<DecodedJwtPayload>(token);
-        // Map decoded payload to AuthenticatedUser structure
-        // Ensure your JWT has 'sub' (for id) and 'email'. 'name' is optional.
-        // The backend's JWT generation (e.g., in auth.service.ts login method)
-        // should include these claims: { sub: user.id, email: user.email, name: user.name }
         setUser({ id: decoded.sub, email: decoded.email, name: decoded.name });
         setAuthToken(token);
       } catch (error) {
         console.error("Failed to decode token on initial load:", error);
-        localStorage.removeItem('authToken'); // Clear invalid token
+        localStorage.removeItem('authToken');
       }
     }
     setIsLoading(false);
   }, []);
+
+  // ### НОВОЕ: Слушатель события для глобальной обработки 401 ошибки ###
+  useEffect(() => {
+    const handleAuthError = () => {
+      console.log("Auth error event received, logging out.");
+      logout();
+    };
+
+    window.addEventListener('auth-error', handleAuthError);
+
+    return () => {
+      window.removeEventListener('auth-error', handleAuthError);
+    };
+  }, [logout]); // Зависимость от стабильной функции logout
 
   const login = (token: string) => {
     try {
@@ -62,15 +77,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setAuthToken(token);
     } catch (error) {
       console.error("Failed to decode token on login:", error);
-      // Handle login failure due to bad token if necessary
     }
-  };
-
-  const logout = () => {
-    localStorage.removeItem('authToken');
-    setAuthToken(null);
-    setUser(null); // Clear user on logout
-    // Consider redirecting or other cleanup
   };
 
   return (

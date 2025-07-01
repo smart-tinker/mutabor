@@ -7,7 +7,7 @@ import { ProjectsService } from '../projects/projects.service';
 import { TasksService } from '../tasks/tasks.service';
 import { Role } from './roles.enum';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
-import { IS_PUBLIC_KEY } from '../auth/decorators/public.decorator'; // ### ИЗМЕНЕНИЕ: Исправлен путь импорта
+import { IS_PUBLIC_KEY } from '../auth/decorators/public.decorator';
 
 @Injectable()
 export class PoliciesGuard implements CanActivate {
@@ -51,7 +51,11 @@ export class PoliciesGuard implements CanActivate {
     let userRole: Role | null = null;
 
     try {
-      if (params.taskId || (params.id && request.path.includes('/tasks/'))) {
+      // ### НОВОЕ: Добавлена логика для обработки human-readable ID (:hid) ###
+      if (params.hid) {
+          const projectId = await this.tasksService.getProjectIdByHumanId(params.hid);
+          userRole = await this.projectsService.getUserRoleForProject(projectId, user.id);
+      } else if (params.taskId || (params.id && request.path.includes('/tasks/'))) {
           const taskId = params.taskId || params.id;
           userRole = await this.tasksService.getUserRoleForTask(taskId, user.id);
       } else if (params.projectId || params.id) {

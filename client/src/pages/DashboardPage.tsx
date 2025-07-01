@@ -14,6 +14,7 @@ const DashboardPage: React.FC = () => {
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectPrefix, setNewProjectPrefix] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null); // ### НОВОЕ: Состояние для ошибки в модальном окне
 
   const fetchProjects = async () => {
     try {
@@ -35,8 +36,10 @@ const DashboardPage: React.FC = () => {
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null); // ### НОВОЕ: Сбрасываем ошибку перед новой попыткой
+
     if (!newProjectName.trim() || !newProjectPrefix.trim()) {
-      alert('Project name and prefix are required.');
+      setFormError('Project name and prefix are required.'); // ### ИЗМЕНЕНИЕ: Вместо alert()
       return;
     }
     setIsCreating(true);
@@ -47,12 +50,21 @@ const DashboardPage: React.FC = () => {
       setNewProjectPrefix('');
       setIsModalOpen(false);
       fetchProjects(); // Refresh the list
-    } catch (err) {
+    } catch (err: any) { // ### ИЗМЕНЕНИЕ: Обрабатываем ошибку API
       console.error('Failed to create project:', err);
-      alert('Failed to create project. Check prefix uniqueness.');
+      // Устанавливаем сообщение об ошибке, полученное от API, или общее сообщение
+      setFormError(err.response?.data?.message || 'Failed to create project. Check if the prefix is unique.');
     } finally {
       setIsCreating(false);
     }
+  };
+
+  // ### НОВОЕ: Функция для закрытия модального окна, которая также сбрасывает ошибки
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setFormError(null);
+    setNewProjectName('');
+    setNewProjectPrefix('');
   };
 
   if (isLoading) return <p>Loading projects...</p>;
@@ -65,10 +77,12 @@ const DashboardPage: React.FC = () => {
 
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={handleCloseModal}
         title="Create New Project"
       >
         <form onSubmit={handleCreateProject}>
+          {/* ### НОВОЕ: Отображение ошибки внутри модального окна ### */}
+          {formError && <p style={{ color: 'red', marginBottom: '10px' }}>{formError}</p>}
           <div>
             <label htmlFor="projectName">Project Name:</label>
             <input
@@ -95,7 +109,7 @@ const DashboardPage: React.FC = () => {
           <div className={styles.formActions}>
             <button
               type="button"
-              onClick={() => setIsModalOpen(false)}
+              onClick={handleCloseModal}
               className={`${styles.button} ${styles.buttonSecondary}`}
             >
               Cancel

@@ -1,20 +1,20 @@
 // api/src/projects/projects.service.ts
-import { Injectable, NotFoundException, ConflictException, Inject, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, Inject, Logger, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectSettingsDto } from './dto/update-project-settings.dto';
 import { UpdateColumnDto } from './dto/update-column.dto';
 import { CreateColumnDto } from './dto/create-column.dto';
 import { AddMemberDto } from './dto/add-member.dto';
+import { UpdateMemberDto } from './dto/update-member.dto';
 import { Knex } from 'knex';
 import { KNEX_CONNECTION } from '../knex/knex.constants';
 import * as crypto from 'crypto';
-import { ProjectRecord, UserRecord, ProjectMemberWithUser, ColumnRecord } from '../types/db-records';
+import { ProjectRecord, UserRecord, ProjectMemberWithUser, ColumnRecord, AllParticipants } from '../types/db-records';
 import { ProjectDetailsDto } from './dto/project-details.dto';
 import { Role } from '../casl/roles.enum';
 import { AuthenticatedUser } from 'src/auth/jwt.strategy';
 import { ProjectSettingsDto } from './dto/project-settings.dto';
 
-// ### НОВОЕ: Выносим "магические" строки в константы ###
 const DEFAULT_PROJECT_COLUMNS = ['To Do', 'In Progress', 'Done'];
 const DEFAULT_PROJECT_TYPES = ['Task', 'Bug', 'Feature'];
 
@@ -67,13 +67,11 @@ export class ProjectsService {
         })
         .returning('*');
       
-      // ### ИЗМЕНЕНИЕ: Используем константы ###
       const defaultColumns = DEFAULT_PROJECT_COLUMNS.map((name, index) => ({
         id: crypto.randomUUID(), name, position: index, project_id: newProject.id,
       }));
       await trx('columns').insert(defaultColumns);
 
-      // ### ИЗМЕНЕНИЕ: Используем константы ###
       const defaultTypes = DEFAULT_PROJECT_TYPES.map(name => ({
         name, project_id: newProject.id,
       }));
@@ -177,11 +175,12 @@ export class ProjectsService {
     return result.rowCount || 0;
   }
 
+  // ### ИЗМЕНЕНИЕ: Метод теперь возвращает Promise<ProjectSettingsDto> и обрабатывает статусы ###
   async updateProjectSettings(
     projectId: number,
     settingsDto: UpdateProjectSettingsDto,
-  ): Promise<void> {
-    return this.knex.transaction(async (trx) => {
+  ): Promise<ProjectSettingsDto> {
+    await this.knex.transaction(async (trx) => {
       const project = await trx('projects').where({id: projectId}).first();
       if (!project) throw new NotFoundException(`Project with ID ${projectId} not found.`);
 
@@ -207,7 +206,66 @@ export class ProjectsService {
           await trx('project_task_types').insert(newTypesData);
         }
       }
+
+      // ### НОВОЕ: Логика синхронизации статусов (колонок) ###
+      if (settingsDto.statuses) {
+        const existingColumns = await trx('columns').where({ project_id: projectId });
+        const newStatusNames = settingsDto.statuses;
+
+        // Определяем, какие колонки удалить, а какие добавить
+        const existingNames = existingColumns.map(c => c.name);
+        const columnsToRemove = existingColumns.filter(c => !newStatusNames.includes(c.name));
+        const namesToAdd = newStatusNames.filter(name => !existingNames.includes(name));
+
+        // Перед удалением колонок, перемещаем задачи
+        if (columnsToRemove.length > 0) {
+          if (newStatusNames.length === 0) throw new BadRequestException('A project must have at least one status column.');
+
+          const remainingColumns = existingColumns.filter(c => !columnsToRemove.some(rem => rem.id === c.id));
+          const targetColumnForOrphanedTasks = remainingColumns[0] || null;
+
+          if (!targetColumnForOrphanedTasks && namesToAdd.length === 0) {
+             throw new BadRequestException('Cannot delete all columns without adding new ones.');
+          }
+          // Если есть задачи в удаляемых колонках, их нужно куда-то переместить
+          const targetColumnId = targetColumnForOrphanedTasks?.id;
+
+          if(targetColumnId){
+            const columnsToRemoveIds = columnsToRemove.map(c => c.id);
+            await trx('tasks')
+              .whereIn('column_id', columnsToRemoveIds)
+              .update({ column_id: targetColumnId });
+          }
+
+          // Удаляем сами колонки
+          await trx('columns').whereIn('id', columnsToRemove.map(c => c.id)).delete();
+        }
+
+        // Добавляем новые колонки
+        if (namesToAdd.length > 0) {
+          const newColumnsData = namesToAdd.map(name => ({
+            id: crypto.randomUUID(),
+            name,
+            project_id: projectId,
+            position: -1, // Временная позиция
+          }));
+          await trx('columns').insert(newColumnsData);
+        }
+
+        // Обновляем позиции всех колонок в соответствии с новым порядком
+        const finalColumns = await trx('columns').where({ project_id: projectId });
+        const positionUpdatePromises = newStatusNames.map((name, index) => {
+          const columnToUpdate = finalColumns.find(c => c.name === name);
+          if (columnToUpdate) {
+            return trx('columns').where({ id: columnToUpdate.id }).update({ position: index });
+          }
+        });
+        await Promise.all(positionUpdatePromises);
+      }
     });
+    
+    // Возвращаем обновленное состояние настроек
+    return this.getProjectSettings(projectId);
   }
 
   async createColumn(projectId: number, createColumnDto: CreateColumnDto): Promise<ColumnRecord> {
@@ -246,13 +304,14 @@ export class ProjectsService {
   async deleteColumn(projectId: number, columnId: string): Promise<void> {
     return this.knex.transaction(async (trx) => {
       const allColumns = await trx('columns').where({ project_id: projectId }).orderBy('position', 'asc');
-      if (allColumns.length <= 2) {
-        throw new BadRequestException('Cannot delete column. A project must have at least two columns.');
+      if (allColumns.length <= 1) { // Изменено на 1
+        throw new BadRequestException('Cannot delete the last column. A project must have at least one column.');
       }
       const columnToDelete = allColumns.find(c => c.id === columnId);
       if (!columnToDelete) return;
 
       const columnIndex = allColumns.findIndex(c => c.id === columnId);
+      // Логика выбора целевой колонки: если удаляется не первая, берем предыдущую, иначе - следующую.
       const targetColumn = (columnIndex > 0) ? allColumns[columnIndex - 1] : allColumns[1];
 
       const tasksToMove = await trx('tasks').where({ column_id: columnId });
@@ -278,7 +337,7 @@ export class ProjectsService {
       return !!typeRecord;
   }
 
-  async addMemberToProject(projectId: number, addMemberDto: AddMemberDto): Promise<ProjectMemberWithUser> {
+  async addMemberToProject(projectId: number, addMemberDto: AddMemberDto): Promise<AllParticipants> {
     const project = await this.knex('projects').where({ id: projectId }).first();
     if (!project) throw new NotFoundException(`Project with ID ${projectId} not found.`);
 
@@ -289,36 +348,83 @@ export class ProjectsService {
     const existingMembership = await this.knex('project_members').where({ project_id: projectId, user_id: userToAdd.id }).first();
     if (existingMembership) throw new ConflictException(`User ${addMemberDto.email} is already a member of this project.`);
     
-    const [newMember] = await this.knex('project_members').insert({ project_id: projectId, user_id: userToAdd.id, role: addMemberDto.role }).returning('*');
+    await this.knex('project_members').insert({ project_id: projectId, user_id: userToAdd.id, role: addMemberDto.role });
     
-    return { ...newMember, user: userToAdd };
+    return {
+      id: userToAdd.id,
+      name: userToAdd.name,
+      email: userToAdd.email,
+      role: addMemberDto.role
+    };
   }
   
   async getProjectMembers(projectId: number): Promise<ProjectMemberWithUser[]> {
     const membersData = await this.knex('project_members')
       .join('users', 'project_members.user_id', '=', 'users.id')
       .where('project_members.project_id', projectId)
-      .select(
-          'project_members.role', 
-          'users.id', 
-          'users.name', 
-          'users.email', 
-          'users.created_at', 
-          'users.updated_at'
-      )
+      .select('project_members.role', 'users.id', 'users.name', 'users.email', 'users.created_at', 'users.updated_at')
       .orderBy('users.name', 'asc');
     
     return membersData.map(m => ({
-        project_id: projectId,
-        user_id: m.id,
-        role: m.role,
-        user: {
-            id: m.id,
-            name: m.name,
-            email: m.email,
-            created_at: m.created_at,
-            updated_at: m.updated_at,
-        }
+        project_id: projectId, user_id: m.id, role: m.role,
+        user: { id: m.id, name: m.name, email: m.email, created_at: m.created_at, updated_at: m.updated_at, }
     }));
+  }
+
+  async getAllProjectParticipants(projectId: number): Promise<AllParticipants[]> {
+    const owner = await this.getProjectOwner(projectId);
+    const members = await this.getProjectMembers(projectId);
+
+    const ownerData: AllParticipants = {
+      id: owner.id,
+      name: owner.name,
+      email: owner.email,
+      role: Role.Owner,
+    };
+
+    const membersData: AllParticipants[] = members.map(m => ({
+      id: m.user.id,
+      name: m.user.name,
+      email: m.user.email,
+      role: m.role,
+    }));
+    
+    return [ownerData, ...membersData];
+  }
+
+  async updateProjectMember(projectId: number, userId: string, updateDto: UpdateMemberDto): Promise<AllParticipants> {
+    const project = await this.knex('projects').where({ id: projectId }).select('owner_id').first();
+    if (!project) throw new NotFoundException(`Project with ID ${projectId} not found.`);
+    if (project.owner_id === userId) throw new ForbiddenException('Cannot change the role of the project owner.');
+
+    const [updatedMember] = await this.knex('project_members')
+      .where({ project_id: projectId, user_id: userId })
+      .update({ role: updateDto.role, updated_at: new Date() })
+      .returning('*');
+
+    if (!updatedMember) throw new NotFoundException(`Member with ID ${userId} not found in project ${projectId}.`);
+
+    const user = await this.knex('users').where({ id: userId }).select('id', 'name', 'email').first();
+
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: updatedMember.role,
+    };
+  }
+
+  async removeMemberFromProject(projectId: number, userId: string): Promise<void> {
+    const project = await this.knex('projects').where({ id: projectId }).select('owner_id').first();
+    if (!project) throw new NotFoundException(`Project with ID ${projectId} not found.`);
+    if (project.owner_id === userId) throw new ForbiddenException('Cannot remove the project owner.');
+
+    const deletedCount = await this.knex('project_members')
+      .where({ project_id: projectId, user_id: userId })
+      .delete();
+      
+    if (deletedCount === 0) {
+      throw new NotFoundException(`Member with ID ${userId} not found in project ${projectId}.`);
+    }
   }
 }

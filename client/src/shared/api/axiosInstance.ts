@@ -1,14 +1,11 @@
 import axios from 'axios';
 
-// ### ИЗМЕНЕНИЕ: Добавляем префикс /api/v1 в базовый URL клиента ###
 const API_BASE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/v1`;
 
-// Create an Axios instance
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
 });
 
-// Request interceptor to add the JWT token to headers
 axiosInstance.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('authToken');
@@ -22,22 +19,23 @@ axiosInstance.interceptors.request.use(
   }
 );
 
-// Response interceptor (optional, but good for global error handling or token refresh)
+// ### ИЗМЕНЕНИЕ: Логика обработки 401 ошибки ###
 axiosInstance.interceptors.response.use(
   (response) => {
-    // Any status code that lie within the range of 2xx cause this function to trigger
     return response;
   },
   (error) => {
-    // Any status codes that falls outside the range of 2xx cause this function to trigger
-    // Реализована логика автоматического выхода при ошибке 401
+    // Если получена ошибка 401
     if (error.response && error.response.status === 401) {
-      // Проверяем, что мы не на странице логина, чтобы избежать цикла редиректов
-      if (window.location.pathname !== '/login') {
+      // Проверяем, был ли токен в localStorage.
+      // Это предотвращает срабатывание при обычном 401 (например, на странице логина),
+      // и реагирует только на невалидный/просроченный токен.
+      if (localStorage.getItem('authToken')) {
+        // Удаляем невалидный токен
         localStorage.removeItem('authToken');
-        // Перезагружаем страницу на /login. AuthContext переинициализируется и корректно обработает отсутствие токена.
-        window.location.href = '/login';
-        console.error('Unauthorized access - 401. Token might be invalid or expired. Redirecting to login.');
+        // Генерируем глобальное событие, на которое подпишется AuthContext
+        window.dispatchEvent(new Event('auth-error'));
+        console.error('Unauthorized access - 401. Token might be invalid or expired. Dispatched auth-error event.');
       }
     }
     return Promise.reject(error);

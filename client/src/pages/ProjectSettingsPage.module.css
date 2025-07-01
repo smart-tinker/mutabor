@@ -1,27 +1,29 @@
+/* client/src/pages/ProjectSettingsPage.module.css */
 .settingsPage {
   max-width: 800px;
   margin: 2rem auto;
   padding: 2rem;
-  background-color: var(--background-secondary);
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  background-color: var(--card-background-color); /* Changed to card color */
+  border-radius: var(--border-radius-large); /* Use large radius */
+  box-shadow: var(--shadow-medium); /* Use medium shadow */
+  color: var(--text-color); /* Set text color */
+}
+
+.settingsPage h1, .settingsPage h2 {
+  color: var(--text-color);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.5rem;
+  margin-bottom: 1.5rem;
 }
 
 .settingsPage h1 {
-  color: var(--text-primary);
-  margin-bottom: 1.5rem;
   text-align: center;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 1rem;
+  font-size: 2rem;
 }
 
 .settingsPage h2 {
-  color: var(--text-secondary);
-  margin-top: 2rem;
-  margin-bottom: 1rem;
   font-size: 1.5rem;
-  border-bottom: 1px solid var(--border-color-light);
-  padding-bottom: 0.5rem;
+  margin-top: 2rem;
 }
 
 .formGroup {
@@ -31,28 +33,35 @@
 .formGroup label {
   display: block;
   margin-bottom: 0.5rem;
-  color: var(--text-primary);
-  font-weight: bold;
+  font-weight: 500;
+  color: var(--text-secondary-color);
 }
 
 .formGroup input[type="text"],
 .formGroup input[type="url"],
-.formGroup textarea {
+.formGroup textarea,
+.formGroup select { /* Added select */
   width: 100%;
   padding: 0.75rem;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  background-color: var(--background-primary);
-  color: var(--text-primary);
+  border: 1px solid var(--input-border-color);
+  border-radius: var(--border-radius-medium);
+  background-color: var(--input-background-color);
+  color: var(--input-text-color);
   font-size: 1rem;
   box-sizing: border-box; /* Ensures padding doesn't add to width */
 }
 
-.formGroup input[type="text"]:focus,
-.formGroup textarea:focus {
+/* listItem select is more specific */
+.listItem select {
+  padding: 0.5rem;
+}
+
+.formGroup input:focus,
+.formGroup textarea:focus,
+.formGroup select:focus {
   outline: none;
-  border-color: var(--accent-color);
-  box-shadow: 0 0 0 2px var(--accent-color-transparent);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus);
 }
 
 .listEditor {
@@ -62,48 +71,25 @@
 .listItem {
   display: flex;
   align-items: center;
+  gap: 0.5rem;
   margin-bottom: 0.5rem;
 }
 
 .listItem input[type="text"] {
   flex-grow: 1;
-  margin-right: 0.5rem;
 }
 
-.button,
-button { /* Apply to native button too if not using Button component everywhere */
+.button {
   padding: 0.6rem 1.2rem;
-  border: none;
-  border-radius: 4px;
-  background-color: var(--accent-color);
-  color: white;
+  border-radius: var(--border-radius-medium);
   cursor: pointer;
   font-size: 0.9rem;
-  transition: background-color 0.2s ease-in-out;
-  text-decoration: none; /* For Link styled as button */
-  display: inline-block; /* For Link styled as button */
+  font-weight: 500;
+  transition: background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  text-decoration: none;
+  display: inline-block;
   text-align: center;
-}
-
-.button:hover,
-button:hover {
-  background-color: var(--accent-color-dark);
-}
-
-.button.secondary {
-  background-color: var(--button-secondary-background);
-  color: var(--text-primary);
-}
-
-.button.secondary:hover {
-  background-color: var(--button-secondary-hover-background);
-}
-
-.button.danger {
-  background-color: var(--danger-color);
-}
-.button.danger:hover {
-  background-color: var(--danger-color-dark);
+  /* Using global button classes now, but can be customized here */
 }
 
 .addListItemButton {
@@ -113,7 +99,7 @@ button:hover {
 }
 
 .submitButton {
-  display: block;
+  display: inline-block; /* Changed to inline-block to not take full width */
   width: auto;
   margin-top: 2rem;
   padding: 0.8rem 1.5rem;
@@ -128,16 +114,72 @@ button:hover {
 }
 
 .error {
-  color: var(--danger-color);
+  color: var(--color-error);
+  background-color: var(--color-background-danger-subtle);
+  padding: 1rem;
+  border-radius: var(--border-radius-medium);
 }
 
-.backLink {
-  display: inline-block;
+/* ### НОВЫЕ СТИЛИ ДЛЯ УПРАВЛЕНИЯ УЧАСТНИКАМИ ### */
+.membersSection {
   margin-top: 2rem;
-  color: var(--accent-color);
-  text-decoration: none;
 }
 
-.backLink:hover {
-  text-decoration: underline;
+.memberList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.memberItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background-color: var(--background-subtle-color);
+  border: 1px solid var(--border-subtle-color);
+  border-radius: var(--border-radius-medium);
+}
+
+.memberInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.memberName {
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+.memberEmail {
+  font-size: 0.85rem;
+  color: var(--text-secondary-color);
+}
+
+.memberControls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ownerTag {
+  font-weight: 500;
+  color: var(--text-secondary-color);
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-small);
+}
+
+.addMemberForm {
+  margin-top: 1rem;
+}
+
+.addMemberForm .formGroup {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+.addMemberForm .formGroup input {
+  flex-grow: 1;
 }

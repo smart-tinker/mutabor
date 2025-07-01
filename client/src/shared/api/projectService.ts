@@ -1,9 +1,8 @@
 import apiClient from './axiosInstance';
-import type { ProjectSettingsResponse, UpdateProjectSettingsPayload } from './types';
+import type { ProjectSettingsResponse, UpdateProjectSettingsPayload, AllParticipantsDto, UpdateMemberRoleDto } from './types'; // ### ИЗМЕНЕНИЕ
 
 export interface TaskDto {
   id: string;
-  // ### ИЗМЕНЕНИЕ: Исправлено имя поля для соответствия с API ###
   human_readable_id: string; 
   title: string;
   description?: string | null;
@@ -87,14 +86,29 @@ export const projectService = {
     return response.data;
   },
 
-  addProjectMember: async (projectId: number, data: AddMemberDto): Promise<ProjectMemberDto> => {
-    const response = await apiClient.post<ProjectMemberDto>(`/projects/${projectId}/members`, data);
+  addProjectMember: async (projectId: number, data: AddMemberDto): Promise<AllParticipantsDto> => {
+    const response = await apiClient.post<AllParticipantsDto>(`/projects/${projectId}/members`, data);
     return response.data;
   },
 
   getProjectMembers: async (projectId: number): Promise<ProjectMemberDto[]> => {
     const response = await apiClient.get<ProjectMemberDto[]>(`/projects/${projectId}/members`);
     return response.data;
+  },
+  
+  // ### НОВЫЕ МЕТОДЫ ###
+  getAllProjectParticipants: async (projectId: number): Promise<AllParticipantsDto[]> => {
+    const response = await apiClient.get<AllParticipantsDto[]>(`/projects/${projectId}/members`);
+    return response.data;
+  },
+
+  updateProjectMember: async (projectId: number, userId: string, data: UpdateMemberRoleDto): Promise<AllParticipantsDto> => {
+    const response = await apiClient.patch<AllParticipantsDto>(`/projects/${projectId}/members/${userId}`, data);
+    return response.data;
+  },
+  
+  removeProjectMember: async (projectId: number, userId: string): Promise<void> => {
+    await apiClient.delete(`/projects/${projectId}/members/${userId}`);
   },
 
   getProjectSettings: async (projectId: number): Promise<ProjectSettingsResponse> => {

@@ -27,7 +27,15 @@ export class TasksService {
     private readonly projectsService: ProjectsService,
   ) {}
 
-  // ### ИЗМЕНЕНИЕ: Метод для гварда. Просто возвращает роль или null.
+  // ### НОВОЕ: Вспомогательный метод для PoliciesGuard ###
+  async getProjectIdByHumanId(hid: string): Promise<number> {
+    const task = await this.knex('tasks').where({ human_readable_id: hid }).select('project_id').first();
+    if (!task) {
+        throw new NotFoundException(`Task with ID ${hid} not found.`);
+    }
+    return task.project_id;
+  }
+
   async getUserRoleForTask(taskId: string, userId: string): Promise<Role | null> {
     const task = await this.knex('tasks').where({ id: taskId }).select('project_id').first();
     if (!task) {
@@ -97,7 +105,6 @@ export class TasksService {
 
   async updateTask(taskId: string, updateTaskDto: UpdateTaskDto, user: AuthenticatedUser): Promise<TaskRecord> {
     return this.knex.transaction(async (trx) => {
-        // ### ИЗМЕНЕНИЕ: Убрана проверка прав, теперь это делает гвард
         const task = await trx('tasks').where({ id: taskId }).first();
         if (!task) throw new NotFoundException(`Task with ID ${taskId} not found.`);
 
@@ -134,7 +141,6 @@ export class TasksService {
     const { newColumnId, newPosition } = moveTaskDto;
 
     return this.knex.transaction(async (trx) => {
-      // ### ИЗМЕНЕНИЕ: Убрана проверка прав, теперь это делает гвард
       const taskToMove = await trx('tasks').where({ id: taskId }).first();
       if (!taskToMove) throw new NotFoundException(`Task with ID ${taskId} not found.`);
       
@@ -160,7 +166,6 @@ export class TasksService {
   }
 
   async addCommentToTask(taskId: string, createCommentDto: CreateCommentDto, author: AuthenticatedUser) {
-    // ### ИЗМЕНЕНИЕ: Убрана проверка прав, теперь это делает гвард
     const task = await this.findTaskById(taskId);
     const newComment = await this.commentsService.createComment(task.id, createCommentDto, author.id);
     
@@ -170,8 +175,6 @@ export class TasksService {
   }
 
   async getCommentsForTask(taskId: string) {
-    // ### ИЗМЕНЕНИЕ: Убрана проверка прав, теперь это делает гвард
-    // Проверка на существование задачи осталась, что корректно
     await this.findTaskById(taskId);
     return this.commentsService.getCommentsForTask(taskId);
   }
