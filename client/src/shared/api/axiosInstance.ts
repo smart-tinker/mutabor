@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-// ### ИЗМЕНЕНИЕ: Возвращаем префикс /api/v1 в базовый URL клиента ###
+// ### ИЗМЕНЕНИЕ: Добавляем префикс /api/v1 в базовый URL клиента ###
 const API_BASE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/v1`;
 
 // Create an Axios instance

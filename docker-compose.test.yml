@@ -1,0 +1,42 @@
+services:
+  api-test:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.test
+    container_name: mutabor_test_api_runner
+    depends_on:
+      db_test:
+        condition: service_healthy
+    env_file:
+      - ./api/.env.test
+    environment:
+      - NODE_ENV=test
+      - DATABASE_URL=postgresql://user:password@db_test:5432/mutabor_test?schema=public
+      - DB_HOST=db_test
+      - DB_PORT=5432
+      - DB_USER=user
+      - DB_PASSWORD=password
+      - DB_NAME=mutabor_test
+    volumes:
+      - ./api/coverage:/app/coverage
+
+  db_test:
+    image: postgres:13
+    container_name: mutabor_test_db
+    ports:
+      - "54323:5432"
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: mutabor_test
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d mutabor_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  postgres_test_data:

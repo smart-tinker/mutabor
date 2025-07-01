@@ -37,7 +37,6 @@ const App: React.FC = () => {
     <ThemeProvider>
       <AppContent
         isAuthenticated={isAuthenticated}
-        // isLoading={isLoading} // Removed, as it's not a prop of AppContent
         addTaskModalContextValue={addTaskModalContextValue}
       />
     </ThemeProvider>
@@ -46,7 +45,6 @@ const App: React.FC = () => {
 
 interface AppContentProps {
   isAuthenticated: boolean;
-  // isLoading: boolean; // This was removed as unused previously
   addTaskModalContextValue: {
     isModalOpen: boolean;
     openModal: () => void;
@@ -54,14 +52,7 @@ interface AppContentProps {
   };
 }
 
-// Create a new component to use the theme context
 const AppContent: React.FC<AppContentProps> = ({ isAuthenticated, addTaskModalContextValue }) => {
-  // const { theme } = useTheme(); // No longer needed here, as ThemeProvider handles it
-
-  // useEffect(() => { // This logic is now in ThemeProvider via useThemeSetup
-  //   document.documentElement.setAttribute('data-theme', theme);
-  // }, [theme]);
-
   return (
     <AddTaskModalContext.Provider value={addTaskModalContextValue}>
       <Router>
@@ -78,7 +69,6 @@ const AppContent: React.FC<AppContentProps> = ({ isAuthenticated, addTaskModalCo
             path="/projects/:projectId"
             element={isAuthenticated ? <BoardPage /> : <Navigate to="/login" />}
           />
-          {/* ### ИЗМЕНЕНИЕ: Маршрут изменен на /tasks/:taskHid ### */}
           <Route
             path="/tasks/:taskHid" 
             element={isAuthenticated ? <TaskPage /> : <Navigate to="/login" />}
@@ -87,8 +77,9 @@ const AppContent: React.FC<AppContentProps> = ({ isAuthenticated, addTaskModalCo
             path="/settings"
             element={isAuthenticated ? <UserSettingsPage /> : <Navigate to="/login" />}
           />
+          {/* ### ИЗМЕНЕНИЕ: Маршрут изменен на /projects/:projectId/settings ### */}
           <Route
-            path="/project/:projectId/settings"
+            path="/projects/:projectId/settings"
             element={isAuthenticated ? <ProjectSettingsPage /> : <Navigate to="/login" />}
           />
           <Route path="/404" element={<NotFoundPage />} />

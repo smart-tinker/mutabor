@@ -12,7 +12,7 @@ export type UserRecord = {
 export type ProjectRecord = {
   id: number;
   name: string;
-  // Добавлено недостающее поле prefix
+  // ### ИЗМЕНЕНИЕ: Добавлено недостающее поле ###
   task_prefix: string;
   last_task_number: number;
   owner_id: string;
@@ -28,7 +28,7 @@ export type ProjectMemberRecord = {
 
 // Добавлен недостающий тип
 export type ProjectMemberWithUser = ProjectMemberRecord & {
-  user: Pick<UserRecord, 'id' | 'name' | 'email'>;
+  user: Pick<UserRecord, 'id' | 'name' | 'email' | 'created_at' | 'updated_at'>;
 };
 
 export type ColumnRecord = {
@@ -36,6 +36,8 @@ export type ColumnRecord = {
   name: string;
   position: number;
   project_id: number;
+  created_at: Date;
+  updated_at: Date;
 };
 
 export type TaskRecord = {

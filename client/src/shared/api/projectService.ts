@@ -3,7 +3,8 @@ import type { ProjectSettingsResponse, UpdateProjectSettingsPayload } from './ty
 
 export interface TaskDto {
   id: string;
-  human_readable_id: string; // FIX: Changed to snake_case to match backend
+  // ### ИЗМЕНЕНИЕ: Исправлено имя поля для соответствия с API ###
+  human_readable_id: string; 
   title: string;
   description?: string | null;
   position: number;

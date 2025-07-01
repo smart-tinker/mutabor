@@ -26,7 +26,8 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // ### ИЗМЕНЕНИЕ: Убираем глобальный префикс. Префиксы будут заданы в каждом контроллере. ###
+  // ### ИЗМЕНЕНИЕ: Глобальный префикс убран. ###
+  // Префиксы теперь заданы в каждом контроллере для явности.
   // app.setGlobalPrefix('api/v1');
 
   // Настройка Swagger для документирования API
@@ -35,9 +36,11 @@ async function bootstrap() {
     .setDescription('The official API for the Mutabor project management tool.')
     .setVersion('1.0')
     .addBearerAuth()
+    // Swagger будет отображать пути с префиксами, заданными в контроллерах.
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  const swaggerPath = 'api-docs';
+  // ### ИЗМЕНЕНИЕ: Путь к Swagger изменен для соответствия префиксам API ###
+  const swaggerPath = 'api/v1/api-docs';
   SwaggerModule.setup(swaggerPath, app, document);
   
   const port = process.env.PORT || 3001;

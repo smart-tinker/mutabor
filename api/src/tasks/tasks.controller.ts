@@ -6,14 +6,11 @@ import { MoveTaskDto } from './dto/move-task.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateCommentDto } from '../comments/dto/create-comment.dto';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
-// import { PoliciesGuard } from '../casl/policies.guard'; // УДАЛЕНО
-// import { CheckPolicies } from '../casl/check-policies.decorator'; // УДАЛЕНО
-// import { CanEditProjectContentPolicy } from '../casl/project-policies.handler'; // УДАЛЕНО
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 
 @ApiBearerAuth()
 @ApiTags('Tasks & Comments')
-// ### ИЗМЕНЕНИЕ: Убираем PoliciesGuard ###
+// ### ИЗМЕНЕНИЕ: PoliciesGuard убран, осталась только проверка аутентификации. ###
 @UseGuards(JwtAuthGuard)
 @Controller('api/v1')
 export class TasksController {
@@ -21,7 +18,6 @@ export class TasksController {
 
   @Post('projects/:projectId/tasks')
   @ApiOperation({ summary: 'Create a new task in a project' })
-  // @CheckPolicies(CanEditProjectContentPolicy) // УДАЛЕНО
   @HttpCode(HttpStatus.CREATED)
   create(
     @Param('projectId', ParseIntPipe) projectId: number,
@@ -29,48 +25,48 @@ export class TasksController {
     @Req() req,
   ) {
     const user = req.user as AuthenticatedUser;
+    // Права доступа к проекту проверяются внутри сервиса
     return this.tasksService.createTask(projectId, createTaskDto, user);
   }
 
-  // ### ИЗМЕНЕНИЕ: Этот эндпоинт теперь ищет по HID, а не по UUID ###
   @Get('tasks/:hid')
   @ApiOperation({ summary: 'Get a task by its Human-Readable ID (e.g., MUT-1)' })
-  // @CheckPolicies(CanEditProjectContentPolicy) // УДАЛЕНО
+  // Права доступа к проекту проверяются внутри сервиса
   findOne(@Param('hid') hid: string) {
     return this.tasksService.findTaskByHumanId(hid);
   }
 
   @Patch('tasks/:id')
   @ApiOperation({ summary: 'Update a task' })
-  // @CheckPolicies(CanEditProjectContentPolicy) // УДАЛЕНО
   @HttpCode(HttpStatus.OK)
   update(@Param('id', ParseUUIDPipe) id: string, @Body() updateTaskDto: UpdateTaskDto, @Req() req) {
     const user = req.user as AuthenticatedUser;
+    // Права доступа к проекту проверяются внутри сервиса
     return this.tasksService.updateTask(id, updateTaskDto, user);
   }
 
   @Patch('tasks/:id/move')
   @ApiOperation({ summary: 'Move a task between columns or positions' })
-  // @CheckPolicies(CanEditProjectContentPolicy) // УДАЛЕНО
   @HttpCode(HttpStatus.OK)
   move(@Param('id', ParseUUIDPipe) id: string, @Body() moveTaskDto: MoveTaskDto, @Req() req) {
     const user = req.user as AuthenticatedUser;
+    // Права доступа к проекту проверяются внутри сервиса
     return this.tasksService.moveTask(id, moveTaskDto, user);
   }
 
   @Post('tasks/:taskId/comments')
   @ApiOperation({ summary: 'Add a comment to a task' })
-  // @CheckPolicies(CanEditProjectContentPolicy) // УДАЛЕНО
   @HttpCode(HttpStatus.CREATED)
   createComment(@Param('taskId', ParseUUIDPipe) taskId: string, @Body() createCommentDto: CreateCommentDto, @Req() req) {
     const user = req.user as AuthenticatedUser;
+    // Права доступа к проекту проверяются внутри сервиса
     return this.tasksService.addCommentToTask(taskId, createCommentDto, user);
   }
 
   @Get('tasks/:taskId/comments')
   @ApiOperation({ summary: 'Get all comments for a task' })
-  // @CheckPolicies(CanEditProjectContentPolicy) // УДАЛЕНО
   getComments(@Param('taskId', ParseUUIDPipe) taskId: string) {
+    // Права доступа к проекту проверяются внутри сервиса
     return this.tasksService.getCommentsForTask(taskId);
   }
 }
