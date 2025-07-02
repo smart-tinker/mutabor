@@ -5,14 +5,15 @@ import { AuthModule } from './auth/auth.module';
 import { ProjectsModule } from './projects/projects.module';
 import { TasksModule } from './tasks/tasks.module';
 import { KnexModule } from './knex/knex.module';
-import { CaslModule } from './casl/casl.module';
 import { EventsModule } from './events/events.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AppController } from './app.controller';
 import { CommentsModule } from './comments/comments.module';
 import { PoliciesGuard } from './casl/policies.guard';
 import { APP_GUARD } from '@nestjs/core';
-import { JwtAuthGuard } from './auth/guards/jwt-auth.guard'; // ### НОВОЕ: Импортируем JwtAuthGuard
+import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+// ### ИЗМЕНЕНИЕ: Убран импорт AiModule и CaslModule (который был закомментирован ранее) ###
+// import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -25,12 +26,11 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard'; // ### НОВОЕ: 
     ProjectsModule,
     TasksModule,
     CommentsModule,
-    CaslModule,
+    // ### ИЗМЕНЕНИЕ: AiModule и CaslModule удалены из импортов ###
     EventsModule,
     NotificationsModule,
   ],
   controllers: [AppController],
-  // ### ИЗМЕНЕНИЕ: Регистрируем оба гварда глобально. Порядок важен! ###
   providers: [
     {
       provide: APP_GUARD,

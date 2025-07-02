@@ -1,0 +1,54 @@
+/* client/src/features/AddTaskModal/ui/AddTaskModal.module.css */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.formGroup label {
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--text-secondary-color);
+}
+
+.formInput,
+.formTextarea,
+.formSelect {
+  width: 100%;
+  padding: 0.75rem;
+  box-sizing: border-box;
+  border: 1px solid var(--input-border-color);
+  border-radius: var(--border-radius-medium);
+  background-color: var(--input-background-color);
+  color: var(--input-text-color);
+  font-size: 1rem;
+  font-family: var(--font-family-main);
+}
+
+.formTextarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-subtle-color);
+}
+
+.formErrorMessage {
+  color: var(--danger-text-color);
+  background-color: var(--danger-background-subtle-color);
+  padding: 1rem;
+  border-radius: var(--border-radius-medium);
+  margin-bottom: 1rem;
+}

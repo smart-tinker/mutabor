@@ -1,50 +1,16 @@
-/* Styles for the modal form elements in BoardPage */
-.formInput,
-.formTextarea {
-  width: 100%;
-  padding: 8px;
-  box-sizing: border-box;
-  margin-bottom: 10px;
-  border: 1px solid var(--input-border-color); /* Use theme input border color */
-  border-radius: 4px;
-  background-color: var(--input-background-color); /* Use theme input background color */
-  color: var(--input-text-color); /* Use theme input text color */
-}
+/* client/src/pages/BoardPage.module.css */
 
-.formTextarea {
-  min-height: 80px;
-  resize: vertical; /* Allow vertical resizing */
-}
+/* Стили для модальной формы удалены, так как они теперь в AddTaskModal.module.css */
 
-.formActions {
+.pageHeader {
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: calc(var(--spacing-base) * 2);
+  padding-bottom: calc(var(--spacing-base) * 2);
+  border-bottom: 1px solid var(--border-color);
 }
 
-.button {
-  padding: 8px 15px;
-  border-radius: 4px;
-  border: 1px solid transparent;
-  cursor: pointer;
-}
-
-.buttonPrimary {
-  background-color: var(--button-background-color);
-  color: var(--button-text-color);
-  border-color: var(--button-background-color);
-}
-
-.buttonPrimary:disabled {
-  background-color: var(--button-disabled-background-color);
-  color: var(--button-disabled-text-color);
-  opacity: 0.65; /* Keep opacity for visual cue */
-  cursor: not-allowed;
-}
-
-.buttonSecondary {
-  background-color: var(--button-secondary-background-color);
-  color: var(--button-secondary-text-color);
-  border-color: var(--button-secondary-border-color);
+.pageHeader h1 {
+  margin: 0;
 }

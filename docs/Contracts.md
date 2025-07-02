@@ -31,7 +31,7 @@ export class AddMemberDto {
   role: 'editor' | 'viewer'; // Владелец назначается при создании проекта
 }
 
-// ### НОВЫЙ DTO для обновления роли участника
+// DTO для обновления роли участника
 export class UpdateMemberDto {
   role: 'editor' | 'viewer';
 }

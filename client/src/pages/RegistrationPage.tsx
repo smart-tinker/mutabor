@@ -1,9 +1,8 @@
 import RegistrationForm from '../features/authByEmail/ui/RegistrationForm';
-import styles from './PageStyles.module.css'; // Import common page styles
 
 const RegistrationPage = () => {
   return (
-    <div className={styles.formPageContainer}> {/* Use formPageContainer for centering */}
+    <div className="form-page-container">
       <h1>User Registration</h1>
       <RegistrationForm />
     </div>

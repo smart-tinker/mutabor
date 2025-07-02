@@ -1,65 +1,20 @@
+// client/src/shared/api/taskService.ts
+
 import apiClient from './axiosInstance';
-import type { TaskDto as FullTaskDto } from './projectService'; 
-// DTO для создания задачи
-export interface CreateTaskDto {
-  title: string;
-  description?: string;
-  columnId: string;
-  // projectId is now part of the URL, not the DTO body
-  assigneeId?: string;
-  dueDate?: string;
-  type?: string;
-  priority?: string;
-  tags?: string[];
-}
+// ### ИЗМЕНЕНИЕ: Импортируем все DTO из types.ts ###
+import type { 
+  TaskDto as FullTaskDto, 
+  CreateTaskDto,
+  UpdateTaskDto,
+  MoveTaskDto,
+  ApiCommentDto,
+  CommentDto,
+  CreateCommentPayloadDto,
+} from './types'; 
 
-// For updating tasks, all fields are optional
-export interface UpdateTaskDto {
-  title?: string;
-  description?: string | null;
-  assigneeId?: string | null;
-  dueDate?: string | null;
-  type?: string | null;
-  priority?: string | null;
-  tags?: string[] | null;
-}
+// ### ИЗМЕНЕНИЕ: Все локальные определения DTO удалены ###
 
-export interface MoveTaskDto {
-  newColumnId: string;
-  newPosition: number;
-}
-
-// DTOs for Comments
-export interface CommentAuthorDto {
-  id: string;
-  name?: string | null;
-  email: string;
-}
-
-export interface ApiCommentDto {
-  id: string;
-  text: string;
-  task_id: string;
-  author_id: string | null;
-  created_at: string;
-  updated_at: string;
-  author?: CommentAuthorDto | null;
-}
-
-export interface CommentDto {
-  id: string;
-  text: string;
-  taskId: string;
-  authorId: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  author?: CommentAuthorDto | null;
-}
-
-export interface CreateCommentPayloadDto {
-  text: string;
-}
-
+// Хелпер для трансформации остается здесь, так как это логика сервиса
 export const transformCommentDto = (apiComment: ApiCommentDto): CommentDto => ({
   ...apiComment,
   taskId: apiComment.task_id,
@@ -69,8 +24,7 @@ export const transformCommentDto = (apiComment: ApiCommentDto): CommentDto => ({
 });
 
 export const taskService = {
-  // ### ИЗМЕНЕНО: projectId теперь передается в URL, а не в теле
-  createTask: async (projectId: number, data: Omit<CreateTaskDto, 'projectId'>): Promise<FullTaskDto> => {
+  createTask: async (projectId: number, data: CreateTaskDto): Promise<FullTaskDto> => {
     const response = await apiClient.post<FullTaskDto>(`/projects/${projectId}/tasks`, data);
     return response.data;
   },
@@ -95,7 +49,6 @@ export const taskService = {
     return transformCommentDto(response.data);
   },
 
-  // ### ИЗМЕНЕНИЕ: Исправлен URL запроса. Убран сегмент /by-hid. ###
   getTaskByHumanId: async (humanReadableId: string): Promise<FullTaskDto> => {
     const response = await apiClient.get<FullTaskDto>(`/tasks/${humanReadableId}`);
     return response.data;

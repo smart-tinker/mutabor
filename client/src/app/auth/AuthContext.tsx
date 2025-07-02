@@ -24,16 +24,14 @@ interface AuthContextType {
   isLoading: boolean;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// ### ИЗМЕНЕНИЕ: Добавляем export ###
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // ### ИЗМЕНЕНИЕ: Функция logout обернута в useCallback ###
-  // Это гарантирует, что функция не будет пересоздаваться при каждом рендере,
-  // что важно для использования в dependency array в useEffect.
   const logout = useCallback(() => {
     localStorage.removeItem('authToken');
     setAuthToken(null);
@@ -55,7 +53,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(false);
   }, []);
 
-  // ### НОВОЕ: Слушатель события для глобальной обработки 401 ошибки ###
   useEffect(() => {
     const handleAuthError = () => {
       console.log("Auth error event received, logging out.");
@@ -67,7 +64,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       window.removeEventListener('auth-error', handleAuthError);
     };
-  }, [logout]); // Зависимость от стабильной функции logout
+  }, [logout]);
 
   const login = (token: string) => {
     try {

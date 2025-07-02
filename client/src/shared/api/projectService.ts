@@ -1,74 +1,28 @@
+// client/src/shared/api/projectService.ts
+
 import apiClient from './axiosInstance';
-import type { ProjectSettingsResponse, UpdateProjectSettingsPayload, AllParticipantsDto, UpdateMemberRoleDto } from './types'; // ### ИЗМЕНЕНИЕ
+import type { 
+  ProjectSettingsResponse, 
+  UpdateProjectSettingsPayload, 
+  AllParticipantsDto, 
+  UpdateMemberRoleDto,
+  AddMemberDto,
+  CreateProjectDto,
+  FullProjectDto,
+  ProjectListDto,
+} from './types';
 
-export interface TaskDto {
-  id: string;
-  human_readable_id: string; 
-  title: string;
-  description?: string | null;
-  position: number;
-  project_id: number;
-  column_id: string;
-  assignee_id?: string | null;
-  creator_id: string;
-  due_date?: string | null;
-  type?: string | null;
-  priority?: string | null;
-  tags?: string[] | null;
-  created_at: string;
-  updated_at: string;
-}
+// Экспортируем типы, которые могут понадобиться в других местах UI (например, на страницах)
+export type { 
+  TaskDto, 
+  ColumnDto, 
+  FullProjectDto, 
+  ProjectListDto,
+  CreateProjectDto,
+  AllParticipantsDto,
+  AddMemberDto,
+} from './types';
 
-export interface ColumnDto {
-  id: string;
-  name: string;
-  position: number;
-  project_id: number;
-  tasks?: TaskDto[];
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ProjectListDto {
-  id: number;
-  name: string;
-  task_prefix: string;
-  owner_id: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface FullProjectDto extends ProjectListDto {
-  columns?: ColumnDto[];
-  tasks?: TaskDto[];
-  settings_statuses?: string[];
-  settings_types?: string[];
-}
-
-export type ParsedProjectRecord = FullProjectDto;
-
-export interface CreateProjectDto {
-  name: string;
-  prefix: string;
-}
-
-export interface UserSummaryDto {
-  id: string;
-  email: string;
-  name?: string | null;
-}
-
-export interface ProjectMemberDto {
-  project_id: number;
-  user_id: string;
-  role: string;
-  user?: UserSummaryDto;
-}
-
-export interface AddMemberDto {
-  email: string;
-  role: string;
-}
 
 export const projectService = {
   createProject: async (data: CreateProjectDto): Promise<FullProjectDto> => {
@@ -90,13 +44,7 @@ export const projectService = {
     const response = await apiClient.post<AllParticipantsDto>(`/projects/${projectId}/members`, data);
     return response.data;
   },
-
-  getProjectMembers: async (projectId: number): Promise<ProjectMemberDto[]> => {
-    const response = await apiClient.get<ProjectMemberDto[]>(`/projects/${projectId}/members`);
-    return response.data;
-  },
   
-  // ### НОВЫЕ МЕТОДЫ ###
   getAllProjectParticipants: async (projectId: number): Promise<AllParticipantsDto[]> => {
     const response = await apiClient.get<AllParticipantsDto[]>(`/projects/${projectId}/members`);
     return response.data;

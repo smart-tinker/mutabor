@@ -192,3 +192,14 @@ select.input-error:focus {
   font-weight: 400;
   color: var(--text-secondary-color);
 }
+
+/* ### НОВЫЙ КЛАСС: Глобальный контейнер для страниц с формами ### */
+.form-page-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 4rem;
+  padding-bottom: 2rem;
+  min-height: 80vh;
+}

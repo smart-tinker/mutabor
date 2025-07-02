@@ -1,29 +1,93 @@
 /* client/src/pages/ProjectSettingsPage.module.css */
-.settingsPage {
-  max-width: 800px;
-  margin: 2rem auto;
-  padding: 2rem;
-  background-color: var(--card-background-color); /* Changed to card color */
-  border-radius: var(--border-radius-large); /* Use large radius */
-  box-shadow: var(--shadow-medium); /* Use medium shadow */
-  color: var(--text-color); /* Set text color */
-}
-
-.settingsPage h1, .settingsPage h2 {
-  color: var(--text-color);
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 0.5rem;
-  margin-bottom: 1.5rem;
-}
 
 .settingsPage h1 {
   text-align: center;
   font-size: 2rem;
+  margin-bottom: 2rem;
+  color: var(--text-color);
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
 }
 
-.settingsPage h2 {
+.settingsLayout {
+  display: flex;
+  gap: 2rem;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.sidebar {
+  flex: 0 0 200px; /* Фиксированная ширина сайдбара */
+  border-right: 1px solid var(--border-color);
+  padding-right: 2rem;
+}
+
+.sidebarNav {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.navItem a {
+  display: block;
+  padding: 0.75rem 1rem;
+  border-radius: var(--border-radius-medium);
+  text-decoration: none;
+  color: var(--text-secondary-color);
+  font-weight: 500;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.navItem a:hover {
+  background-color: var(--element-hover-background-color);
+  color: var(--text-color);
+}
+
+.navItem a.active {
+  background-color: var(--color-primary-background-hover);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.contentArea {
+  flex-grow: 1;
+  min-width: 0; /* Предотвращает переполнение flex-элементов */
+  background-color: var(--card-background-color);
+  padding: 2rem;
+  border-radius: var(--border-radius-large);
+  box-shadow: var(--shadow-small);
+}
+
+.contentArea h2 {
   font-size: 1.5rem;
-  margin-top: 2rem;
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-subtle-color);
+  color: var(--text-color);
+}
+
+.loading,
+.error,
+.success {
+  text-align: center;
+  margin-bottom: 1rem;
+  font-size: 1rem;
+  padding: 1rem;
+  border-radius: var(--border-radius-medium);
+}
+
+.error {
+  color: var(--color-error);
+  background-color: var(--color-background-danger-subtle);
+}
+
+.success {
+  color: var(--color-success);
+  background-color: var(--color-background-success-subtle);
 }
 
 .formGroup {
@@ -40,7 +104,7 @@
 .formGroup input[type="text"],
 .formGroup input[type="url"],
 .formGroup textarea,
-.formGroup select { /* Added select */
+.formGroup select {
   width: 100%;
   padding: 0.75rem;
   border: 1px solid var(--input-border-color);
@@ -48,12 +112,7 @@
   background-color: var(--input-background-color);
   color: var(--input-text-color);
   font-size: 1rem;
-  box-sizing: border-box; /* Ensures padding doesn't add to width */
-}
-
-/* listItem select is more specific */
-.listItem select {
-  padding: 0.5rem;
+  box-sizing: border-box;
 }
 
 .formGroup input:focus,
@@ -79,6 +138,10 @@
   flex-grow: 1;
 }
 
+.listItem select {
+  padding: 0.5rem;
+}
+
 .button {
   padding: 0.6rem 1.2rem;
   border-radius: var(--border-radius-medium);
@@ -89,7 +152,6 @@
   text-decoration: none;
   display: inline-block;
   text-align: center;
-  /* Using global button classes now, but can be customized here */
 }
 
 .addListItemButton {
@@ -99,30 +161,17 @@
 }
 
 .submitButton {
-  display: inline-block; /* Changed to inline-block to not take full width */
+  display: inline-block;
   width: auto;
-  margin-top: 2rem;
+  margin-top: 1rem;
   padding: 0.8rem 1.5rem;
   font-size: 1.1rem;
 }
 
-.loading,
-.error {
-  text-align: center;
-  margin: 2rem;
-  font-size: 1.2rem;
-}
 
-.error {
-  color: var(--color-error);
-  background-color: var(--color-background-danger-subtle);
-  padding: 1rem;
-  border-radius: var(--border-radius-medium);
-}
-
-/* ### НОВЫЕ СТИЛИ ДЛЯ УПРАВЛЕНИЯ УЧАСТНИКАМИ ### */
+/* ### Стили для управления участниками ### */
 .membersSection {
-  margin-top: 2rem;
+  margin-top: 0;
 }
 
 .memberList {
@@ -180,6 +229,7 @@
   gap: 0.5rem;
   align-items: flex-end;
 }
+
 .addMemberForm .formGroup input {
   flex-grow: 1;
 }

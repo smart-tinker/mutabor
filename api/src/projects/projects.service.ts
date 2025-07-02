@@ -158,6 +158,103 @@ export class ProjectsService {
     };
   }
 
+  async updateProjectSettings(
+    projectId: number,
+    settingsDto: UpdateProjectSettingsDto,
+  ): Promise<ProjectSettingsDto> {
+    await this.knex.transaction(async (trx) => {
+      const project = await trx('projects').where({id: projectId}).first();
+      if (!project) throw new NotFoundException(`Project with ID ${projectId} not found.`);
+
+      if (settingsDto.name || settingsDto.prefix) {
+        await this.updateProjectCoreDetails(project, settingsDto, trx);
+      }
+      
+      if (settingsDto.types) {
+        await this.synchronizeTaskTypes(projectId, settingsDto.types, trx);
+      }
+
+      if (settingsDto.statuses) {
+        await this.synchronizeStatuses(projectId, settingsDto.statuses, trx);
+      }
+    });
+    
+    return this.getProjectSettings(projectId);
+  }
+
+  private async updateProjectCoreDetails(project: ProjectRecord, settingsDto: UpdateProjectSettingsDto, trx: Knex.Transaction): Promise<void> {
+      const updatePayload: Partial<Pick<ProjectRecord, 'name' | 'task_prefix'>> = {};
+      if (settingsDto.name) {
+        updatePayload.name = settingsDto.name;
+      }
+      if (settingsDto.prefix) {
+        const newPrefix = settingsDto.prefix.toUpperCase();
+        if (newPrefix !== project.task_prefix) {
+            const existing = await trx('projects').where({ task_prefix: newPrefix }).whereNot({ id: project.id }).first();
+            if (existing) throw new ConflictException(`Project prefix '${newPrefix}' is already in use.`);
+            updatePayload.task_prefix = newPrefix;
+            await this.updateTaskPrefixesForProject(project.id, project.task_prefix, newPrefix, trx);
+        }
+      }
+      if (Object.keys(updatePayload).length > 0) {
+        await trx('projects').where({ id: project.id }).update(updatePayload);
+      }
+  }
+
+  private async synchronizeTaskTypes(projectId: number, newTypes: string[], trx: Knex.Transaction): Promise<void> {
+    await trx('project_task_types').where({ project_id: projectId }).delete();
+    if (newTypes.length > 0) {
+      const newTypesData = newTypes.map(name => ({ name, project_id: projectId }));
+      await trx('project_task_types').insert(newTypesData);
+    }
+  }
+
+  private async synchronizeStatuses(projectId: number, newStatusNames: string[], trx: Knex.Transaction): Promise<void> {
+    const existingColumns = await trx('columns').where({ project_id: projectId });
+    const existingNames = existingColumns.map(c => c.name);
+    
+    const columnsToRemove = existingColumns.filter(c => !newStatusNames.includes(c.name));
+    const namesToAdd = newStatusNames.filter(name => !existingNames.includes(name));
+
+    if (columnsToRemove.length > 0) {
+      if (newStatusNames.length === 0) throw new BadRequestException('A project must have at least one status column.');
+      
+      const remainingColumns = existingColumns.filter(c => !columnsToRemove.some(rem => rem.id === c.id));
+      const targetColumnForOrphanedTasks = remainingColumns[0] || null;
+
+      if (!targetColumnForOrphanedTasks && namesToAdd.length === 0) {
+          throw new BadRequestException('Cannot delete all columns without adding new ones.');
+      }
+
+      if (targetColumnForOrphanedTasks?.id) {
+        const columnsToRemoveIds = columnsToRemove.map(c => c.id);
+        await trx('tasks')
+          .whereIn('column_id', columnsToRemoveIds)
+          .update({ column_id: targetColumnForOrphanedTasks.id });
+      }
+      await trx('columns').whereIn('id', columnsToRemove.map(c => c.id)).delete();
+    }
+
+    if (namesToAdd.length > 0) {
+      const newColumnsData = namesToAdd.map(name => ({
+        id: crypto.randomUUID(),
+        name,
+        project_id: projectId,
+        position: -1,
+      }));
+      await trx('columns').insert(newColumnsData);
+    }
+
+    const finalColumns = await trx('columns').where({ project_id: projectId });
+    const positionUpdatePromises = newStatusNames.map((name, index) => {
+      const columnToUpdate = finalColumns.find(c => c.name === name);
+      if (columnToUpdate) {
+        return trx('columns').where({ id: columnToUpdate.id }).update({ position: index });
+      }
+    });
+    await Promise.all(positionUpdatePromises.filter(p => p));
+  }
+  
   private async updateTaskPrefixesForProject(
     projectId: number,
     oldPrefix: string,
@@ -173,99 +270,6 @@ export class ProjectsService {
         [oldPrefixPattern, newPrefixPattern, new Date(), projectId, `${oldPrefixPattern}%`]
     );
     return result.rowCount || 0;
-  }
-
-  // ### ИЗМЕНЕНИЕ: Метод теперь возвращает Promise<ProjectSettingsDto> и обрабатывает статусы ###
-  async updateProjectSettings(
-    projectId: number,
-    settingsDto: UpdateProjectSettingsDto,
-  ): Promise<ProjectSettingsDto> {
-    await this.knex.transaction(async (trx) => {
-      const project = await trx('projects').where({id: projectId}).first();
-      if (!project) throw new NotFoundException(`Project with ID ${projectId} not found.`);
-
-      const updatePayload: Partial<Pick<ProjectRecord, 'name' | 'task_prefix'>> = {};
-      if (settingsDto.name) updatePayload.name = settingsDto.name;
-      if (settingsDto.prefix) {
-        const newPrefix = settingsDto.prefix.toUpperCase();
-        if (newPrefix !== project.task_prefix) {
-            const existing = await trx('projects').where({ task_prefix: newPrefix }).whereNot({ id: projectId }).first();
-            if (existing) throw new ConflictException(`Project prefix '${newPrefix}' is already in use.`);
-            updatePayload.task_prefix = newPrefix;
-            await this.updateTaskPrefixesForProject(projectId, project.task_prefix, newPrefix, trx);
-        }
-      }
-      if (Object.keys(updatePayload).length > 0) {
-        await trx('projects').where({ id: projectId }).update(updatePayload);
-      }
-      
-      if (settingsDto.types) {
-        await trx('project_task_types').where({ project_id: projectId }).delete();
-        if (settingsDto.types.length > 0) {
-          const newTypesData = settingsDto.types.map(name => ({ name, project_id: projectId }));
-          await trx('project_task_types').insert(newTypesData);
-        }
-      }
-
-      // ### НОВОЕ: Логика синхронизации статусов (колонок) ###
-      if (settingsDto.statuses) {
-        const existingColumns = await trx('columns').where({ project_id: projectId });
-        const newStatusNames = settingsDto.statuses;
-
-        // Определяем, какие колонки удалить, а какие добавить
-        const existingNames = existingColumns.map(c => c.name);
-        const columnsToRemove = existingColumns.filter(c => !newStatusNames.includes(c.name));
-        const namesToAdd = newStatusNames.filter(name => !existingNames.includes(name));
-
-        // Перед удалением колонок, перемещаем задачи
-        if (columnsToRemove.length > 0) {
-          if (newStatusNames.length === 0) throw new BadRequestException('A project must have at least one status column.');
-
-          const remainingColumns = existingColumns.filter(c => !columnsToRemove.some(rem => rem.id === c.id));
-          const targetColumnForOrphanedTasks = remainingColumns[0] || null;
-
-          if (!targetColumnForOrphanedTasks && namesToAdd.length === 0) {
-             throw new BadRequestException('Cannot delete all columns without adding new ones.');
-          }
-          // Если есть задачи в удаляемых колонках, их нужно куда-то переместить
-          const targetColumnId = targetColumnForOrphanedTasks?.id;
-
-          if(targetColumnId){
-            const columnsToRemoveIds = columnsToRemove.map(c => c.id);
-            await trx('tasks')
-              .whereIn('column_id', columnsToRemoveIds)
-              .update({ column_id: targetColumnId });
-          }
-
-          // Удаляем сами колонки
-          await trx('columns').whereIn('id', columnsToRemove.map(c => c.id)).delete();
-        }
-
-        // Добавляем новые колонки
-        if (namesToAdd.length > 0) {
-          const newColumnsData = namesToAdd.map(name => ({
-            id: crypto.randomUUID(),
-            name,
-            project_id: projectId,
-            position: -1, // Временная позиция
-          }));
-          await trx('columns').insert(newColumnsData);
-        }
-
-        // Обновляем позиции всех колонок в соответствии с новым порядком
-        const finalColumns = await trx('columns').where({ project_id: projectId });
-        const positionUpdatePromises = newStatusNames.map((name, index) => {
-          const columnToUpdate = finalColumns.find(c => c.name === name);
-          if (columnToUpdate) {
-            return trx('columns').where({ id: columnToUpdate.id }).update({ position: index });
-          }
-        });
-        await Promise.all(positionUpdatePromises);
-      }
-    });
-    
-    // Возвращаем обновленное состояние настроек
-    return this.getProjectSettings(projectId);
   }
 
   async createColumn(projectId: number, createColumnDto: CreateColumnDto): Promise<ColumnRecord> {
@@ -302,31 +306,40 @@ export class ProjectsService {
   }
 
   async deleteColumn(projectId: number, columnId: string): Promise<void> {
-    return this.knex.transaction(async (trx) => {
-      const allColumns = await trx('columns').where({ project_id: projectId }).orderBy('position', 'asc');
-      if (allColumns.length <= 1) { // Изменено на 1
-        throw new BadRequestException('Cannot delete the last column. A project must have at least one column.');
-      }
-      const columnToDelete = allColumns.find(c => c.id === columnId);
-      if (!columnToDelete) return;
-
-      const columnIndex = allColumns.findIndex(c => c.id === columnId);
-      // Логика выбора целевой колонки: если удаляется не первая, берем предыдущую, иначе - следующую.
-      const targetColumn = (columnIndex > 0) ? allColumns[columnIndex - 1] : allColumns[1];
-
-      const tasksToMove = await trx('tasks').where({ column_id: columnId });
-      if (tasksToMove.length > 0) {
-        const maxPosInTargetResult = await trx('tasks').where({ column_id: targetColumn.id }).max('position as max_pos').first();
-        let currentPos = (maxPosInTargetResult?.max_pos ?? -1) + 1;
-        for (const task of tasksToMove) {
-          await trx('tasks').where({ id: task.id }).update({ column_id: targetColumn.id, position: currentPos++ });
+    await this.knex.transaction(async (trx) => {
+        const allColumns = await trx('columns').where({ project_id: projectId }).orderBy('position', 'asc');
+        
+        if (allColumns.length <= 1) {
+            throw new BadRequestException('Cannot delete the last column. A project must have at least one column.');
         }
-      }
-      await trx('columns').where({ id: columnId }).delete();
-      const remainingColumns = allColumns.filter(c => c.id !== columnId);
-      for (let i = 0; i < remainingColumns.length; i++) {
-        await trx('columns').where({ id: remainingColumns[i].id }).update({ position: i });
-      }
+
+        const columnToDelete = allColumns.find(c => c.id === columnId);
+        if (!columnToDelete) {
+            this.logger.warn(`Attempted to delete non-existent column ${columnId} in project ${projectId}.`);
+            return; // Exit gracefully if column is already gone.
+        }
+
+        const columnIndex = allColumns.findIndex(c => c.id === columnId);
+        
+        // Find a new home for the tasks: the previous column, or the next one if deleting the first.
+        const targetColumn = (columnIndex > 0) ? allColumns[columnIndex - 1] : allColumns[1];
+        
+        // Move tasks from the deleted column to the target column.
+        await trx('tasks')
+            .where({ column_id: columnId })
+            .update({ column_id: targetColumn.id });
+
+        // Delete the column itself.
+        await trx('columns').where({ id: columnId }).delete();
+        
+        // Re-sequence the remaining columns to ensure there are no gaps in `position`.
+        const remainingColumns = allColumns.filter(c => c.id !== columnId);
+        const updatePromises = remainingColumns.map((col, index) =>
+            trx('columns')
+                .where({ id: col.id })
+                .update({ position: index })
+        );
+        await Promise.all(updatePromises);
     });
   }
   
@@ -350,10 +363,12 @@ export class ProjectsService {
     
     await this.knex('project_members').insert({ project_id: projectId, user_id: userToAdd.id, role: addMemberDto.role });
     
+    const user = await this.knex('users').where({ id: userToAdd.id }).first();
+
     return {
-      id: userToAdd.id,
-      name: userToAdd.name,
-      email: userToAdd.email,
+      id: user.id,
+      name: user.name,
+      email: user.email,
       role: addMemberDto.role
     };
   }
@@ -367,7 +382,7 @@ export class ProjectsService {
     
     return membersData.map(m => ({
         project_id: projectId, user_id: m.id, role: m.role,
-        user: { id: m.id, name: m.name, email: m.email, created_at: m.created_at, updated_at: m.updated_at, }
+        user: { id: m.id, name: m.name, email: m.email, created_at: m.created_at, updated_at: m.updated_at, password_hash: '', role: 'user' }
     }));
   }
 

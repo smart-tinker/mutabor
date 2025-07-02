@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useReducer } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   DndContext,
@@ -13,14 +13,12 @@ import type { DragEndEvent, DragOverEvent, DragStartEvent } from '@dnd-kit/core'
 import { projectService } from '../shared/api/projectService';
 import type { FullProjectDto, ColumnDto as ProjectColumnDto, TaskDto } from '../shared/api/projectService';
 import { taskService } from '../shared/api/taskService';
-import type { CreateTaskDto } from '../shared/api/taskService';
 import { socket, joinProjectRoom, leaveProjectRoom } from '../shared/lib/socket';
-import { Modal } from '../shared/ui/Modal';
+
 import styles from './BoardPage.module.css';
-import pageStyles from './PageStyles.module.css'; // ### НОВОЕ: Стили для общих элементов страницы
 import ColumnLane from '../features/ColumnLane/ColumnLane';
 import { TaskDetailModal } from '../features/TaskDetailModal';
-import { useAddTaskModal } from '../shared/contexts/AddTaskModalContext';
+import { AddTaskModal } from '../features/AddTaskModal';
 
 interface Column extends ProjectColumnDto {
   tasksList: TaskDto[];
@@ -30,41 +28,6 @@ interface BoardData extends Omit<FullProjectDto, 'columns'> {
   columns: Column[];
 }
 
-interface AddTaskFormState {
-  title: string;
-  description: string;
-  dueDate: string;
-  type: string;
-  priority: string;
-  tags: string;
-  columnId: string | null;
-}
-
-type FormAction =
-  | { type: 'SET_FIELD'; field: keyof AddTaskFormState; payload: string | null }
-  | { type: 'RESET' };
-
-const initialFormState: AddTaskFormState = {
-  title: '',
-  description: '',
-  dueDate: '',
-  type: '',
-  priority: '',
-  tags: '',
-  columnId: null,
-};
-
-function formReducer(state: AddTaskFormState, action: FormAction): AddTaskFormState {
-  switch (action.type) {
-    case 'SET_FIELD':
-      return { ...state, [action.field]: action.payload };
-    case 'RESET':
-      return initialFormState;
-    default:
-      return state;
-  }
-}
-
 const BoardPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
@@ -72,14 +35,7 @@ const BoardPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
-
-  const { isModalOpen: isAddTaskModalOpen, closeModal: closeGlobalAddTaskModal } = useAddTaskModal();
-
   const [selectedTask, setSelectedTask] = useState<TaskDto | null>(null);
-  
-  const [formState, dispatch] = useReducer(formReducer, initialFormState);
-  const [isCreatingTask, setIsCreatingTask] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
 
   const numericProjectId = projectId ? parseInt(projectId, 10) : null;
 
@@ -171,48 +127,6 @@ const BoardPage: React.FC = () => {
     }
   }, [projectId, fetchBoardData, numericProjectId]);
 
-  useEffect(() => {
-    if (isAddTaskModalOpen && boardData && boardData.columns.length > 0) {
-      if (!formState.columnId || !boardData.columns.find(col => col.id === formState.columnId)) {
-        dispatch({ type: 'SET_FIELD', field: 'columnId', payload: boardData.columns[0].id });
-      }
-    }
-  }, [isAddTaskModalOpen, boardData, formState.columnId]);
-
-  const handleModalClose = () => {
-    dispatch({ type: 'RESET' });
-    setFormError(null);
-    closeGlobalAddTaskModal();
-  };
-
-  const handleCreateTask = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError(null);
-    if (!formState.title.trim() || !formState.columnId || numericProjectId === null) {
-      setFormError('Please ensure Title and Column are filled.');
-      return;
-    }
-    setIsCreatingTask(true);
-    try {
-      const tagsArray = formState.tags.split(',').map(tag => tag.trim()).filter(Boolean);
-      const taskData: Omit<CreateTaskDto, 'projectId'> = {
-        title: formState.title,
-        description: formState.description,
-        columnId: formState.columnId,
-        dueDate: formState.dueDate || undefined,
-        type: formState.type || undefined,
-        priority: formState.priority || undefined,
-        tags: tagsArray.length > 0 ? tagsArray : undefined,
-      };
-      await taskService.createTask(numericProjectId, taskData);
-      handleModalClose();
-    } catch (err: any) {
-      console.error('Failed to create task:', err);
-      setFormError(err.response?.data?.message || 'Failed to create task.');
-    } finally {
-      setIsCreatingTask(false);
-    }
-  };
 
   const handleTaskClick = (task: TaskDto) => {
     setSelectedTask(task);
@@ -293,7 +207,7 @@ const BoardPage: React.FC = () => {
 
   if (isLoading && !boardData) return <p>Loading board...</p>;
   if (error) return <p style={{ color: 'red' }}>{error}</p>;
-  if (!boardData) return <p>No board data found or project ID is invalid.</p>;
+  if (!boardData || !numericProjectId) return <p>No board data found or project ID is invalid.</p>;
 
   return (
     <>
@@ -305,60 +219,13 @@ const BoardPage: React.FC = () => {
         onDragEnd={handleDragEnd}
       >
         <div>
-          {/* ### ИЗМЕНЕНИЕ: Заменена кнопка "Manage Members" на "Settings" ### */}
-          <div className={pageStyles.pageHeader} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div className={styles.pageHeader}>
             <h1>{boardData.name}{boardData.task_prefix ? ` (${boardData.task_prefix})` : ''}</h1>
             <Link to={`/projects/${numericProjectId}/settings`} className="button secondary">
                 Project Settings ⚙️
             </Link>
           </div>
-            <Modal
-              isOpen={isAddTaskModalOpen}
-              onClose={handleModalClose}
-              title="Add New Task"
-            >
-              <form onSubmit={handleCreateTask} className={styles.form}>
-                {formError && <p style={{ color: 'red', marginBottom: '10px' }}>{formError}</p>}
-                
-                <div>
-                  <label htmlFor="taskTitle" className={styles.formLabel}>Task Title:</label>
-                  <input id="taskTitle" type="text" value={formState.title} onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'title', payload: e.target.value })} required className={styles.formInput} />
-                </div>
-                <div>
-                  <label htmlFor="taskDescription">Description (Optional):</label>
-                  <textarea id="taskDescription" value={formState.description} onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'description', payload: e.target.value })} className={styles.formTextarea} />
-                </div>
-                <div>
-                  <label htmlFor="columnSelect" className={styles.formLabel}>Status/Column:</label>
-                  <select id="columnSelect" value={formState.columnId || ''} onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'columnId', payload: e.target.value })} required className={styles.formSelect}>
-                    <option value="" disabled>Select a column</option>
-                    {boardData?.columns.map(column => (<option key={column.id} value={column.id}>{column.name}</option>))}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="taskDueDate" className={styles.formLabel}>Deadline:</label>
-                  <input id="taskDueDate" type="date" value={formState.dueDate} onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'dueDate', payload: e.target.value })} className={styles.formInput} />
-                </div>
-                <div>
-                  <label htmlFor="taskType" className={styles.formLabel}>Type:</label>
-                  <input id="taskType" type="text" value={formState.type} onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'type', payload: e.target.value })} className={styles.formInput} placeholder="e.g., Bug, Feature, Chore" />
-                </div>
-                <div>
-                  <label htmlFor="taskPriority" className={styles.formLabel}>Priority:</label>
-                  <input id="taskPriority" type="text" value={formState.priority} onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'priority', payload: e.target.value })} className={styles.formInput} placeholder="e.g., High, Medium, Low" />
-                </div>
-                <div>
-                  <label htmlFor="taskTags" className={styles.formLabel}>Tags (comma-separated):</label>
-                  <input id="taskTags" type="text" value={formState.tags} onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'tags', payload: e.target.value })} className={styles.formInput} placeholder="e.g., UI, Backend, Urgent" />
-                </div>
-                <div className={styles.formActions}>
-                  <button type="button" onClick={handleModalClose} className={`${styles.button} ${styles.buttonSecondary}`}>Cancel</button>
-                  <button type="submit" disabled={isCreatingTask || !formState.columnId} className={`${styles.button} ${styles.buttonPrimary}`}>
-                    {isCreatingTask ? 'Creating...' : 'Create Task'}
-                  </button>
-                </div>
-              </form>
-            </Modal>
+          <AddTaskModal projectId={numericProjectId} columns={boardData.columns} />
           <div style={{ display: 'flex', gap: '16px', overflowX: 'auto', padding: '10px', minHeight: 'calc(100vh - 100px)' }}>
             {boardData.columns.map((column) => (
               <ColumnLane key={column.id} column={column} onTaskClick={handleTaskClick} />
@@ -366,7 +233,7 @@ const BoardPage: React.FC = () => {
           </div>
         </div>
       </DndContext>
-      {selectedTask && numericProjectId !== null && (
+      {selectedTask && (
         <TaskDetailModal
           task={selectedTask}
           isOpen={!!selectedTask}

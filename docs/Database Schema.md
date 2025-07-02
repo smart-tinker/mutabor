@@ -13,6 +13,7 @@ erDiagram
         string email UK
         string name nullable
         string password_hash
+        string role "NOT NULL, DEFAULT 'user'"
         datetime created_at
         datetime updated_at
     }
@@ -112,6 +113,7 @@ erDiagram
 | `email`                    | `string`           | `UNIQUE`, `NOT NULL`                                | Электронная почта.                                                        |
 | `name`                     | `string?`          | `NULLABLE`                                          | Имя пользователя.                                                         |
 | `password_hash`            | `string`           | `NOT NULL`                                          | Хеш пароля.                                                               |
+| `role`                     | `string`           | `NOT NULL`, `DEFAULT 'user'`, `INDEX`               | Глобальная роль пользователя (например, 'admin', 'user').                 |
 | **projects**               |                    |                                                     | Проекты или Kanban-доски.                                                 |
 | `id`                       | `Int`              | `PRIMARY KEY`, `SERIAL`                             | Уникальный числовой ID проекта.                                           |
 | `task_prefix`              | `string`           | `UNIQUE`, `NOT NULL`                                | Короткий префикс для задач проекта (например, "PHX").                     |
