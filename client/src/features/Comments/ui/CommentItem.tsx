@@ -1,6 +1,7 @@
 // client/src/features/Comments/ui/CommentItem.tsx
 import React from 'react';
-import type { CommentDto } from '../../../shared/api/taskService';
+// ### ИЗМЕНЕНИЕ: Импортируем типы из правильного места ###
+import type { CommentDto } from '../../../shared/api/types';
 import styles from './CommentItem.module.css';
 
 interface CommentItemProps {

@@ -1,4 +1,6 @@
-import { createContext, useState, useContext, useEffect, useCallback, ReactNode } from 'react';
+// client/src/app/auth/AuthContext.tsx
+// ### ИЗМЕНЕНИЕ: 'ReactNode' импортируется как тип ###
+import { createContext, useState, useContext, useEffect, useCallback, type ReactNode } from 'react';
 import jwtDecode from 'jwt-decode';
 
 export interface AuthenticatedUser {

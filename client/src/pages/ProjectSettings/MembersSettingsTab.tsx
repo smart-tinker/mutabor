@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { projectService } from '../../shared/api/projectService';
 import type { AllParticipantsDto } from '../../shared/api/types';
-import { Modal } from '../../shared/ui/Modal'; // ### НОВОЕ: Импортируем модальное окно
+import { Modal } from '../../shared/ui/Modal'; 
 import styles from '../ProjectSettingsPage.module.css';
 
 interface MembersSettingsTabProps {
@@ -18,7 +18,6 @@ const MembersSettingsTab: React.FC<MembersSettingsTabProps> = ({ projectId }) =>
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [addMemberError, setAddMemberError] = useState<string | null>(null);
 
-  // ### НОВОЕ: Состояния для модального окна подтверждения ###
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<AllParticipantsDto | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
@@ -50,7 +49,12 @@ const MembersSettingsTab: React.FC<MembersSettingsTabProps> = ({ projectId }) =>
     setAddMemberError(null);
     try {
         const newMember = await projectService.addProjectMember(projectId, { email: addMemberEmail, role: addMemberRole });
-        setParticipants(prev => [...prev, newMember].sort((a, b) => a.role === 'owner' ? -1 : 1));
+        // ### ИЗМЕНЕНИЕ: исправлена сортировка, чтобы использовать обе переменные ###
+        setParticipants(prev => [...prev, newMember].sort((a, b) => {
+          if (a.role === 'owner') return -1;
+          if (b.role === 'owner') return 1;
+          return (a.name || a.email).localeCompare(b.name || b.email);
+        }));
         setAddMemberEmail('');
         setAddMemberRole('editor');
     } catch (err: any) {
@@ -70,13 +74,11 @@ const MembersSettingsTab: React.FC<MembersSettingsTabProps> = ({ projectId }) =>
     }
   };
 
-  // ### НОВОЕ: Функция для открытия модального окна ###
   const promptRemoveMember = (member: AllParticipantsDto) => {
     setMemberToRemove(member);
     setIsConfirmModalOpen(true);
   };
 
-  // ### НОВОЕ: Функция для фактического удаления после подтверждения ###
   const confirmRemoveMember = async () => {
     if (!memberToRemove) return;
     setIsRemoving(true);
@@ -87,9 +89,8 @@ const MembersSettingsTab: React.FC<MembersSettingsTabProps> = ({ projectId }) =>
         setIsConfirmModalOpen(false);
         setMemberToRemove(null);
     } catch (err: any) {
-        // Отображаем ошибку прямо в модальном окне или глобально
         setError(err.response?.data?.message || "Failed to remove member.");
-        setIsConfirmModalOpen(false); // Закрываем окно даже при ошибке
+        setIsConfirmModalOpen(false); 
     } finally {
         setIsRemoving(false);
     }
@@ -117,7 +118,6 @@ const MembersSettingsTab: React.FC<MembersSettingsTabProps> = ({ projectId }) =>
                     <option value="editor">Editor</option>
                     <option value="viewer">Viewer</option>
                   </select>
-                  {/* ### ИЗМЕНЕНИЕ: Кнопка теперь открывает модальное окно ### */}
                   <button className={`${styles.button} danger`} onClick={() => promptRemoveMember(p)}>Remove</button>
                 </>
               )}
@@ -140,7 +140,6 @@ const MembersSettingsTab: React.FC<MembersSettingsTabProps> = ({ projectId }) =>
         </div>
       </form>
 
-      {/* ### НОВОЕ: Модальное окно подтверждения ### */}
       <Modal 
         isOpen={isConfirmModalOpen} 
         onClose={() => setIsConfirmModalOpen(false)}

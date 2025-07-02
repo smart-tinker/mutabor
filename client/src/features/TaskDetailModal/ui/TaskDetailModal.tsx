@@ -2,9 +2,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import type { TaskDto } from '../../../shared/api/projectService';
-import { taskService } from '../../../shared/api/taskService';
-import type { UpdateTaskDto, CommentDto, ApiCommentDto } from '../../../shared/api/taskService';
-import { transformCommentDto } from '../../../shared/api/taskService';
+import { taskService, transformCommentDto } from '../../../shared/api/taskService';
+// ### ИЗМЕНЕНИЕ: Импортируем типы из правильного места ###
+import type { UpdateTaskDto, CommentDto, ApiCommentDto } from '../../../shared/api/types';
 
 import { getTaskComments } from '../../Comments/api';
 import { CommentList, AddCommentForm } from '../../Comments';

@@ -1,7 +1,9 @@
+// client/src/pages/TaskPage.tsx
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { taskService } from '../shared/api/taskService';
-import type { CommentDto } from '../shared/api/taskService';
+// ### ИЗМЕНЕНИЕ: Импортируем типы из правильного места ###
+import type { CommentDto } from '../shared/api/types';
 import type { TaskDto } from '../shared/api/projectService';
 import { CommentList, AddCommentForm } from '../features/Comments';
 import styles from './TaskPage.module.css';

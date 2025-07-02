@@ -1,7 +1,8 @@
 // client/src/features/Comments/ui/AddCommentForm.tsx
 import React, { useState } from 'react';
 import { addTaskComment } from '../api';
-import type { CommentDto, CreateCommentPayloadDto } from '../../../shared/api/taskService';
+// ### ИЗМЕНЕНИЕ: Импортируем типы из правильного места ###
+import type { CommentDto, CreateCommentPayloadDto } from '../../../shared/api/types';
 import styles from './AddCommentForm.module.css';
 
 interface AddCommentFormProps {
