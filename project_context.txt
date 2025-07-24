@@ -5,6 +5,7 @@ Directory structure:
 ├── api/
 │   ├── db/
 │   │   ├── changelog/
+│   │   │   ├── db.changelog-add-ai-settings.xml
 │   │   │   ├── db.changelog-add-user-role.xml
 │   │   │   ├── db.changelog-initial.xml
 │   │   │   └── db.changelog-master.xml
@@ -261,8 +262,44 @@ Directory structure:
 ├── project_context.txt
 └── README.md
 
-60 directories, 199 files
+60 directories, 200 files
 
+
+================================================
+FILE: api/db/changelog/db.changelog-add-ai-settings.xml
+================================================
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="add-ai-provider-settings-1" author="mutabor-ai-feature">
+        <comment>Create ai_provider_settings table for project-specific AI configurations</comment>
+
+        <createTable tableName="ai_provider_settings">
+            <column name="id" type="SERIAL"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="project_id" type="INT"><constraints unique="true" nullable="false" foreignKeyName="fk_ai_settings_project" references="projects(id)" deleteCascade="true"/></column>
+            
+            <column name="provider_name" type="TEXT"><constraints nullable="false"/></column>
+            <column name="base_url" type="TEXT"><constraints nullable="false"/></column>
+            <column name="model_name" type="TEXT"><constraints nullable="true"/></column>
+            
+            <column name="encrypted_api_key" type="TEXT"><constraints nullable="true"/></column>
+            <column name="encryption_key_version" type="INT" defaultValueNumeric="1"><constraints nullable="false"/></column>
+            
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+
+        <createIndex indexName="idx_ai_settings_project_id" tableName="ai_provider_settings">
+            <column name="project_id"/>
+        </createIndex>
+
+    </changeSet>
+
+</databaseChangeLog>
 
 ================================================
 FILE: api/db/changelog/db.changelog-add-user-role.xml
@@ -436,6 +473,7 @@ FILE: api/db/changelog/db.changelog-master.xml
 
     <include file="db/changelog/db.changelog-initial.xml"/>
     <include file="db/changelog/db.changelog-add-user-role.xml"/>
+    <include file="db/changelog/db.changelog-add-ai-settings.xml"/>
 
 </databaseChangeLog>
 
@@ -612,9 +650,6 @@ dist
 # Игнорируем временные файлы npm
 npm-debug.log
 
-# ИГНОРИРУЕМ ПАПКУ С AI-МОДУЛЕМ, ЧТОБЫ ОНА НЕ ПОПАЛА В СБОРКУ
-src/ai
-
 # ВАЖНО: Игнорируем локальные .env файлы, чтобы они не попали в образ
 .env*
 
@@ -784,6 +819,7 @@ node_modules
 Thumbs.db
 .env
 .env.dev
+.env.test
 
 coverage/
 
@@ -953,7 +989,6 @@ import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagg
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AiService } from './ai.service';
 import { UpdateAiSettingsDto } from './dto/update-ai-settings.dto';
-// ### ИЗМЕНЕНИЕ: Импортируем нужные декораторы и политики ###
 import { CheckPolicies } from '../casl/check-policies.decorator';
 import { CanManageProjectSettingsPolicy } from '../casl/project-policies.handler';
 import { AssistRequestDto } from './dto/assist-request.dto';
@@ -975,15 +1010,11 @@ export class AiController {
     @Body() assistRequestDto: AssistRequestDto,
     @Req() req,
   ) {
-    // Примечание: проверка прав доступа для этой операции (CanEditProjectContent)
-    // выполняется внутри aiService.handleAssistRequest, так как гварду сложно
-    // анализировать тело запроса для получения ID задачи.
     return this.aiService.handleAssistRequest(assistRequestDto, req.user);
   }
 
   @Get('projects/:projectId/ai/settings')
   @ApiOperation({ summary: "Get a project's AI provider settings" })
-  // ### НОВОЕ: Эндпоинт защищен политикой ###
   @CheckPolicies(CanManageProjectSettingsPolicy)
   async getAiSettings(@Param('projectId', ParseIntPipe) projectId: number) {
     return this.aiService.getSettingsForProject(projectId);
@@ -991,7 +1022,6 @@ export class AiController {
 
   @Put('projects/:projectId/ai/settings')
   @ApiOperation({ summary: "Update a project's AI provider settings" })
-  // ### НОВОЕ: Эндпоинт защищен политикой ###
   @CheckPolicies(CanManageProjectSettingsPolicy)
   async updateAiSettings(
     @Param('projectId', ParseIntPipe) projectId: number,
@@ -1002,7 +1032,6 @@ export class AiController {
 
   @Get('projects/:projectId/ai/models')
   @ApiOperation({ summary: 'List available models from the configured AI provider' })
-  // ### НОВОЕ: Эндпоинт защищен политикой ###
   @CheckPolicies(CanManageProjectSettingsPolicy)
   async listModels(@Param('projectId', ParseIntPipe) projectId: number) {
     return this.aiService.listModelsForProject(projectId);
@@ -1037,6 +1066,7 @@ export class AiModule {}
 ================================================
 FILE: api/src/ai/ai.service.ts
 ================================================
+// api/src/ai/ai.service.ts
 import { Injectable, Inject, forwardRef, BadRequestException, NotFoundException, InternalServerErrorException, Logger, ForbiddenException } from '@nestjs/common';
 import OpenAI from 'openai';
 import { AssistRequestDto, AiAction, ContextType } from './dto/assist-request.dto';
@@ -1111,7 +1141,6 @@ export class AiService {
     const task = await this.knex('tasks').where({ id: dto.contextId }).first();
     if (!task) throw new NotFoundException(`Task with ID ${dto.contextId} not found.`);
 
-    // ### ИЗМЕНЕНИЕ: Исправлено имя метода с getProjectAndRole на getUserRoleForProject
     const userRole = await this.projectsService.getUserRoleForProject(task.project_id, user.id);
     if (userRole !== Role.Owner && userRole !== Role.Editor) {
         throw new ForbiddenException('You do not have permission to perform AI actions in this project.');
@@ -1329,14 +1358,14 @@ FILE: api/src/app.controller.ts
 // api/src/app.controller.ts
 import { Controller, Get } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
-import { Public } from './auth/decorators/public.decorator'; // ### НОВОЕ: Импортируем декоратор
+import { Public } from './auth/decorators/public.decorator';
 
 @ApiExcludeController()
 @Controller()
 export class AppController {
   constructor() {} 
 
-  @Public() // ### НОВОЕ: Помечаем эндпоинт как публичный
+  @Public()
   @Get('/health')
   getHealth(): { status: string; message: string } {
     return { status: 'ok', message: 'API is healthy' };
@@ -1360,8 +1389,7 @@ import { CommentsModule } from './comments/comments.module';
 import { PoliciesGuard } from './casl/policies.guard';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
-// ### ИЗМЕНЕНИЕ: Убран импорт AiModule и CaslModule (который был закомментирован ранее) ###
-// import { AiModule } from './ai/ai.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -1374,7 +1402,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     ProjectsModule,
     TasksModule,
     CommentsModule,
-    // ### ИЗМЕНЕНИЕ: AiModule и CaslModule удалены из импортов ###
+    AiModule,
     EventsModule,
     NotificationsModule,
   ],
@@ -1400,27 +1428,28 @@ import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
-import { Public } from './decorators/public.decorator'; // ### НОВОЕ: Импортируем декоратор
+import { Public } from './decorators/public.decorator';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Auth')
 @Controller('api/v1/auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
-  @Public() // ### НОВОЕ: Помечаем эндпоинт как публичный
+  @Public()
   @Post('login')
   @HttpCode(200)
   async login(@Body() loginUserDto: LoginUserDto) {
     return this.authService.login(loginUserDto);
   }
 
-  @Public() // ### НОВОЕ: Помечаем эндпоинт как публичный
+  @Public()
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   async register(@Body() registerUserDto: RegisterUserDto) {
     return this.authService.register(registerUserDto);
   }
 
-  // Logout требует аутентификации, поэтому @Public() здесь не нужен
   @Post('logout')
   @HttpCode(200)
   async logout() {
@@ -1445,7 +1474,6 @@ import { ProfileController } from './profile.controller';
   imports: [
     ConfigModule,
     PassportModule.register({ session: false }),
-    // ### ИЗМЕНЕНИЕ: Настраиваем JwtModule, чтобы он знал о секретном ключе ###
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
@@ -1606,7 +1634,6 @@ export class AuthService {
   constructor(
     @Inject(KNEX_CONNECTION) private readonly knex: Knex,
     private readonly jwtService: JwtService,
-    // ### ИЗМЕНЕНИЕ: ConfigService больше не нужен здесь напрямую ###
   ) {}
 
   async validateUser(email: string, pass: string): Promise<UserRecord | null> {
@@ -1633,7 +1660,6 @@ export class AuthService {
     }
     const payload = { email: user.email, sub: user.id, name: user.name };
     return {
-      // ### ИЗМЕНЕНИЕ: Просто используем JwtService, он уже настроен с секретом ###
       access_token: this.jwtService.sign(payload),
     };
   }
@@ -1869,14 +1895,13 @@ export type AuthenticatedUser = {
   id: string;
   email: string;
   name: string;
-  role: 'admin' | 'user'; // ### НОВОЕ: Добавлена роль в объект пользователя
+  role: 'admin' | 'user'; // Добавлена роль в объект пользователя
 }
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     private readonly configService: ConfigService,
-    // ### НОВОЕ: Инжектируем Knex для получения роли
     @Inject(KNEX_CONNECTION) private readonly knex: Knex,
   ) {
     super({
@@ -1886,7 +1911,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  // ### ИЗМЕНЕНИЕ: Метод validate теперь получает роль из БД и добавляет ее в объект пользователя
   async validate(payload: JwtPayload): Promise<AuthenticatedUser> {
     const user = await this.knex('users').where({ id: payload.sub }).select('role').first();
     const role = user ? user.role : 'user';
@@ -1903,6 +1927,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 ================================================
 FILE: api/src/auth/profile.controller.ts
 ================================================
+// api/src/auth/profile.controller.ts
 import { Controller, Get, UseGuards, Patch, Body, Post, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -1915,7 +1940,6 @@ import { AuthService } from './auth.service';
 @ApiBearerAuth()
 @ApiTags('Profile')
 @UseGuards(JwtAuthGuard)
-// ### ИЗМЕНЕНИЕ: Добавляем префикс /api/v1 ###
 @Controller('api/v1/profile')
 export class ProfileController {
   constructor(private authService: AuthService) {}
@@ -1992,6 +2016,7 @@ const mockProjectsService = {
 
 const mockTasksService = {
   getUserRoleForTask: jest.fn(),
+  getProjectIdByHumanId: jest.fn(),
 };
 
 describe('PoliciesGuard', () => {
@@ -2020,12 +2045,11 @@ describe('PoliciesGuard', () => {
         PoliciesGuard,
         { provide: ProjectsService, useValue: mockProjectsService },
         { provide: TasksService, useValue: mockTasksService },
-        // ### ИЗМЕНЕНИЕ: Мок Reflector теперь включает метод 'get' ###
         { 
           provide: Reflector, 
           useValue: { 
             getAllAndOverride: jest.fn(),
-            get: jest.fn(), // Добавляем недостающий метод
+            get: jest.fn(),
           } 
         },
       ],
@@ -2044,10 +2068,8 @@ describe('PoliciesGuard', () => {
 
     it('should DENY access if policy check fails', async () => {
       mockProjectsService.getUserRoleForProject.mockResolvedValue(Role.Editor);
-      // Мокируем, что эндпоинт НЕ публичный
-      (reflector.getAllAndOverride as jest.Mock).mockReturnValueOnce(false); // For IS_PUBLIC_KEY
-      // Мокируем, что эндпоинт требует политику CanManageProjectSettingsPolicy
-      (reflector.get as jest.Mock).mockReturnValue([CanManageProjectSettingsPolicy]); // For CHECK_POLICIES_KEY
+      (reflector.getAllAndOverride as jest.Mock).mockReturnValueOnce(false); 
+      (reflector.get as jest.Mock).mockReturnValue([CanManageProjectSettingsPolicy]);
 
       const context = createMockExecutionContext(user, { id: 1 }, '/api/v1/projects/1/settings');
       await expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
@@ -2064,14 +2086,14 @@ describe('PoliciesGuard', () => {
 
     it('should ALLOW access for admin role regardless of policies', async () => {
       const adminUser = { ...user, role: 'admin' };
-      (reflector.getAllAndOverride as jest.Mock).mockReturnValueOnce(false); // Не публичный
+      (reflector.getAllAndOverride as jest.Mock).mockReturnValueOnce(false);
 
       const context = createMockExecutionContext(adminUser, { id: 1 }, '/api/v1/projects/1');
       await expect(guard.canActivate(context)).resolves.toBe(true);
     });
 
     it('should ALLOW access if route is public', async () => {
-      (reflector.getAllAndOverride as jest.Mock).mockReturnValueOnce(true); // Публичный
+      (reflector.getAllAndOverride as jest.Mock).mockReturnValueOnce(true); 
 
       const context = createMockExecutionContext(null, {}, '/health');
       await expect(guard.canActivate(context)).resolves.toBe(true);
@@ -2087,6 +2109,21 @@ describe('PoliciesGuard', () => {
 
       expect(mockTasksService.getUserRoleForTask).toHaveBeenCalledWith('task-uuid', user.id);
       expect(mockProjectsService.getUserRoleForProject).not.toHaveBeenCalled();
+    });
+    
+    it('should call tasksService and projectsService for human-readable ID routes', async () => {
+        const hid = 'PROJ-1';
+        const projectId = 123;
+        mockTasksService.getProjectIdByHumanId.mockResolvedValue(projectId);
+        mockProjectsService.getUserRoleForProject.mockResolvedValue(Role.Viewer);
+        (reflector.getAllAndOverride as jest.Mock).mockReturnValue(false);
+        (reflector.get as jest.Mock).mockReturnValue([CanViewProjectPolicy]);
+
+        const context = createMockExecutionContext(user, { hid }, `/api/v1/tasks/${hid}`);
+        await guard.canActivate(context);
+
+        expect(mockTasksService.getProjectIdByHumanId).toHaveBeenCalledWith(hid);
+        expect(mockProjectsService.getUserRoleForProject).toHaveBeenCalledWith(projectId, user.id);
     });
   });
 });
@@ -2129,7 +2166,7 @@ export class PoliciesGuard implements CanActivate {
       throw new InternalServerErrorException('PoliciesGuard used without a valid user context. Ensure JwtAuthGuard runs first.');
     }
     
-    if ((user as any).role === 'admin') {
+    if (user.role === 'admin') {
       return true;
     }
 
@@ -2247,13 +2284,9 @@ import { Module } from '@nestjs/common';
 import { CommentsService } from './comments.service';
 import { KnexModule } from '../knex/knex.module';
 import { EventsModule } from '../events/events.module';
-// ### ИЗМЕНЕНИЕ: Убран импорт NotificationsModule, так как он больше не нужен напрямую
-// import { NotificationsModule } from '../notifications/notifications.module'; 
 
 @Module({
-  // ### ИЗМЕНЕНИЕ: Убран импорт NotificationsModule
   imports: [KnexModule, EventsModule], 
-  // ### ИЗМЕНЕНИЕ: Убран CommentsController из providers и exports
   providers: [CommentsService],
   exports: [CommentsService],
 })
@@ -2262,6 +2295,7 @@ export class CommentsModule {}
 ================================================
 FILE: api/src/comments/comments.service.spec.ts
 ================================================
+// api/src/comments/comments.service.spec.ts
 import { Test, TestingModule } from '@nestjs/testing';
 import { CommentsService } from './comments.service';
 import { EventsGateway } from '../events/events.gateway';
@@ -2288,7 +2322,6 @@ describe('CommentsService', () => {
   let service: CommentsService;
   const eventsGatewayMock = { emitCommentCreated: jest.fn() };
 
-  // ### ИЗМЕНЕНИЕ: Добавлено поле role ###
   const mockUser: UserRecord = { id: 'user1', name: 'User One', email: 'user1@example.com', password_hash: 'hash', role: 'user', created_at: new Date(), updated_at: new Date() };
   const mockTaskData = { id: 'task1', project_id: 1 };
   
@@ -2697,6 +2730,7 @@ export class KnexModule {}
 ================================================
 FILE: api/src/main.ts
 ================================================
+// api/src/main.ts
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
@@ -2725,7 +2759,6 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // ### ИЗМЕНЕНИЕ: Глобальный префикс убран. ###
   // Префиксы теперь заданы в каждом контроллере для явности.
   // app.setGlobalPrefix('api/v1');
 
@@ -2735,10 +2768,8 @@ async function bootstrap() {
     .setDescription('The official API for the Mutabor project management tool.')
     .setVersion('1.0')
     .addBearerAuth()
-    // Swagger будет отображать пути с префиксами, заданными в контроллерах.
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  // ### ИЗМЕНЕНИЕ: Путь к Swagger изменен для соответствия префиксам API ###
   const swaggerPath = 'api/v1/api-docs';
   SwaggerModule.setup(swaggerPath, app, document);
   
@@ -2815,6 +2846,7 @@ export class NotificationOwnerGuard implements CanActivate {
 ================================================
 FILE: api/src/notifications/notifications.controller.spec.ts
 ================================================
+// api/src/notifications/notifications.controller.spec.ts
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
@@ -2824,7 +2856,7 @@ import * as request from 'supertest';
 import * as crypto from 'crypto';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { NotificationRecord } from '../types/db-records';
-import { NotificationOwnerGuard } from './guards/notification-owner.guard'; // ### НОВОЕ: Импортируем гвард
+import { NotificationOwnerGuard } from './guards/notification-owner.guard';
 
 describe('NotificationsController', () => {
   let app: INestApplication;
@@ -2850,7 +2882,6 @@ describe('NotificationsController', () => {
         return true;
       }
     })
-    // ### НОВОЕ: Отключаем NotificationOwnerGuard для тестов этого контроллера ###
     .overrideGuard(NotificationOwnerGuard)
     .useValue({ canActivate: () => true })
     .compile();
@@ -2911,11 +2942,11 @@ import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagg
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { NotificationsService } from './notifications.service';
-import { NotificationOwnerGuard } from './guards/notification-owner.guard'; // ### НОВОЕ: Импортируем наш гвард
+import { NotificationOwnerGuard } from './guards/notification-owner.guard';
 
 @ApiBearerAuth()
 @ApiTags('Notifications')
-@UseGuards(JwtAuthGuard) // Глобальный гвард на аутентификацию
+@UseGuards(JwtAuthGuard)
 @Controller('api/v1/notifications')
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
@@ -2927,7 +2958,7 @@ export class NotificationsController {
   }
 
   @Patch(':id/read')
-  @UseGuards(NotificationOwnerGuard) // ### НОВОЕ: Применяем гвард только к этому эндпоинту
+  @UseGuards(NotificationOwnerGuard)
   @ApiOperation({ summary: 'Mark a notification as read' })
   @ApiResponse({ status: 200, description: 'Notification marked as read.' })
   @ApiResponse({ status: 403, description: 'Forbidden resource.' })
@@ -2937,8 +2968,6 @@ export class NotificationsController {
     @Param('id', ParseUUIDPipe) id: string,
     @GetUser('id') userId: string,
   ) {
-    // Теперь логика проверки владельца находится в гварде.
-    // Сервис может просто выполнять свою работу.
     return this.notificationsService.markAsRead(id, userId);
   }
 
@@ -2980,6 +3009,7 @@ export class NotificationsModule {}
 ================================================
 FILE: api/src/notifications/notifications.service.spec.ts
 ================================================
+// api/src/notifications/notifications.service.spec.ts
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotificationsService } from './notifications.service';
 import { EventsGateway } from '../events/events.gateway';
@@ -2988,14 +3018,13 @@ import { UserRecord } from '../types/db-records';
 import { ProjectsService } from '../projects/projects.service';
 import { NotFoundException } from '@nestjs/common';
 
-// ### ИЗМЕНЕНИЕ: Создаем более сложный мок для Knex ###
 const mockKnexReturning = { returning: jest.fn() };
 const mockKnexUpdate = { update: jest.fn(() => mockKnexReturning) };
 const mockKnexWhere = { where: jest.fn(() => mockKnexUpdate) };
 const mockKnex = jest.fn(() => mockKnexWhere);
 
 
-const mockEventsGateway = { emitNotificationNew: jest.fn(), emitNotificationRead: jest.fn() }; // ### ИЗМЕНЕНИЕ: Добавляем emitNotificationRead
+const mockEventsGateway = { emitNotificationNew: jest.fn(), emitNotificationRead: jest.fn() };
 const mockProjectsService = { getProjectMembers: jest.fn(), getProjectOwner: jest.fn() };
 
 describe('NotificationsService', () => {
@@ -3004,7 +3033,6 @@ describe('NotificationsService', () => {
   const mockUser: UserRecord = { id: 'user1', email: 'user1@example.com', name: 'User One', created_at: new Date(), updated_at: new Date(), password_hash: 'hash', role: 'user' };
 
   beforeEach(async () => {
-    // Сбрасываем все моки перед каждым тестом
     jest.clearAllMocks();
     mockKnexReturning.returning.mockClear();
     mockKnexUpdate.update.mockClear();
@@ -3027,7 +3055,6 @@ describe('NotificationsService', () => {
     expect(service).toBeDefined();
   });
 
-  // ### НОВЫЙ ТЕСТОВЫЙ СЦЕНАРИЙ ###
   describe('markAllAsReadForUser', () => {
     it('should update all unread notifications for a user and emit events', async () => {
       const userId = 'user-with-notifications';
@@ -3036,20 +3063,14 @@ describe('NotificationsService', () => {
         { id: 'notif2', recipient_id: userId, is_read: true },
       ];
 
-      // Настраиваем мок Knex: .returning() вернет наш массив
       mockKnexReturning.returning.mockResolvedValue(notificationsToUpdate);
 
       const result = await service.markAllAsReadForUser(userId);
 
-      // Проверяем, что результат корректный
       expect(result.updatedCount).toBe(2);
-
-      // Проверяем, что был вызван правильный запрос к БД
       expect(mockKnex).toHaveBeenCalledWith('notifications');
       expect(mockKnexWhere.where).toHaveBeenCalledWith({ recipient_id: userId, is_read: false });
       expect(mockKnexUpdate.update).toHaveBeenCalledWith(expect.objectContaining({ is_read: true }));
-
-      // Проверяем, что для каждого уведомления было отправлено событие
       expect(mockEventsGateway.emitNotificationRead).toHaveBeenCalledTimes(2);
       expect(mockEventsGateway.emitNotificationRead).toHaveBeenCalledWith(notificationsToUpdate[0]);
       expect(mockEventsGateway.emitNotificationRead).toHaveBeenCalledWith(notificationsToUpdate[1]);
@@ -3057,15 +3078,11 @@ describe('NotificationsService', () => {
 
     it('should return 0 and not emit events if there are no unread notifications', async () => {
       const userId = 'user-without-notifications';
-      // Настраиваем мок: .returning() вернет пустой массив
       mockKnexReturning.returning.mockResolvedValue([]);
 
       const result = await service.markAllAsReadForUser(userId);
 
-      // Проверяем, что результат 0
       expect(result.updatedCount).toBe(0);
-
-      // Проверяем, что события не отправлялись
       expect(mockEventsGateway.emitNotificationRead).not.toHaveBeenCalled();
     });
   });
@@ -3075,7 +3092,6 @@ describe('NotificationsService', () => {
         const notificationId = 'non-existent-id';
         const userId = 'some-user';
         
-        // Настраиваем мок: .returning() вернет пустой массив
         mockKnexReturning.returning.mockResolvedValue([]);
         
         await expect(service.markAsRead(notificationId, userId)).rejects.toThrow(NotFoundException);
@@ -3750,18 +3766,15 @@ export class ProjectsController {
 FILE: api/src/projects/projects.module.ts
 ================================================
 // api/src/projects/projects.module.ts
-
 import { Module, forwardRef } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { ProjectsController } from './projects.controller';
 import { KnexModule } from '../knex/knex.module';
-// ### ИЗМЕНЕНИЕ: Закомментированный импорт CaslModule удален ###
 import { TasksModule } from '../tasks/tasks.module';
 
 @Module({
   imports: [
     KnexModule,
-    // ### ИЗМЕНЕНИЕ: Закомментированный импорт CaslModule удален ###
     forwardRef(() => TasksModule),
   ],
   controllers: [ProjectsController],
@@ -4483,6 +4496,7 @@ export class UpdateTaskDto {
 ================================================
 FILE: api/src/tasks/tasks.controller.spec.ts
 ================================================
+// api/src/tasks/tasks.controller.spec.ts
 import { Test, TestingModule } from '@nestjs/testing';
 import { TasksController } from './tasks.controller';
 import { TasksService } from './tasks.service';
@@ -4492,7 +4506,6 @@ import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { PoliciesGuard } from '../casl/policies.guard';
 import { ProjectsService } from '../projects/projects.service';
 
-// ### ИЗМЕНЕНИЕ: Добавлено поле role ###
 const mockUser: AuthenticatedUser = { id: 'user-1', email: 'test@example.com', name: 'Test User', role: 'user' };
 const mockTask: TaskRecord = { id: 'task-1', human_readable_id: 'TP-1', task_number: 1, title: 'Test Task', description: null, position: 0, project_id: 1, column_id: 'col-1', assignee_id: null, creator_id: 'user-1', due_date: null, created_at: new Date(), updated_at: new Date(), type: null, priority: null, tags: null };
 
@@ -4509,6 +4522,11 @@ const mockProjectsService = {
   getUserRoleForProject: jest.fn().mockResolvedValue('owner'),
 };
 
+const mockTasksServiceWithHRI = {
+    ...mockTasksService,
+    getProjectIdByHumanId: jest.fn().mockResolvedValue(1)
+};
+
 describe('TasksController', () => {
   let controller: TasksController;
   let service: TasksService;
@@ -4518,7 +4536,7 @@ describe('TasksController', () => {
       controllers: [TasksController],
       providers: [
         PoliciesGuard,
-        { provide: TasksService, useValue: mockTasksService },
+        { provide: TasksService, useValue: mockTasksServiceWithHRI },
         { provide: ProjectsService, useValue: mockProjectsService },
       ],
     })
@@ -4658,13 +4676,11 @@ export class TasksController {
 FILE: api/src/tasks/tasks.module.ts
 ================================================
 // api/src/tasks/tasks.module.ts
-
 import { Module, forwardRef } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { TasksController } from './tasks.controller';
 import { EventsModule } from '../events/events.module';
 import { CommentsModule } from '../comments/comments.module';
-// ### ИЗМЕНЕНИЕ: Закомментированный импорт CaslModule удален ###
 import { KnexModule } from '../knex/knex.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ProjectsModule } from '../projects/projects.module';
@@ -4675,7 +4691,6 @@ import { ProjectsModule } from '../projects/projects.module';
     EventsModule,
     CommentsModule,
     NotificationsModule,
-    // ### ИЗМЕНЕНИЕ: Закомментированный импорт CaslModule удален ###
     forwardRef(() => ProjectsModule),
   ],
   controllers: [TasksController],
@@ -4687,6 +4702,7 @@ export class TasksModule {}
 ================================================
 FILE: api/src/tasks/tasks.service.spec.ts
 ================================================
+// api/src/tasks/tasks.service.spec.ts
 import { Test, TestingModule } from '@nestjs/testing';
 import { TasksService } from './tasks.service';
 import { EventsGateway } from '../events/events.gateway';
@@ -4761,7 +4777,6 @@ describe('TasksService', () => {
 
     service = module.get<TasksService>(TasksService);
     knex = module.get(KNEX_CONNECTION);
-    // ### ИЗМЕНЕНИЕ: Исправлено получение мока сервиса ###
     mockProjectsService = module.get<ProjectsService>(ProjectsService);
     mockEventsGateway = module.get<EventsGateway>(EventsGateway);
   });
@@ -5201,8 +5216,7 @@ FILE: api/tsconfig.json
   },
   "exclude": [
     "node_modules",
-    "dist",
-    "src/ai" 
+    "dist"
   ]
 }
 
@@ -5261,11 +5275,8 @@ CMD ["npm", "run", "dev"]
 ================================================
 FILE: client/.env
 ================================================
-# Example environment variables for the client application
-
-# The base URL for the API
-VITE_API_URL=http://localhost:3001
-
+# The base URL for the API is now handled by Vite's proxy.
+# VITE_API_URL=http://localhost:3001
 
 ================================================
 FILE: client/.env.example
@@ -6165,7 +6176,6 @@ import { useAddTaskModal } from '../../../shared/contexts/AddTaskModalContext';
 import { Modal } from '../../../shared/ui/Modal';
 import { taskService } from '../../../shared/api/taskService';
 import type { CreateTaskDto, ColumnDto } from '../../../shared/api/types';
-// ### ИЗМЕНЕНИЕ: Исправлен путь к файлу стилей
 import styles from '../AddTaskModal.module.css';
 
 interface AddTaskModalProps {
@@ -6215,7 +6225,6 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ projectId, columns }) => {
   const [formError, setFormError] = useState<string | null>(null);
   
   useEffect(() => {
-    // Set default column when modal opens if not already set
     if (isModalOpen && columns.length > 0 && !formState.columnId) {
       dispatch({ type: 'SET_FIELD', field: 'columnId', payload: columns[0].id });
     }
@@ -6792,7 +6801,6 @@ export default ColumnLane;
 FILE: client/src/features/Comments/api.ts
 ================================================
 // client/src/features/Comments/api.ts
-// ### ИЗМЕНЕНИЕ: Убран неиспользуемый импорт projectService и добавлен нужный taskService ###
 import { taskService } from '../../shared/api/taskService';
 import type { CreateCommentPayloadDto, CommentDto } from '../../shared/api/types';
 
@@ -6844,7 +6852,6 @@ FILE: client/src/features/Comments/ui/AddCommentForm.tsx
 // client/src/features/Comments/ui/AddCommentForm.tsx
 import React, { useState } from 'react';
 import { addTaskComment } from '../api';
-// ### ИЗМЕНЕНИЕ: Импортируем типы из правильного места ###
 import type { CommentDto, CreateCommentPayloadDto } from '../../../shared/api/types';
 import styles from './AddCommentForm.module.css';
 
@@ -6931,7 +6938,6 @@ FILE: client/src/features/Comments/ui/CommentItem.tsx
 ================================================
 // client/src/features/Comments/ui/CommentItem.tsx
 import React from 'react';
-// ### ИЗМЕНЕНИЕ: Импортируем типы из правильного места ###
 import type { CommentDto } from '../../../shared/api/types';
 import styles from './CommentItem.module.css';
 
@@ -6970,7 +6976,6 @@ FILE: client/src/features/Comments/ui/CommentList.tsx
 ================================================
 // client/src/features/Comments/ui/CommentList.tsx
 import React from 'react';
-// ### ИЗМЕНЕНИЕ: Импортируем типы из правильного места ###
 import type { CommentDto } from '../../../shared/api/types';
 import CommentItem from './CommentItem';
 import styles from './CommentList.module.css';
@@ -7928,7 +7933,6 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import type { TaskDto } from '../../../shared/api/projectService';
 import { taskService, transformCommentDto } from '../../../shared/api/taskService';
-// ### ИЗМЕНЕНИЕ: Импортируем типы из правильного места ###
 import type { UpdateTaskDto, CommentDto, ApiCommentDto } from '../../../shared/api/types';
 
 import { getTaskComments } from '../../Comments/api';
@@ -8169,7 +8173,6 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, onClose
           </div>
         </>
         <div className={styles.modalActions}>
-          {/* ### ИЗМЕНЕНИЕ: Ссылка теперь указывает на правильный маршрут /tasks/HID ### */}
           <Link to={`/tasks/${task.human_readable_id}`} className={`${styles.button} ${styles.buttonLink}`}>
             Open in New Page
           </Link>
@@ -8959,11 +8962,19 @@ const MembersSettingsTab: React.FC<MembersSettingsTabProps> = ({ projectId }) =>
   const [memberToRemove, setMemberToRemove] = useState<AllParticipantsDto | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
 
+  const sortParticipants = (p: AllParticipantsDto[]) => {
+      return [...p].sort((a, b) => {
+          if (a.role === 'owner') return -1;
+          if (b.role === 'owner') return 1;
+          return (a.name || a.email).localeCompare(b.name || b.email);
+      });
+  }
+
   const fetchParticipants = useCallback(async () => {
     setIsLoading(true);
     try {
       const data = await projectService.getAllProjectParticipants(projectId);
-      setParticipants(data || []);
+      setParticipants(sortParticipants(data || []));
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to load members.');
@@ -8986,12 +8997,7 @@ const MembersSettingsTab: React.FC<MembersSettingsTabProps> = ({ projectId }) =>
     setAddMemberError(null);
     try {
         const newMember = await projectService.addProjectMember(projectId, { email: addMemberEmail, role: addMemberRole });
-        // ### ИЗМЕНЕНИЕ: исправлена сортировка, чтобы использовать обе переменные ###
-        setParticipants(prev => [...prev, newMember].sort((a, b) => {
-          if (a.role === 'owner') return -1;
-          if (b.role === 'owner') return 1;
-          return (a.name || a.email).localeCompare(b.name || b.email);
-        }));
+        setParticipants(prev => sortParticipants([...prev, newMember]));
         setAddMemberEmail('');
         setAddMemberRole('editor');
     } catch (err: any) {
@@ -9481,10 +9487,9 @@ describe('ProjectSettingsPage Container', () => {
 FILE: client/src/pages/ProjectSettingsPage.tsx
 ================================================
 // client/src/pages/ProjectSettingsPage.tsx
-
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
-import { projectService } from '../shared/api/projectService'; // ### ИЗМЕНЕНИЕ: Исправлен путь ###
+import { useParams, useSearchParams, Link } from 'react-router-dom';
+import { projectService } from '../shared/api/projectService';
 import type { ProjectSettingsResponse } from '../shared/api/types';
 import GeneralSettingsTab from './ProjectSettings/GeneralSettingsTab';
 import MembersSettingsTab from './ProjectSettings/MembersSettingsTab';
@@ -9494,7 +9499,7 @@ import styles from './ProjectSettingsPage.module.css';
 
 const ProjectSettingsPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'general';
 
   const [settings, setSettings] = useState<ProjectSettingsResponse | null>(null);
@@ -9553,22 +9558,22 @@ const ProjectSettingsPage: React.FC = () => {
   if (error || !settings) return <div className={styles.error}>{error || 'Project not found.'}</div>;
   
   return (
-    <div>
+    <div className={styles.settingsPage}>
       <h1>Project Settings: {settings.name}</h1>
       <div className={styles.settingsLayout}>
         <aside className={styles.sidebar}>
           <ul className={styles.sidebarNav}>
             <li className={styles.navItem}>
-              <a href="#general" onClick={(e) => { e.preventDefault(); setSearchParams({ tab: 'general' }); }} className={activeTab === 'general' ? styles.active : ''}>General</a>
+              <Link to="?tab=general" className={activeTab === 'general' ? styles.active : ''}>General</Link>
             </li>
             <li className={styles.navItem}>
-              <a href="#statuses" onClick={(e) => { e.preventDefault(); setSearchParams({ tab: 'statuses' }); }} className={activeTab === 'statuses' ? styles.active : ''}>Statuses</a>
+              <Link to="?tab=statuses" className={activeTab === 'statuses' ? styles.active : ''}>Statuses</Link>
             </li>
             <li className={styles.navItem}>
-              <a href="#types" onClick={(e) => { e.preventDefault(); setSearchParams({ tab: 'types' }); }} className={activeTab === 'types' ? styles.active : ''}>Types</a>
+              <Link to="?tab=types" className={activeTab === 'types' ? styles.active : ''}>Types</Link>
             </li>
             <li className={styles.navItem}>
-              <a href="#members" onClick={(e) => { e.preventDefault(); setSearchParams({ tab: 'members' }); }} className={activeTab === 'members' ? styles.active : ''}>Members</a>
+              <Link to="?tab=members" className={activeTab === 'members' ? styles.active : ''}>Members</Link>
             </li>
           </ul>
         </aside>
@@ -9882,14 +9887,11 @@ FILE: client/src/pages/TaskPage.tsx
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { taskService } from '../shared/api/taskService';
-// ### ИЗМЕНЕНИЕ: Импортируем типы из правильного места ###
-import type { CommentDto } from '../shared/api/types';
-import type { TaskDto } from '../shared/api/projectService';
+import type { CommentDto, TaskDto } from '../shared/api/types';
 import { CommentList, AddCommentForm } from '../features/Comments';
 import styles from './TaskPage.module.css';
 
 const TaskPage: React.FC = () => {
-  // ### ИЗМЕНЕНИЕ: Получаем taskHid из URL
   const { taskHid } = useParams<{ taskHid: string }>();
   const [task, setTask] = useState<TaskDto | null>(null);
   const [comments, setComments] = useState<CommentDto[]>([]);
@@ -9902,11 +9904,9 @@ const TaskPage: React.FC = () => {
       setIsLoading(true);
       setError(null);
       try {
-        // ### ИЗМЕНЕНИЕ: Вызываем правильный метод для получения задачи по HID
         const taskData = await taskService.getTaskByHumanId(taskHid);
         setTask(taskData);
 
-        // ### ИЗМЕНЕНИЕ: Получаем комментарии после того, как получили задачу и ее UUID
         const commentsData = await taskService.getTaskComments(taskData.id);
         setComments(commentsData);
 
@@ -10110,7 +10110,7 @@ FILE: client/src/shared/api/axiosInstance.ts
 ================================================
 import axios from 'axios';
 
-const API_BASE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/v1`;
+const API_BASE_URL = '/api/v1';
 
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -10129,21 +10129,14 @@ axiosInstance.interceptors.request.use(
   }
 );
 
-// ### ИЗМЕНЕНИЕ: Логика обработки 401 ошибки ###
 axiosInstance.interceptors.response.use(
   (response) => {
     return response;
   },
   (error) => {
-    // Если получена ошибка 401
     if (error.response && error.response.status === 401) {
-      // Проверяем, был ли токен в localStorage.
-      // Это предотвращает срабатывание при обычном 401 (например, на странице логина),
-      // и реагирует только на невалидный/просроченный токен.
       if (localStorage.getItem('authToken')) {
-        // Удаляем невалидный токен
         localStorage.removeItem('authToken');
-        // Генерируем глобальное событие, на которое подпишется AuthContext
         window.dispatchEvent(new Event('auth-error'));
         console.error('Unauthorized access - 401. Token might be invalid or expired. Dispatched auth-error event.');
       }
@@ -10271,7 +10264,6 @@ FILE: client/src/shared/api/taskService.ts
 // client/src/shared/api/taskService.ts
 
 import apiClient from './axiosInstance';
-// ### ИЗМЕНЕНИЕ: Импортируем все DTO из types.ts ###
 import type { 
   TaskDto as FullTaskDto, 
   CreateTaskDto,
@@ -10281,8 +10273,6 @@ import type {
   CommentDto,
   CreateCommentPayloadDto,
 } from './types'; 
-
-// ### ИЗМЕНЕНИЕ: Все локальные определения DTO удалены ###
 
 // Хелпер для трансформации остается здесь, так как это логика сервиса
 export const transformCommentDto = (apiComment: ApiCommentDto): CommentDto => ({
@@ -10416,7 +10406,6 @@ export interface CreateTaskDto {
   tags?: string[];
 }
 
-// ### НОВОЕ: Типы для обновления и перемещения задачи перенесены сюда ###
 export interface UpdateTaskDto {
   title?: string;
   description?: string | null;
@@ -11398,15 +11387,19 @@ import path from 'path';
 export default defineConfig({
   plugins: [react()],
   server: {
-    // ### ИЗМЕНЕНИЕ: Явно указываем Vite использовать порт 3000 ###
-    // Это нужно, чтобы он соответствовал настройке "ports" в docker-compose.dev.yml ("8080:3000")
     port: 3000,
     watch: {
-      // Эта настройка остается - она важна для стабильности в monorepo
       ignored: [
         path.resolve(__dirname, '../api/dist/**'),
       ],
     },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '/api'),
+      }
+    }
   },
   test: {
     globals: true,
@@ -11448,13 +11441,10 @@ services:
       api:
         condition: service_started
     environment:
-      - VITE_API_URL=http://localhost:8081
       - CHOKIDAR_USEPOLLING=true
     volumes:
       - ./client:/app
       - /app/node_modules
-    # ### ИЗМЕНЕНИЕ: Секция healthcheck удалена для dev-режима клиента ###
-    # Это уберет "unhealthy" статус, который нерелевантен для Vite dev server.
 
   api:
     build:
