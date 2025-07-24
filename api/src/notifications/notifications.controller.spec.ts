@@ -1,3 +1,4 @@
+// api/src/notifications/notifications.controller.spec.ts
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
@@ -7,7 +8,7 @@ import * as request from 'supertest';
 import * as crypto from 'crypto';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { NotificationRecord } from '../types/db-records';
-import { NotificationOwnerGuard } from './guards/notification-owner.guard'; // ### НОВОЕ: Импортируем гвард
+import { NotificationOwnerGuard } from './guards/notification-owner.guard';
 
 describe('NotificationsController', () => {
   let app: INestApplication;
@@ -33,7 +34,6 @@ describe('NotificationsController', () => {
         return true;
       }
     })
-    // ### НОВОЕ: Отключаем NotificationOwnerGuard для тестов этого контроллера ###
     .overrideGuard(NotificationOwnerGuard)
     .useValue({ canActivate: () => true })
     .compile();

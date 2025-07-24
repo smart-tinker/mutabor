@@ -7,5 +7,6 @@
 
     <include file="db/changelog/db.changelog-initial.xml"/>
     <include file="db/changelog/db.changelog-add-user-role.xml"/>
+    <include file="db/changelog/db.changelog-add-ai-settings.xml"/>
 
 </databaseChangeLog>

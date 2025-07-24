@@ -4,7 +4,6 @@ import { useAddTaskModal } from '../../../shared/contexts/AddTaskModalContext';
 import { Modal } from '../../../shared/ui/Modal';
 import { taskService } from '../../../shared/api/taskService';
 import type { CreateTaskDto, ColumnDto } from '../../../shared/api/types';
-// ### ИЗМЕНЕНИЕ: Исправлен путь к файлу стилей
 import styles from '../AddTaskModal.module.css';
 
 interface AddTaskModalProps {
@@ -54,7 +53,6 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ projectId, columns }) => {
   const [formError, setFormError] = useState<string | null>(null);
   
   useEffect(() => {
-    // Set default column when modal opens if not already set
     if (isModalOpen && columns.length > 0 && !formState.columnId) {
       dispatch({ type: 'SET_FIELD', field: 'columnId', payload: columns[0].id });
     }

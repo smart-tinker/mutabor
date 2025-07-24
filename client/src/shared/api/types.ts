@@ -86,7 +86,6 @@ export interface CreateTaskDto {
   tags?: string[];
 }
 
-// ### НОВОЕ: Типы для обновления и перемещения задачи перенесены сюда ###
 export interface UpdateTaskDto {
   title?: string;
   description?: string | null;

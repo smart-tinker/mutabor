@@ -1,3 +1,4 @@
+// api/src/comments/comments.service.spec.ts
 import { Test, TestingModule } from '@nestjs/testing';
 import { CommentsService } from './comments.service';
 import { EventsGateway } from '../events/events.gateway';
@@ -24,7 +25,6 @@ describe('CommentsService', () => {
   let service: CommentsService;
   const eventsGatewayMock = { emitCommentCreated: jest.fn() };
 
-  // ### ИЗМЕНЕНИЕ: Добавлено поле role ###
   const mockUser: UserRecord = { id: 'user1', name: 'User One', email: 'user1@example.com', password_hash: 'hash', role: 'user', created_at: new Date(), updated_at: new Date() };
   const mockTaskData = { id: 'task1', project_id: 1 };
   

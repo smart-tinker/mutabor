@@ -22,11 +22,19 @@ const MembersSettingsTab: React.FC<MembersSettingsTabProps> = ({ projectId }) =>
   const [memberToRemove, setMemberToRemove] = useState<AllParticipantsDto | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
 
+  const sortParticipants = (p: AllParticipantsDto[]) => {
+      return [...p].sort((a, b) => {
+          if (a.role === 'owner') return -1;
+          if (b.role === 'owner') return 1;
+          return (a.name || a.email).localeCompare(b.name || b.email);
+      });
+  }
+
   const fetchParticipants = useCallback(async () => {
     setIsLoading(true);
     try {
       const data = await projectService.getAllProjectParticipants(projectId);
-      setParticipants(data || []);
+      setParticipants(sortParticipants(data || []));
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to load members.');
@@ -49,12 +57,7 @@ const MembersSettingsTab: React.FC<MembersSettingsTabProps> = ({ projectId }) =>
     setAddMemberError(null);
     try {
         const newMember = await projectService.addProjectMember(projectId, { email: addMemberEmail, role: addMemberRole });
-        // ### ИЗМЕНЕНИЕ: исправлена сортировка, чтобы использовать обе переменные ###
-        setParticipants(prev => [...prev, newMember].sort((a, b) => {
-          if (a.role === 'owner') return -1;
-          if (b.role === 'owner') return 1;
-          return (a.name || a.email).localeCompare(b.name || b.email);
-        }));
+        setParticipants(prev => sortParticipants([...prev, newMember]));
         setAddMemberEmail('');
         setAddMemberRole('editor');
     } catch (err: any) {

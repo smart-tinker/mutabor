@@ -1,3 +1,4 @@
+// api/src/ai/ai.service.ts
 import { Injectable, Inject, forwardRef, BadRequestException, NotFoundException, InternalServerErrorException, Logger, ForbiddenException } from '@nestjs/common';
 import OpenAI from 'openai';
 import { AssistRequestDto, AiAction, ContextType } from './dto/assist-request.dto';
@@ -72,7 +73,6 @@ export class AiService {
     const task = await this.knex('tasks').where({ id: dto.contextId }).first();
     if (!task) throw new NotFoundException(`Task with ID ${dto.contextId} not found.`);
 
-    // ### ИЗМЕНЕНИЕ: Исправлено имя метода с getProjectAndRole на getUserRoleForProject
     const userRole = await this.projectsService.getUserRoleForProject(task.project_id, user.id);
     if (userRole !== Role.Owner && userRole !== Role.Editor) {
         throw new ForbiddenException('You do not have permission to perform AI actions in this project.');

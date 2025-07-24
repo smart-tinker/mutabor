@@ -1,3 +1,4 @@
+// api/src/main.ts
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
@@ -26,7 +27,6 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // ### ИЗМЕНЕНИЕ: Глобальный префикс убран. ###
   // Префиксы теперь заданы в каждом контроллере для явности.
   // app.setGlobalPrefix('api/v1');
 
@@ -36,10 +36,8 @@ async function bootstrap() {
     .setDescription('The official API for the Mutabor project management tool.')
     .setVersion('1.0')
     .addBearerAuth()
-    // Swagger будет отображать пути с префиксами, заданными в контроллерах.
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  // ### ИЗМЕНЕНИЕ: Путь к Swagger изменен для соответствия префиксам API ###
   const swaggerPath = 'api/v1/api-docs';
   SwaggerModule.setup(swaggerPath, app, document);
   

@@ -1360,7 +1360,8 @@ import { CommentsModule } from './comments/comments.module';
 import { PoliciesGuard } from './casl/policies.guard';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
-// ### ИЗМЕНЕНИЕ: Убран импорт CaslModule ###
+// ### ИЗМЕНЕНИЕ: Убран импорт AiModule и CaslModule (который был закомментирован ранее) ###
+// import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -1373,7 +1374,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     ProjectsModule,
     TasksModule,
     CommentsModule,
-    // ### ИЗМЕНЕНИЕ: CaslModule удален из импортов ###
+    // ### ИЗМЕНЕНИЕ: AiModule и CaslModule удалены из импортов ###
     EventsModule,
     NotificationsModule,
   ],
@@ -4200,28 +4201,40 @@ export class ProjectsService {
   }
 
   async deleteColumn(projectId: number, columnId: string): Promise<void> {
-    return this.knex.transaction(async (trx) => {
-      const allColumns = await trx('columns').where({ project_id: projectId }).orderBy('position', 'asc');
-      if (allColumns.length <= 1) {
-        throw new BadRequestException('Cannot delete the last column. A project must have at least one column.');
-      }
-      const columnToDelete = allColumns.find(c => c.id === columnId);
-      if (!columnToDelete) return;
+    await this.knex.transaction(async (trx) => {
+        const allColumns = await trx('columns').where({ project_id: projectId }).orderBy('position', 'asc');
+        
+        if (allColumns.length <= 1) {
+            throw new BadRequestException('Cannot delete the last column. A project must have at least one column.');
+        }
 
-      const columnIndex = allColumns.findIndex(c => c.id === columnId);
-      const targetColumn = (columnIndex > 0) ? allColumns[columnIndex - 1] : allColumns[1];
-      
-      // ### ИЗМЕНЕНИЕ: Заменяем неэффективный цикл на один запрос ###
-      await trx('tasks')
-        .where({ column_id: columnId })
-        .update({ column_id: targetColumn.id });
+        const columnToDelete = allColumns.find(c => c.id === columnId);
+        if (!columnToDelete) {
+            this.logger.warn(`Attempted to delete non-existent column ${columnId} in project ${projectId}.`);
+            return; // Exit gracefully if column is already gone.
+        }
 
-      await trx('columns').where({ id: columnId }).delete();
-      
-      const remainingColumns = allColumns.filter(c => c.id !== columnId);
-      for (let i = 0; i < remainingColumns.length; i++) {
-        await trx('columns').where({ id: remainingColumns[i].id }).update({ position: i });
-      }
+        const columnIndex = allColumns.findIndex(c => c.id === columnId);
+        
+        // Find a new home for the tasks: the previous column, or the next one if deleting the first.
+        const targetColumn = (columnIndex > 0) ? allColumns[columnIndex - 1] : allColumns[1];
+        
+        // Move tasks from the deleted column to the target column.
+        await trx('tasks')
+            .where({ column_id: columnId })
+            .update({ column_id: targetColumn.id });
+
+        // Delete the column itself.
+        await trx('columns').where({ id: columnId }).delete();
+        
+        // Re-sequence the remaining columns to ensure there are no gaps in `position`.
+        const remainingColumns = allColumns.filter(c => c.id !== columnId);
+        const updatePromises = remainingColumns.map((col, index) =>
+            trx('columns')
+                .where({ id: col.id })
+                .update({ position: index })
+        );
+        await Promise.all(updatePromises);
     });
   }
   
@@ -5651,7 +5664,9 @@ export default App;
 ================================================
 FILE: client/src/app/auth/AuthContext.tsx
 ================================================
-import { createContext, useState, useContext, useEffect, useCallback, ReactNode } from 'react';
+// client/src/app/auth/AuthContext.tsx
+// ### ИЗМЕНЕНИЕ: 'ReactNode' импортируется как тип ###
+import { createContext, useState, useContext, useEffect, useCallback, type ReactNode } from 'react';
 import jwtDecode from 'jwt-decode';
 
 export interface AuthenticatedUser {
@@ -6150,7 +6165,8 @@ import { useAddTaskModal } from '../../../shared/contexts/AddTaskModalContext';
 import { Modal } from '../../../shared/ui/Modal';
 import { taskService } from '../../../shared/api/taskService';
 import type { CreateTaskDto, ColumnDto } from '../../../shared/api/types';
-import styles from './AddTaskModal.module.css';
+// ### ИЗМЕНЕНИЕ: Исправлен путь к файлу стилей
+import styles from '../AddTaskModal.module.css';
 
 interface AddTaskModalProps {
   projectId: number;
@@ -6776,8 +6792,9 @@ export default ColumnLane;
 FILE: client/src/features/Comments/api.ts
 ================================================
 // client/src/features/Comments/api.ts
+// ### ИЗМЕНЕНИЕ: Убран неиспользуемый импорт projectService и добавлен нужный taskService ###
 import { taskService } from '../../shared/api/taskService';
-import type { CreateCommentPayloadDto, CommentDto } from '../../shared/api/taskService';
+import type { CreateCommentPayloadDto, CommentDto } from '../../shared/api/types';
 
 export const getTaskComments = (taskId: string): Promise<CommentDto[]> => {
   return taskService.getTaskComments(taskId);
@@ -6786,7 +6803,6 @@ export const getTaskComments = (taskId: string): Promise<CommentDto[]> => {
 export const addTaskComment = (taskId: string, data: CreateCommentPayloadDto): Promise<CommentDto> => {
   return taskService.addTaskComment(taskId, data);
 };
-
 
 ================================================
 FILE: client/src/features/Comments/index.ts
@@ -6828,7 +6844,8 @@ FILE: client/src/features/Comments/ui/AddCommentForm.tsx
 // client/src/features/Comments/ui/AddCommentForm.tsx
 import React, { useState } from 'react';
 import { addTaskComment } from '../api';
-import type { CommentDto, CreateCommentPayloadDto } from '../../../shared/api/taskService';
+// ### ИЗМЕНЕНИЕ: Импортируем типы из правильного места ###
+import type { CommentDto, CreateCommentPayloadDto } from '../../../shared/api/types';
 import styles from './AddCommentForm.module.css';
 
 interface AddCommentFormProps {
@@ -6881,7 +6898,6 @@ const AddCommentForm: React.FC<AddCommentFormProps> = ({ taskId, onCommentAdded 
 };
 export default AddCommentForm;
 
-
 ================================================
 FILE: client/src/features/Comments/ui/CommentItem.module.css
 ================================================
@@ -6915,7 +6931,8 @@ FILE: client/src/features/Comments/ui/CommentItem.tsx
 ================================================
 // client/src/features/Comments/ui/CommentItem.tsx
 import React from 'react';
-import type { CommentDto } from '../../../shared/api/taskService';
+// ### ИЗМЕНЕНИЕ: Импортируем типы из правильного места ###
+import type { CommentDto } from '../../../shared/api/types';
 import styles from './CommentItem.module.css';
 
 interface CommentItemProps {
@@ -6937,7 +6954,6 @@ const CommentItem: React.FC<CommentItemProps> = ({ comment }) => {
 };
 export default CommentItem;
 
-
 ================================================
 FILE: client/src/features/Comments/ui/CommentList.module.css
 ================================================
@@ -6954,7 +6970,8 @@ FILE: client/src/features/Comments/ui/CommentList.tsx
 ================================================
 // client/src/features/Comments/ui/CommentList.tsx
 import React from 'react';
-import type { CommentDto } from '../../../shared/api/taskService';
+// ### ИЗМЕНЕНИЕ: Импортируем типы из правильного места ###
+import type { CommentDto } from '../../../shared/api/types';
 import CommentItem from './CommentItem';
 import styles from './CommentList.module.css';
 
@@ -6975,7 +6992,6 @@ const CommentList: React.FC<CommentListProps> = ({ comments }) => {
   );
 };
 export default CommentList;
-
 
 ================================================
 FILE: client/src/features/Notifications/api.ts
@@ -7911,9 +7927,9 @@ FILE: client/src/features/TaskDetailModal/ui/TaskDetailModal.tsx
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import type { TaskDto } from '../../../shared/api/projectService';
-import { taskService } from '../../../shared/api/taskService';
-import type { UpdateTaskDto, CommentDto, ApiCommentDto } from '../../../shared/api/taskService';
-import { transformCommentDto } from '../../../shared/api/taskService';
+import { taskService, transformCommentDto } from '../../../shared/api/taskService';
+// ### ИЗМЕНЕНИЕ: Импортируем типы из правильного места ###
+import type { UpdateTaskDto, CommentDto, ApiCommentDto } from '../../../shared/api/types';
 
 import { getTaskComments } from '../../Comments/api';
 import { CommentList, AddCommentForm } from '../../Comments';
@@ -8923,6 +8939,7 @@ FILE: client/src/pages/ProjectSettings/MembersSettingsTab.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { projectService } from '../../shared/api/projectService';
 import type { AllParticipantsDto } from '../../shared/api/types';
+import { Modal } from '../../shared/ui/Modal'; 
 import styles from '../ProjectSettingsPage.module.css';
 
 interface MembersSettingsTabProps {
@@ -8937,6 +8954,10 @@ const MembersSettingsTab: React.FC<MembersSettingsTabProps> = ({ projectId }) =>
   const [addMemberRole, setAddMemberRole] = useState<'editor' | 'viewer'>('editor');
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [addMemberError, setAddMemberError] = useState<string | null>(null);
+
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<AllParticipantsDto | null>(null);
+  const [isRemoving, setIsRemoving] = useState(false);
 
   const fetchParticipants = useCallback(async () => {
     setIsLoading(true);
@@ -8965,7 +8986,12 @@ const MembersSettingsTab: React.FC<MembersSettingsTabProps> = ({ projectId }) =>
     setAddMemberError(null);
     try {
         const newMember = await projectService.addProjectMember(projectId, { email: addMemberEmail, role: addMemberRole });
-        setParticipants(prev => [...prev, newMember].sort((a, b) => a.role === 'owner' ? -1 : 1));
+        // ### ИЗМЕНЕНИЕ: исправлена сортировка, чтобы использовать обе переменные ###
+        setParticipants(prev => [...prev, newMember].sort((a, b) => {
+          if (a.role === 'owner') return -1;
+          if (b.role === 'owner') return 1;
+          return (a.name || a.email).localeCompare(b.name || b.email);
+        }));
         setAddMemberEmail('');
         setAddMemberRole('editor');
     } catch (err: any) {
@@ -8985,15 +9011,25 @@ const MembersSettingsTab: React.FC<MembersSettingsTabProps> = ({ projectId }) =>
     }
   };
 
-  const handleRemoveMember = async (userId: string) => {
-    if (window.confirm("Are you sure you want to remove this member?")) {
-        try {
-            await projectService.removeProjectMember(projectId, userId);
-            setParticipants(prev => prev.filter(p => p.id !== userId));
-            setError(null);
-        } catch (err: any) {
-            setError(err.response?.data?.message || "Failed to remove member.");
-        }
+  const promptRemoveMember = (member: AllParticipantsDto) => {
+    setMemberToRemove(member);
+    setIsConfirmModalOpen(true);
+  };
+
+  const confirmRemoveMember = async () => {
+    if (!memberToRemove) return;
+    setIsRemoving(true);
+    setError(null);
+    try {
+        await projectService.removeProjectMember(projectId, memberToRemove.id);
+        setParticipants(prev => prev.filter(p => p.id !== memberToRemove.id));
+        setIsConfirmModalOpen(false);
+        setMemberToRemove(null);
+    } catch (err: any) {
+        setError(err.response?.data?.message || "Failed to remove member.");
+        setIsConfirmModalOpen(false); 
+    } finally {
+        setIsRemoving(false);
     }
   };
 
@@ -9019,7 +9055,7 @@ const MembersSettingsTab: React.FC<MembersSettingsTabProps> = ({ projectId }) =>
                     <option value="editor">Editor</option>
                     <option value="viewer">Viewer</option>
                   </select>
-                  <button className={`${styles.button} danger`} onClick={() => handleRemoveMember(p.id)}>Remove</button>
+                  <button className={`${styles.button} danger`} onClick={() => promptRemoveMember(p)}>Remove</button>
                 </>
               )}
             </div>
@@ -9040,6 +9076,25 @@ const MembersSettingsTab: React.FC<MembersSettingsTabProps> = ({ projectId }) =>
           </button>
         </div>
       </form>
+
+      <Modal 
+        isOpen={isConfirmModalOpen} 
+        onClose={() => setIsConfirmModalOpen(false)}
+        title="Confirm Removal"
+      >
+        <div>
+          <p>Are you sure you want to remove <strong>{memberToRemove?.name || memberToRemove?.email}</strong> from the project?</p>
+          <div className={styles.formActions}>
+            <button className="button secondary" onClick={() => setIsConfirmModalOpen(false)} disabled={isRemoving}>
+              Cancel
+            </button>
+            <button className="button danger" onClick={confirmRemoveMember} disabled={isRemoving}>
+              {isRemoving ? "Removing..." : "Remove Member"}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
     </div>
   );
 };
@@ -9823,10 +9878,12 @@ FILE: client/src/pages/TaskPage.module.css
 ================================================
 FILE: client/src/pages/TaskPage.tsx
 ================================================
+// client/src/pages/TaskPage.tsx
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { taskService } from '../shared/api/taskService';
-import type { CommentDto } from '../shared/api/taskService';
+// ### ИЗМЕНЕНИЕ: Импортируем типы из правильного места ###
+import type { CommentDto } from '../shared/api/types';
 import type { TaskDto } from '../shared/api/projectService';
 import { CommentList, AddCommentForm } from '../features/Comments';
 import styles from './TaskPage.module.css';
@@ -10214,56 +10271,20 @@ FILE: client/src/shared/api/taskService.ts
 // client/src/shared/api/taskService.ts
 
 import apiClient from './axiosInstance';
-// ### ИЗМЕНЕНИЕ: Импортируем CreateTaskDto из types.ts ###
-import type { TaskDto as FullTaskDto, CreateTaskDto } from './types'; 
+// ### ИЗМЕНЕНИЕ: Импортируем все DTO из types.ts ###
+import type { 
+  TaskDto as FullTaskDto, 
+  CreateTaskDto,
+  UpdateTaskDto,
+  MoveTaskDto,
+  ApiCommentDto,
+  CommentDto,
+  CreateCommentPayloadDto,
+} from './types'; 
 
-// For updating tasks, all fields are optional
-export interface UpdateTaskDto {
-  title?: string;
-  description?: string | null;
-  assigneeId?: string | null;
-  dueDate?: string | null;
-  type?: string | null;
-  priority?: string | null;
-  tags?: string[] | null;
-}
+// ### ИЗМЕНЕНИЕ: Все локальные определения DTO удалены ###
 
-export interface MoveTaskDto {
-  newColumnId: string;
-  newPosition: number;
-}
-
-// DTOs for Comments
-export interface CommentAuthorDto {
-  id: string;
-  name?: string | null;
-  email: string;
-}
-
-export interface ApiCommentDto {
-  id: string;
-  text: string;
-  task_id: string;
-  author_id: string | null;
-  created_at: string;
-  updated_at: string;
-  author?: CommentAuthorDto | null;
-}
-
-export interface CommentDto {
-  id: string;
-  text: string;
-  taskId: string;
-  authorId: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  author?: CommentAuthorDto | null;
-}
-
-export interface CreateCommentPayloadDto {
-  text: string;
-}
-
+// Хелпер для трансформации остается здесь, так как это логика сервиса
 export const transformCommentDto = (apiComment: ApiCommentDto): CommentDto => ({
   ...apiComment,
   taskId: apiComment.task_id,
@@ -10384,7 +10405,6 @@ export interface TaskDto {
   updated_at: string;
 }
 
-// ### НОВОЕ: Тип для создания задачи перенесен сюда ###
 export interface CreateTaskDto {
   title: string;
   description?: string;
@@ -10396,6 +10416,23 @@ export interface CreateTaskDto {
   tags?: string[];
 }
 
+// ### НОВОЕ: Типы для обновления и перемещения задачи перенесены сюда ###
+export interface UpdateTaskDto {
+  title?: string;
+  description?: string | null;
+  assigneeId?: string | null;
+  dueDate?: string | null;
+  type?: string | null;
+  priority?: string | null;
+  tags?: string[] | null;
+}
+
+export interface MoveTaskDto {
+  newColumnId: string;
+  newPosition: number;
+}
+
+
 export interface ColumnDto {
   id: string;
   name: string;
@@ -10405,6 +10442,38 @@ export interface ColumnDto {
   created_at: string;
   updated_at: string;
 }
+
+// --- Типы для Комментариев ---
+export interface CommentAuthorDto {
+  id: string;
+  name?: string | null;
+  email: string;
+}
+
+export interface ApiCommentDto {
+  id: string;
+  text: string;
+  task_id: string;
+  author_id: string | null;
+  created_at: string;
+  updated_at: string;
+  author?: CommentAuthorDto | null;
+}
+
+export interface CommentDto {
+  id: string;
+  text: string;
+  taskId: string;
+  authorId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  author?: CommentAuthorDto | null;
+}
+
+export interface CreateCommentPayloadDto {
+  text: string;
+}
+
 
 // --- Общие типы ---
 
@@ -11803,6 +11872,7 @@ erDiagram
         string email UK
         string name nullable
         string password_hash
+        string role "NOT NULL, DEFAULT 'user'"
         datetime created_at
         datetime updated_at
     }
@@ -11902,6 +11972,7 @@ erDiagram
 | `email`                    | `string`           | `UNIQUE`, `NOT NULL`                                | Электронная почта.                                                        |
 | `name`                     | `string?`          | `NULLABLE`                                          | Имя пользователя.                                                         |
 | `password_hash`            | `string`           | `NOT NULL`                                          | Хеш пароля.                                                               |
+| `role`                     | `string`           | `NOT NULL`, `DEFAULT 'user'`, `INDEX`               | Глобальная роль пользователя (например, 'admin', 'user').                 |
 | **projects**               |                    |                                                     | Проекты или Kanban-доски.                                                 |
 | `id`                       | `Int`              | `PRIMARY KEY`, `SERIAL`                             | Уникальный числовой ID проекта.                                           |
 | `task_prefix`              | `string`           | `UNIQUE`, `NOT NULL`                                | Короткий префикс для задач проекта (например, "PHX").                     |
@@ -12124,62 +12195,64 @@ FILE: docs/Implementation Plan.md
 
 Этот документ описывает последовательность разработки и внедрения функционала. Он служит дорожной картой для команды.
 
-## Этап 1: Стабилизация MVP (ЗАВЕРШЕНО)
+## Этап 1: Базовый MVP и настройка окружения (ЗАВЕРШЕНО)
+- **Статус:** ✅ Выполнено
 
--   **Статус:** ✅ Выполнено
--   **Цель:** Создать работоспособную среду, обеспечить безопасность, устранить технический долг и повысить надежность ядра MVP.
--   **Задачи:**
-    -   [x] Настроить Docker-окружение и CI/CD-скрипты.
-    -   [x] [SECURITY] Включить и настроить систему авторизации CASL.
-    -   [x] [TEST] Написать тесты для `PoliciesGuard`.
-    -   [x] [REFACTOR] Удалить устаревший модуль управления участниками на клиенте.
-    -   [x] [FEAT] Реструктурировать UI страницы настроек проекта с боковой панелью.
-    -   [x] [TEST] Расширить тесты для страницы `ProjectSettingsPage` для покрытия нового UI и логики.
-    -   [x] [CHORE] Очистить кодовую базу от неиспользуемых файлов (`casl.module.ts`, `HomePage.tsx`).
-    -   [x] [REFACTOR] Унифицировать клиентские типы данных API в едином файле.
-    -   [x] [DOCS] Актуализировать документацию (`Contracts.md`, `Implementation Plan.md`).
+## Этап 2: Стабилизация и Устранение Технического Долга (ЗАВЕРШЕНО)
+- **Статус:** ✅ Выполнено
+
+## Этап 3: Повышение Покрытия Тестами (ОТЛОЖЕНО)
+- **Статус:** ⏸️ Отложено
+- **Цель:** Достичь приемлемого уровня покрытия тестами для основных частей системы.
+- **Примечание:** Эта задача будет выполняться параллельно с разработкой нового функционала или после завершения Этапа 5.
 
 ---
 
-## Этап 2: Повышение Качества и Надежности (ТЕКУЩИЙ)
+## Этап 4: Внедрение Платформы Автоматизации (ТЕКУЩИЙ)
+- **Статус:** ⏳ В работе
+- **Цель:** Превратить Mutabor из таск-трекера в платформу для автоматизации разработки путем интеграции с Git, AI и CI/CD.
 
--   **Статус:** ⏳ В работе
--   **Цель:** Достичь приемлемого уровня покрытия тестами для основных частей системы.
--   **Задачи:**
+### Блок 4.1: Основы Git-интеграции и "Артефакты"
+**Цель блока:** Научить систему работать с файлами в репозитории проекта.
 
-| Приоритет | Задача                                                         | Статус | Исполнитель |
-| :-------- | :------------------------------------------------------------- | :----: | :---------- |
-| 🟡 **Высокий**  | [TEST] [API] Повысить покрытие тестами `projects.service.ts`   | `[ ]`  | Backend     |
-| 🟡 **Высокий**  | [TEST] [API] Повысить покрытие тестами `tasks.service.ts`     | `[ ]`  | Backend     |
-| 🟡 **Высокий**  | [TEST] [CLIENT] Написать тесты для страницы `BoardPage`        | `[ ]`  | Frontend    |
-| 🟢 **Средний**  | [TEST] [API] Написать юнит-тесты для `NotificationsService`      | `[ ]`  | Backend     |
+| Исполнитель | Задача                                                                              | Статус |
+|:-----------:|:------------------------------------------------------------------------------------|:------:|
+|   Backend   | `[DB]` Создать миграцию для добавления полей `git_repository_url` и `encrypted_git_pat` в `projects`. |  `[ ]` |
+|   Backend   | `[API]` Реализовать эндпоинты в `ProjectSettingsController` для CRUD-операций с настройками Git.     |  `[ ]` |
+|  Frontend   | `[UI]` В настройках проекта добавить поля для ввода URL репозитория и Personal Access Token. |  `[ ]` |
+|   Backend   | `[CORE]` Создать `GitService` для клонирования/пулла репозиториев и коммита/пуша изменений. |  `[ ]` |
+|   Backend   | `[API]` Создать эндпоинты для чтения/записи файлов в привязанном репозитории.       |  `[ ]` |
+|  Frontend   | `[UI]` Создать виджет `ArtifactEditor` для отображения и редактирования файлов из Git.     |  `[ ]` |
 
----
+### Блок 4.2: AI-Агенты
+**Цель блока:** Внедрить сущность "Агент" и научить систему выполнять LLM-запросы от его имени.
 
-## Этап 3: Функциональные доработки и Бэклог
+| Исполнитель | Задача                                                                              | Статус |
+|:-----------:|:------------------------------------------------------------------------------------|:------:|
+|   Backend   | `[DB]` Создать миграцию для таблицы `agent_configs` и добавить `role='agent'` в `users`. |  `[ ]` |
+|   Backend   | `[CORE]` Создать `AgentsService` для управления агентами.                               |  `[ ]` |
+|   Backend   | `[API]` Модифицировать `AiService` для работы с конфигурацией конкретного агента.     |  `[ ]` |
+|  Frontend   | `[UI]` Создать вкладку "Agents" в настройках проекта для CRUD-операций с агентами.    |  `[ ]` |
 
--   **Статус:** 📋 В планах
--   **Цель:** Реализовать оставшийся второстепенный функционал и исправить некритичные баги.
--   **Задачи:**
+### Блок 4.3: Ядро Автоматизации
+**Цель блока:** Создать движок для выполнения цепочек действий по триггерам.
 
-| Приоритет | Задача                                                               | Статус | Исполнитель |
-| :-------- | :------------------------------------------------------------------- | :----: | :---------- |
-| 🟢 **Средний**  | [FEATURE] [API] Реализовать эндпоинт "отметить все как прочитанное" | `[x]`  | Backend     |
-| 🟢 **Средний**  | [FEATURE] [CLIENT] Добавить кнопку "отметить все как прочитанное" | `[x]`  | Frontend    |
-| 🔵 **Низкий**   | [CHORE] Дальнейшая очистка "мертвого" кода и рефакторинг | `[ ]`  | Backend/FE  |
+| Исполнитель | Задача                                                                              | Статус |
+|:-----------:|:------------------------------------------------------------------------------------|:------:|
+|   Backend   | `[DB]` Создать миграции для таблиц `automations` и `automation_actions`.            |  `[ ]` |
+|   Backend   | `[CORE]` Создать `AutomationService` для выполнения цепочек действий.                   |  `[ ]` |
+|   Backend   | `[CORE]` В `TasksService` интегрировать вызов `AutomationService` при смене колонки.    |  `[ ]` |
+|  Frontend   | `[UI]` Создать вкладку "Automations" в настройках проекта с конструктором цепочек.    |  `[ ]` |
 
+### Блок 4.4: Интеграция с CI/CD
+**Цель блока:** Реализовать безопасный запуск тестов через внешние системы.
 
----
-
-## Этап 4: Будущие возможности (AI)
-
--   **Статус:** 💤 Отложено
--   **Цель:** Подготовить почву для интеграции AI-функций.
--   **Задачи:**
-
-| Приоритет | Задача                                       | Статус | Исполнитель |
-| :-------- | :------------------------------------------- | :----: | :---------- |
-| 🔵 **Низкий**   | [FEATURE] [API] Включить AI-модуль в сборку | `[ ]`  | Backend     |
+| Исполнитель | Задача                                                                              | Статус |
+|:-----------:|:------------------------------------------------------------------------------------|:------:|
+|   Backend   | `[CORE]` В `AutomationService` реализовать действие `RUN_CI_PIPELINE` (отправка вебхука). |  `[ ]` |
+|   Backend   | `[API]` Создать эндпоинт для приема колбэков от CI/CD систем.                         |  `[ ]` |
+|   Backend   | `[CORE]` Реализовать логику обработки колбэка (комментарий в задачу, перемещение).   |  `[ ]` |
+|  Frontend   | `[UI]` В конструкторе автоматизаций добавить настройку для действия `RUN_CI_PIPELINE`. |  `[ ]` |
 
 
 ================================================
@@ -12271,37 +12344,37 @@ FILE: docs/Solution Design.md
 
 ## 1. Цель
 
-Создать интеллектуальный таск-менеджер "Mutabor" в формате веб-приложения. Продукт предназначен для небольших команд (2-15 человек), которым нужен простой инструмент для визуализации рабочих процессов на Kanban-доске и эффективной совместной работы.
+Создать интеллектуальную платформу для автоматизации разработки (Developer Platform), построенную вокруг Kanban-доски. Продукт предназначен для небольших команд (2-15 человек), которые хотят не просто отслеживать задачи, а автоматизировать рутинные процессы разработки, тестирования и документирования с помощью настраиваемых AI-агентов и Git-интеграции.
 
 ## 2. Ключевые особенности и УТП
 
-### 2.1. Классический Kanban
-- **Проекты (Доски):** Пространства для организации задач.
-- **Колонки (Статусы):** Настраиваемые этапы рабочего процесса.
-- **Задачи (Карточки):** Атомарные рабочие элементы с настраиваемыми типами.
+### 2.1. Kanban-доска как центр управления
+- **Проекты (Доски):** Пространства для организации задач, каждый из которых привязан к собственному Git-репозиторию.
+- **Колонки (Статусы):** Настраиваемые этапы жизненного цикла задачи.
+- **Задачи (Карточки):** Атомарные рабочие элементы, являющиеся контейнерами для "артефактов".
 
-### 2.2. Функции для совместной работы
-- **Ролевая модель:** `owner` (владелец, полный доступ), `editor` (участник, может управлять задачами и комментариями), `viewer` (только просмотр, в будущем).
-- **Назначение исполнителей:** У каждой задачи может быть один ответственный.
-- **Комментарии и @упоминания:** Обсуждение задач с real-time уведомлениями.
+### 2.2. GitOps: Репозиторий как единственный источник истины
+- **Артефакты в Git:** Весь контекст задачи (ТЗ, код, документация, тесты) хранится не в базе данных, а в файлах Git-репозитория проекта. Mutabor работает с этими файлами напрямую.
+- **Коммиты от имени агентов:** Все изменения, внесенные AI-агентами, коммитятся в репозиторий, обеспечивая полную прозрачность и историю изменений.
 
-### 2.3. УТП: AI-ассистент "Mutabor AI"
-- **Умная декомпозиция задач:** Разбиение общей задачи на конкретные подзадачи.
-- **Автоматические саммари:** Генерация краткого содержания длинных переписок.
+### 2.3. УТП: Настраиваемая AI-автоматизация
+- **Системные AI-агенты:** В Mutabor "агент" — это системный пользователь с настраиваемым AI-профилем (провайдер, модель, ключ, системный промпт). Агенты могут быть назначены на задачи, оставлять комментарии и изменять артефакты в Git.
+- **Конструктор автоматизаций:** Пользователи могут без кода настраивать цепочки "Триггер -> Действия" для каждой колонки на доске.
+- **Безопасная интеграция с CI/CD:** Запуск тестов и других пайплайнов делегируется внешней CI/CD системе (например, GitLab CI) через механизм вебхуков, что обеспечивает безопасность и гибкость.
 
 ## 3. Ограничения
 
 - **Платформа:** Веб-приложение.
-- **Производительность:** Отклик интерфейса < 200 мс, загрузка доски < 2 сек.
+- **Производительность:** Отклик интерфейса < 200 мс. Операции с Git и AI выполняются асинхронно в фоновом режиме.
 - **Надежность:** Uptime сервиса — 99.8%. Данные не должны теряться.
-- **Зависимость от AI:** Предусмотрена корректная работа приложения при недоступности AI-сервиса.
 
 ## 4. Ожидаемый результат
 
-- **Функциональное веб-приложение** с базовым Kanban-функционалом и ролевой моделью.
-- **Интеграционный модуль** для взаимодействия с внешними AI-провайдерами.
+- **Функциональное веб-приложение** с Kanban-доской, интегрированной с Git.
+- **Модульная система** для определения и запуска автоматизаций.
+- **Интерфейс для управления** проектами, репозиториями, агентами и автоматизациями.
 - **Четкий, версионированный RESTful API (`/api/v1`)** с документацией (Swagger).
-- **Real-time обновления** интерфейса через WebSockets.
+- **Real-time обновления** через WebSockets для отслеживания статуса автоматизаций.
 
 ## 5. Архитектура и Технологии
 
@@ -12309,6 +12382,8 @@ FILE: docs/Solution Design.md
 - **Backend:** Nest.js.
 - **База данных:** PostgreSQL (миграции через Liquibase).
 - **Real-time:** Socket.IO.
+- **Git-интеграция:** Библиотека `simple-git` на бэкенде.
+- **CI/CD Интеграция:** Webhooks (приоритетная поддержка для GitLab CI).
 
 ## 6. Ключевые сущности данных (Data Model)
 
@@ -12316,18 +12391,42 @@ FILE: docs/Solution Design.md
 
 ## 7. Основные флоу (User & System Flows)
 
-### Флоу 1: Создание задачи (с проверкой прав)
-1.  **Пользователь (`editor` или `owner`)** кликает "Добавить задачу" в колонке.
-2.  **Frontend** отправляет `POST /api/v1/projects/{projectId}/tasks` запрос.
-3.  **Backend** (`PoliciesGuard`) проверяет, имеет ли пользователь право `CanEditProjectContent`.
-4.  Если да, **Backend** создает задачу в БД.
-5.  **Backend** через WebSocket рассылает событие `task:created` всем участникам проекта.
+### Флоу: Автоматическое тестирование и деплой кода
 
-### Флоу 2: Изменение настроек проекта
-1.  **Пользователь (`owner`)** пытается изменить название проекта.
-2.  **Frontend** отправляет `PUT /api/v1/projects/{id}/settings`.
-3.  **Backend** (`PoliciesGuard`) проверяет право `CanManageProjectSettings`.
-4.  **Пользователь (`editor`)** пытается сделать то же самое. `PoliciesGuard` отклоняет запрос с ошибкой 403 Forbidden.
+**Цель:** Продемонстрировать полный цикл автоматизации от написания кода до его тестирования.
+
+```mermaid
+graph TD
+    subgraph "Mutabor UI"
+        A[Разработчик перемещает задачу из 'In Development' в 'Ready for Test']
+    end
+
+    subgraph "Mutabor Backend"
+        B(AutomationService: Сработал триггер 'ON_ENTER' для колонки 'Ready for Test')
+        C{Найдено действие 'RUN_CI_PIPELINE'}
+        D[Отправляет POST-запрос на Webhook URL пользователя в GitLab CI]
+    end
+
+    subgraph "GitLab CI/CD (инфраструктура пользователя)"
+        E[Получает Webhook. Запускает CI пайплайн]
+        F[1. Checkout ветки<br/>2. npm install<br/>3. npm test]
+        G{Тесты прошли успешно?}
+        H[Отправляет POST-запрос на Callback URL в Mutabor с результатом 'success']
+        I[Отправляет POST-запрос на Callback URL в Mutabor с результатом 'failure' и логами]
+    end
+    
+    subgraph "Mutabor Backend (реакция на Callback)"
+       J[Получает результат от CI/CD]
+       K[Агент 'QA Bot' оставляет комментарий в задаче: '✅ Тесты успешно пройдены.']
+       L[Агент 'QA Bot' оставляет комментарий: '❌ Тесты провалены.' и прикрепляет лог]
+       M[Автоматически перемещает задачу в 'Ready for Deploy']
+       N[Автоматически перемещает задачу обратно в 'In Development']
+    end
+
+    A --> B --> C --> D --> E --> F --> G;
+    G -- Да --> H --> J --> K --> M;
+    G -- Нет --> I --> J --> L --> N;
+```
 
 
 ================================================

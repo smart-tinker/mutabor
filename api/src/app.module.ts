@@ -12,8 +12,7 @@ import { CommentsModule } from './comments/comments.module';
 import { PoliciesGuard } from './casl/policies.guard';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
-// ### ИЗМЕНЕНИЕ: Убран импорт AiModule и CaslModule (который был закомментирован ранее) ###
-// import { AiModule } from './ai/ai.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -26,7 +25,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     ProjectsModule,
     TasksModule,
     CommentsModule,
-    // ### ИЗМЕНЕНИЕ: AiModule и CaslModule удалены из импортов ###
+    AiModule,
     EventsModule,
     NotificationsModule,
   ],

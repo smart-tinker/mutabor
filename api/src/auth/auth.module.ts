@@ -12,7 +12,6 @@ import { ProfileController } from './profile.controller';
   imports: [
     ConfigModule,
     PassportModule.register({ session: false }),
-    // ### ИЗМЕНЕНИЕ: Настраиваем JwtModule, чтобы он знал о секретном ключе ###
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({

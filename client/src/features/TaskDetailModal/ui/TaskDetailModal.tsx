@@ -3,7 +3,6 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import type { TaskDto } from '../../../shared/api/projectService';
 import { taskService, transformCommentDto } from '../../../shared/api/taskService';
-// ### ИЗМЕНЕНИЕ: Импортируем типы из правильного места ###
 import type { UpdateTaskDto, CommentDto, ApiCommentDto } from '../../../shared/api/types';
 
 import { getTaskComments } from '../../Comments/api';
@@ -244,7 +243,6 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, onClose
           </div>
         </>
         <div className={styles.modalActions}>
-          {/* ### ИЗМЕНЕНИЕ: Ссылка теперь указывает на правильный маршрут /tasks/HID ### */}
           <Link to={`/tasks/${task.human_readable_id}`} className={`${styles.button} ${styles.buttonLink}`}>
             Open in New Page
           </Link>

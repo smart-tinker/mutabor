@@ -2,14 +2,11 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { taskService } from '../shared/api/taskService';
-// ### ИЗМЕНЕНИЕ: Импортируем типы из правильного места ###
-import type { CommentDto } from '../shared/api/types';
-import type { TaskDto } from '../shared/api/projectService';
+import type { CommentDto, TaskDto } from '../shared/api/types';
 import { CommentList, AddCommentForm } from '../features/Comments';
 import styles from './TaskPage.module.css';
 
 const TaskPage: React.FC = () => {
-  // ### ИЗМЕНЕНИЕ: Получаем taskHid из URL
   const { taskHid } = useParams<{ taskHid: string }>();
   const [task, setTask] = useState<TaskDto | null>(null);
   const [comments, setComments] = useState<CommentDto[]>([]);
@@ -22,11 +19,9 @@ const TaskPage: React.FC = () => {
       setIsLoading(true);
       setError(null);
       try {
-        // ### ИЗМЕНЕНИЕ: Вызываем правильный метод для получения задачи по HID
         const taskData = await taskService.getTaskByHumanId(taskHid);
         setTask(taskData);
 
-        // ### ИЗМЕНЕНИЕ: Получаем комментарии после того, как получили задачу и ее UUID
         const commentsData = await taskService.getTaskComments(taskData.id);
         setComments(commentsData);
 

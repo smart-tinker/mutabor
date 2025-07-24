@@ -1,3 +1,4 @@
+// api/src/tasks/tasks.controller.spec.ts
 import { Test, TestingModule } from '@nestjs/testing';
 import { TasksController } from './tasks.controller';
 import { TasksService } from './tasks.service';
@@ -7,7 +8,6 @@ import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { PoliciesGuard } from '../casl/policies.guard';
 import { ProjectsService } from '../projects/projects.service';
 
-// ### ИЗМЕНЕНИЕ: Добавлено поле role ###
 const mockUser: AuthenticatedUser = { id: 'user-1', email: 'test@example.com', name: 'Test User', role: 'user' };
 const mockTask: TaskRecord = { id: 'task-1', human_readable_id: 'TP-1', task_number: 1, title: 'Test Task', description: null, position: 0, project_id: 1, column_id: 'col-1', assignee_id: null, creator_id: 'user-1', due_date: null, created_at: new Date(), updated_at: new Date(), type: null, priority: null, tags: null };
 
@@ -24,6 +24,11 @@ const mockProjectsService = {
   getUserRoleForProject: jest.fn().mockResolvedValue('owner'),
 };
 
+const mockTasksServiceWithHRI = {
+    ...mockTasksService,
+    getProjectIdByHumanId: jest.fn().mockResolvedValue(1)
+};
+
 describe('TasksController', () => {
   let controller: TasksController;
   let service: TasksService;
@@ -33,7 +38,7 @@ describe('TasksController', () => {
       controllers: [TasksController],
       providers: [
         PoliciesGuard,
-        { provide: TasksService, useValue: mockTasksService },
+        { provide: TasksService, useValue: mockTasksServiceWithHRI },
         { provide: ProjectsService, useValue: mockProjectsService },
       ],
     })

@@ -1,11 +1,9 @@
 // api/src/tasks/tasks.module.ts
-
 import { Module, forwardRef } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { TasksController } from './tasks.controller';
 import { EventsModule } from '../events/events.module';
 import { CommentsModule } from '../comments/comments.module';
-// ### ИЗМЕНЕНИЕ: Закомментированный импорт CaslModule удален ###
 import { KnexModule } from '../knex/knex.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ProjectsModule } from '../projects/projects.module';
@@ -16,7 +14,6 @@ import { ProjectsModule } from '../projects/projects.module';
     EventsModule,
     CommentsModule,
     NotificationsModule,
-    // ### ИЗМЕНЕНИЕ: Закомментированный импорт CaslModule удален ###
     forwardRef(() => ProjectsModule),
   ],
   controllers: [TasksController],

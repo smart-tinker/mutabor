@@ -1,5 +1,4 @@
 // client/src/features/Comments/api.ts
-// ### ИЗМЕНЕНИЕ: Убран неиспользуемый импорт projectService и добавлен нужный taskService ###
 import { taskService } from '../../shared/api/taskService';
 import type { CreateCommentPayloadDto, CommentDto } from '../../shared/api/types';
 

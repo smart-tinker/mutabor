@@ -3,7 +3,6 @@ import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagg
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AiService } from './ai.service';
 import { UpdateAiSettingsDto } from './dto/update-ai-settings.dto';
-// ### ИЗМЕНЕНИЕ: Импортируем нужные декораторы и политики ###
 import { CheckPolicies } from '../casl/check-policies.decorator';
 import { CanManageProjectSettingsPolicy } from '../casl/project-policies.handler';
 import { AssistRequestDto } from './dto/assist-request.dto';
@@ -25,15 +24,11 @@ export class AiController {
     @Body() assistRequestDto: AssistRequestDto,
     @Req() req,
   ) {
-    // Примечание: проверка прав доступа для этой операции (CanEditProjectContent)
-    // выполняется внутри aiService.handleAssistRequest, так как гварду сложно
-    // анализировать тело запроса для получения ID задачи.
     return this.aiService.handleAssistRequest(assistRequestDto, req.user);
   }
 
   @Get('projects/:projectId/ai/settings')
   @ApiOperation({ summary: "Get a project's AI provider settings" })
-  // ### НОВОЕ: Эндпоинт защищен политикой ###
   @CheckPolicies(CanManageProjectSettingsPolicy)
   async getAiSettings(@Param('projectId', ParseIntPipe) projectId: number) {
     return this.aiService.getSettingsForProject(projectId);
@@ -41,7 +36,6 @@ export class AiController {
 
   @Put('projects/:projectId/ai/settings')
   @ApiOperation({ summary: "Update a project's AI provider settings" })
-  // ### НОВОЕ: Эндпоинт защищен политикой ###
   @CheckPolicies(CanManageProjectSettingsPolicy)
   async updateAiSettings(
     @Param('projectId', ParseIntPipe) projectId: number,
@@ -52,7 +46,6 @@ export class AiController {
 
   @Get('projects/:projectId/ai/models')
   @ApiOperation({ summary: 'List available models from the configured AI provider' })
-  // ### НОВОЕ: Эндпоинт защищен политикой ###
   @CheckPolicies(CanManageProjectSettingsPolicy)
   async listModels(@Param('projectId', ParseIntPipe) projectId: number) {
     return this.aiService.listModelsForProject(projectId);

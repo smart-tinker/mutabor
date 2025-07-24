@@ -7,15 +7,19 @@ import path from 'path';
 export default defineConfig({
   plugins: [react()],
   server: {
-    // ### ИЗМЕНЕНИЕ: Явно указываем Vite использовать порт 3000 ###
-    // Это нужно, чтобы он соответствовал настройке "ports" в docker-compose.dev.yml ("8080:3000")
     port: 3000,
     watch: {
-      // Эта настройка остается - она важна для стабильности в monorepo
       ignored: [
         path.resolve(__dirname, '../api/dist/**'),
       ],
     },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '/api'),
+      }
+    }
   },
   test: {
     globals: true,

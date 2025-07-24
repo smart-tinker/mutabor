@@ -1,3 +1,4 @@
+// api/src/auth/profile.controller.ts
 import { Controller, Get, UseGuards, Patch, Body, Post, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -10,7 +11,6 @@ import { AuthService } from './auth.service';
 @ApiBearerAuth()
 @ApiTags('Profile')
 @UseGuards(JwtAuthGuard)
-// ### ИЗМЕНЕНИЕ: Добавляем префикс /api/v1 ###
 @Controller('api/v1/profile')
 export class ProfileController {
   constructor(private authService: AuthService) {}

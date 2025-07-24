@@ -1,8 +1,7 @@
 // client/src/pages/ProjectSettingsPage.tsx
-
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
-import { projectService } from '../shared/api/projectService'; // ### ИЗМЕНЕНИЕ: Исправлен путь ###
+import { useParams, useSearchParams, Link } from 'react-router-dom';
+import { projectService } from '../shared/api/projectService';
 import type { ProjectSettingsResponse } from '../shared/api/types';
 import GeneralSettingsTab from './ProjectSettings/GeneralSettingsTab';
 import MembersSettingsTab from './ProjectSettings/MembersSettingsTab';
@@ -12,7 +11,7 @@ import styles from './ProjectSettingsPage.module.css';
 
 const ProjectSettingsPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'general';
 
   const [settings, setSettings] = useState<ProjectSettingsResponse | null>(null);
@@ -71,22 +70,22 @@ const ProjectSettingsPage: React.FC = () => {
   if (error || !settings) return <div className={styles.error}>{error || 'Project not found.'}</div>;
   
   return (
-    <div>
+    <div className={styles.settingsPage}>
       <h1>Project Settings: {settings.name}</h1>
       <div className={styles.settingsLayout}>
         <aside className={styles.sidebar}>
           <ul className={styles.sidebarNav}>
             <li className={styles.navItem}>
-              <a href="#general" onClick={(e) => { e.preventDefault(); setSearchParams({ tab: 'general' }); }} className={activeTab === 'general' ? styles.active : ''}>General</a>
+              <Link to="?tab=general" className={activeTab === 'general' ? styles.active : ''}>General</Link>
             </li>
             <li className={styles.navItem}>
-              <a href="#statuses" onClick={(e) => { e.preventDefault(); setSearchParams({ tab: 'statuses' }); }} className={activeTab === 'statuses' ? styles.active : ''}>Statuses</a>
+              <Link to="?tab=statuses" className={activeTab === 'statuses' ? styles.active : ''}>Statuses</Link>
             </li>
             <li className={styles.navItem}>
-              <a href="#types" onClick={(e) => { e.preventDefault(); setSearchParams({ tab: 'types' }); }} className={activeTab === 'types' ? styles.active : ''}>Types</a>
+              <Link to="?tab=types" className={activeTab === 'types' ? styles.active : ''}>Types</Link>
             </li>
             <li className={styles.navItem}>
-              <a href="#members" onClick={(e) => { e.preventDefault(); setSearchParams({ tab: 'members' }); }} className={activeTab === 'members' ? styles.active : ''}>Members</a>
+              <Link to="?tab=members" className={activeTab === 'members' ? styles.active : ''}>Members</Link>
             </li>
           </ul>
         </aside>

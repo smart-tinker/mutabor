@@ -1,7 +1,6 @@
 // client/src/shared/api/taskService.ts
 
 import apiClient from './axiosInstance';
-// ### ИЗМЕНЕНИЕ: Импортируем все DTO из types.ts ###
 import type { 
   TaskDto as FullTaskDto, 
   CreateTaskDto,
@@ -11,8 +10,6 @@ import type {
   CommentDto,
   CreateCommentPayloadDto,
 } from './types'; 
-
-// ### ИЗМЕНЕНИЕ: Все локальные определения DTO удалены ###
 
 // Хелпер для трансформации остается здесь, так как это логика сервиса
 export const transformCommentDto = (apiComment: ApiCommentDto): CommentDto => ({

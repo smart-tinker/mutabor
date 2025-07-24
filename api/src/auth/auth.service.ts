@@ -15,7 +15,6 @@ export class AuthService {
   constructor(
     @Inject(KNEX_CONNECTION) private readonly knex: Knex,
     private readonly jwtService: JwtService,
-    // ### ИЗМЕНЕНИЕ: ConfigService больше не нужен здесь напрямую ###
   ) {}
 
   async validateUser(email: string, pass: string): Promise<UserRecord | null> {
@@ -42,7 +41,6 @@ export class AuthService {
     }
     const payload = { email: user.email, sub: user.id, name: user.name };
     return {
-      // ### ИЗМЕНЕНИЕ: Просто используем JwtService, он уже настроен с секретом ###
       access_token: this.jwtService.sign(payload),
     };
   }

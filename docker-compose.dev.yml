@@ -10,13 +10,10 @@ services:
       api:
         condition: service_started
     environment:
-      - VITE_API_URL=http://localhost:8081
       - CHOKIDAR_USEPOLLING=true
     volumes:
       - ./client:/app
       - /app/node_modules
-    # ### ИЗМЕНЕНИЕ: Секция healthcheck удалена для dev-режима клиента ###
-    # Это уберет "unhealthy" статус, который нерелевантен для Vite dev server.
 
   api:
     build:

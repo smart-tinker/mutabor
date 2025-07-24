@@ -33,7 +33,7 @@ export class PoliciesGuard implements CanActivate {
       throw new InternalServerErrorException('PoliciesGuard used without a valid user context. Ensure JwtAuthGuard runs first.');
     }
     
-    if ((user as any).role === 'admin') {
+    if (user.role === 'admin') {
       return true;
     }
 
